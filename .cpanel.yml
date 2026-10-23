@@ -1,8 +1,6 @@
 ---
 deployment:
   tasks:
-    # 将下方 DEPLOYPATH 修改为你 cPanel 中子域名对应的文件夹路径
-    # 例如：export DEPLOYPATH=/home/你的cPanel用户名/public_html/你的子域名
-    # 或者：export DEPLOYPATH=/home/你的cPanel用户名/你的子域名
-    - export DEPLOYPATH=$HOME/public_html
+    - export DEPLOYPATH=/home2/makerklu/eduagent.makerkluang.com
+    - /bin/mkdir -p $DEPLOYPATH
     - /bin/cp -R out/. $DEPLOYPATH
