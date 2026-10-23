@@ -24,7 +24,7 @@ import {
 import { initializeSimulationState, advanceTick, applyDispatchActionsToState, startNextDayShift } from '../lib/simulation';
 import { runAgentDispatchCycle } from '../lib/agentEngine';
 import { Language } from '../lib/i18n';
-import { CITIES_DATA } from '../lib/cityData';
+import { CITIES_DATA, getCitySectorStatus } from '../lib/cityData';
 
 function applyInfrastructureActions(state: SimulationState, actions?: InfrastructureAction[]): SimulationState {
   if (!actions || actions.length === 0) return state;
@@ -800,9 +800,36 @@ export function useSimulation(initialScenario: GameScenario = DEFAULT_SCENARIOS[
         chargingRatePerTick: 7.0
       };
 
+      const city = CITIES_DATA[prev.currentCityId] || CITIES_DATA.singapore;
+      const prevSectorStatus = getCitySectorStatus(city, prev.hubs);
+      const nextHubs = [...prev.hubs, newHub];
+      const nextSectorStatus = getCitySectorStatus(city, nextHubs);
+
       const logMsg = isZh
         ? `【投资建站】全城新网点 [${name}] 正式竣工通电运营！耗资: -$${price}。有效辐射周边区域配送！`
         : `[NEW HUB CONSTRUCTED] [${name}] completed and energized! Cost: -$${price}. Network radius expanded!`;
+
+      const newLogs = [
+        {
+          id: `buildhub-${prev.tick}-${Date.now()}`,
+          type: 'observe' as const,
+          timestamp: formatSimTimestamp(prev.tick),
+          tick: prev.tick,
+          content: logMsg
+        }
+      ];
+
+      if (nextSectorStatus.unlockedSector > prevSectorStatus.unlockedSector) {
+        newLogs.unshift({
+          id: `sector-unlock-${prev.tick}-${Date.now()}`,
+          type: 'observe' as const,
+          timestamp: formatSimTimestamp(prev.tick),
+          tick: prev.tick,
+          content: isZh
+            ? `🗺️🎉【城市版图扩张·第 ${nextSectorStatus.unlockedSector} 区已解锁！】恭喜！第 ${prevSectorStatus.unlockedSector} 区的全部枢纽已建满，正式解锁「${nextSectorStatus.currentSectorNameZh}」！地图已自动推开并标出新区域的 ➕ 建站点 位置！`
+            : `🗺️🎉 [CITY SECTOR ${nextSectorStatus.unlockedSector} UNLOCKED!] All hubs in Sector ${prevSectorStatus.unlockedSector} completed! Unlocked [${nextSectorStatus.currentSectorNameEn}] with ${nextSectorStatus.availableBuildNodes.length} new ➕ BUILD HUB sites on the map!`
+        });
+      }
 
       return {
         ...prev,
@@ -811,17 +838,8 @@ export function useSimulation(initialScenario: GameScenario = DEFAULT_SCENARIOS[
           balance: prev.financials.balance - price,
           totalExpenses: prev.financials.totalExpenses + price
         },
-        hubs: [...prev.hubs, newHub],
-        thoughtLogs: [
-          {
-            id: `buildhub-${prev.tick}-${Date.now()}`,
-            type: 'observe',
-            timestamp: formatSimTimestamp(prev.tick),
-            tick: prev.tick,
-            content: logMsg
-          },
-          ...prev.thoughtLogs
-        ]
+        hubs: nextHubs,
+        thoughtLogs: [...newLogs, ...prev.thoughtLogs]
       };
     });
   }, []);

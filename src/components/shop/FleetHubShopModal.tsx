@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { SimulationState, DeliveryRobot, Hub } from '../../lib/types';
 import { ROBOT_SHOP_CONFIG, UPGRADE_PRICES } from '../../lib/constants';
-import { CITIES_DATA } from '../../lib/cityData';
+import { CITIES_DATA, getCitySectorStatus } from '../../lib/cityData';
 import { Language } from '../../lib/i18n';
 
 interface FleetHubShopModalProps {
@@ -55,10 +55,9 @@ export const FleetHubShopModal: React.FC<FleetHubShopModalProps> = ({
   const currentCity = CITIES_DATA[state.currentCityId] || CITIES_DATA.singapore;
   const selectedRobot = state.robots.find(r => r.id === selectedRobotId) || state.robots[0];
 
-  // Candidates for building new hubs from city road nodes not already used by hubs
-  const candidateNodes = currentCity.roadNodes.filter(node => {
-    return !state.hubs.some(h => Math.abs((h.position.lat || 0) - node.lat) < 0.003 && Math.abs((h.position.lng || 0) - node.lng) < 0.003);
-  });
+  // Progressive Sector Candidates for building new hubs
+  const sectorStatus = getCitySectorStatus(currentCity, state.hubs);
+  const candidateNodes = sectorStatus.availableBuildNodes;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200 select-none">
@@ -508,8 +507,8 @@ export const FleetHubShopModal: React.FC<FleetHubShopModalProps> = ({
 
                 <p className="text-[11px] text-slate-400 leading-relaxed">
                   {isZh
-                    ? '在城市高客流核心节点建立全新充电枢纽，扩大全城电量辐射半径，减少机器人长途返航耗电。'
-                    : 'Place a new hub at high-density city corridors to expand network coverage and reduce deadhead mileage.'}
+                    ? `当前开放：${sectorStatus.currentSectorNameZh}（本区进度 ${sectorStatus.currentSectorBuilt}/${sectorStatus.currentSectorTotal} 座）。建满当前区域全部站点后，将自动解锁下一扩张区域！`
+                    : `Active: ${sectorStatus.currentSectorNameEn} (${sectorStatus.currentSectorBuilt}/${sectorStatus.currentSectorTotal} built). Complete all hubs in the current sector to unlock the next district!`}
                 </p>
 
                 {candidateNodes.length > 0 ? (
@@ -519,10 +518,10 @@ export const FleetHubShopModal: React.FC<FleetHubShopModalProps> = ({
                       onChange={(e) => setNewHubName(e.target.value)}
                       className="flex-1 bg-slate-950 border border-slate-700 text-slate-200 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-purple-500"
                     >
-                      <option value="">{isZh ? '-- 选择建站地段节点 --' : '-- Select City Corridor Node --'}</option>
+                      <option value="">{isZh ? '-- 选择当前已解锁区域的建站节点 --' : '-- Select Unlocked Sector Node --'}</option>
                       {candidateNodes.map(node => (
                         <option key={node.id} value={node.id}>
-                          {isZh ? node.nameZh : node.name} ({node.lat.toFixed(4)}, {node.lng.toFixed(4)})
+                          [{isZh ? `第${node.sector || 1}区` : `Sector ${node.sector || 1}`}] {isZh ? node.nameZh : node.name}
                         </option>
                       ))}
                     </select>

@@ -13,7 +13,7 @@ import {
 } from './types';
 import { COSTS, ROBOT_PARAMS, TICKS_PER_DAY, formatSimTimestamp } from './constants';
 import { createEmptyGrid, applyTrafficHotspots, DEFAULT_SCENARIOS } from './defaultScenarios';
-import { CITIES_DATA } from './cityData';
+import { CITIES_DATA, getCitySectorStatus } from './cityData';
 import { findNearestHub, findCityRoadPath, findPathAStar } from './pathfinding';
 import { parsePromptDirectives } from './agentEngine';
 
@@ -232,10 +232,12 @@ export function startNextDayShift(state: SimulationState): SimulationState {
     };
   });
 
-  // Determine how many orders to generate for today's shift (all visible at 08:00 AM!)
-  const dailyOrderCount = lvl === 1 ? 3 : (lvl === 2 ? 6 : Math.min(10, 6 + readyRobots.length));
+  // Determine how many orders to generate for today's shift (all visible at 08:00 AM across unlocked sectors!)
+  const sectorStatus = getCitySectorStatus(city, state.hubs);
+  const activeSectorNodes = sectorStatus.unlockedNodes.length > 0 ? sectorStatus.unlockedNodes : city.roadNodes;
+  const dailyOrderCount = lvl === 1 ? 3 : (lvl === 2 ? 6 : Math.min(12, 5 + readyRobots.length + sectorStatus.unlockedSector));
   const newDailyOrders: Order[] = Array.from({ length: dailyOrderCount }, (_, idx) => {
-    const randomNode = city.roadNodes[(nextDay * 3 + idx * 2) % city.roadNodes.length];
+    const randomNode = activeSectorNodes[(nextDay * 3 + idx * 2) % activeSectorNodes.length];
     const assignedHub = state.hubs[(nextDay + idx) % state.hubs.length] || state.hubs[0];
     const reward = (lvl === 1 ? 55 : (lvl === 2 ? 70 : 85)) + (idx % 4) * 15;
     // SLA deadline is within today's 08:00 - 18:00 shift (tick dayStartTick + 55 .. dayEndTick)

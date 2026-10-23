@@ -7,6 +7,88 @@ export interface RoadNode {
   lat: number;
   lng: number;
   neighbors: string[]; // Connected road node IDs
+  sector?: 1 | 2 | 3 | 4; // Progressive district expansion sector (1 -> 2 -> 3 -> 4)
+}
+
+export const CITY_SECTOR_NAMES: Record<string, Record<1 | 2 | 3 | 4, { en: string; zh: string }>> = {
+  singapore: {
+    1: { en: 'Sector 1: Marina Bay Financial Core', zh: '一区：滨海湾金融核心区' },
+    2: { en: 'Sector 2: Civic District & Suntec Belt', zh: '二区：市政厅与新达城片区' },
+    3: { en: 'Sector 3: Chinatown, Clarke Quay & Orchard', zh: '三区：牛车水与乌节商业走廊' },
+    4: { en: 'Sector 4: Greater Metropolis (Bugis, Novena & Outram)', zh: '四区：大都会外环拓建区 (武吉士/诺维娜/欧南园)' }
+  },
+  tokyo: {
+    1: { en: 'Sector 1: Shibuya Crossing Core', zh: '一区：涩谷中心街核心区' },
+    2: { en: 'Sector 2: Omotesando & Harajuku Belt', zh: '二区：表参道与原宿时尚走廊' },
+    3: { en: 'Sector 3: Roppongi Hills & Midtown', zh: '三区：六本木之丘与东京中城' },
+    4: { en: 'Sector 4: Greater Metropolis (Ebisu, Daikanyama & Akasaka)', zh: '四区：大都会外环拓建区 (惠比寿/代官山/赤坂)' }
+  },
+  newyork: {
+    1: { en: 'Sector 1: Times Square & Broadway Core', zh: '一区：时代广场与百老汇核心区' },
+    2: { en: 'Sector 2: Fifth Ave & Grand Central East', zh: '二区：第五大道与大中央车站片区' },
+    3: { en: 'Sector 3: Penn Station & Hudson Yards', zh: '三区：帝国大厦与哈德逊园区' },
+    4: { en: 'Sector 4: Greater Midtown (Central Park South & Chelsea)', zh: '四区：大都会外环拓建区 (哥伦布圆环/熨斗区/切尔西)' }
+  }
+};
+
+export function isNodeOccupiedByHub(node: RoadNode, hubs: Hub[]): boolean {
+  return hubs.some(
+    h =>
+      Math.hypot((h.position.lat || 0) - node.lat, (h.position.lng || 0) - node.lng) < 0.0014
+  );
+}
+
+export interface CitySectorStatus {
+  unlockedSector: 1 | 2 | 3 | 4;
+  currentSectorNameEn: string;
+  currentSectorNameZh: string;
+  currentSectorBuilt: number;
+  currentSectorTotal: number;
+  totalBuiltNodes: number;
+  totalCityNodes: number;
+  unlockedNodes: RoadNode[];
+  availableBuildNodes: RoadNode[];
+  nextLockedSectorNodes: RoadNode[];
+  nextSectorNumber: 2 | 3 | 4 | null;
+}
+
+export function getCitySectorStatus(city: CityData, hubs: Hub[]): CitySectorStatus {
+  const sectorMap = CITY_SECTOR_NAMES[city.id] || CITY_SECTOR_NAMES.singapore;
+  let unlockedSector: 1 | 2 | 3 | 4 = 1;
+
+  for (const s of [1, 2, 3] as const) {
+    const sectorNodes = city.roadNodes.filter(n => (n.sector || 1) === s);
+    const allBuilt = sectorNodes.length > 0 && sectorNodes.every(n => isNodeOccupiedByHub(n, hubs));
+    if (allBuilt) {
+      unlockedSector = (s + 1) as 2 | 3 | 4;
+    } else {
+      break;
+    }
+  }
+
+  const currentSectorNodes = city.roadNodes.filter(n => (n.sector || 1) === unlockedSector);
+  const currentSectorBuilt = currentSectorNodes.filter(n => isNodeOccupiedByHub(n, hubs)).length;
+  const unlockedNodes = city.roadNodes.filter(n => (n.sector || 1) <= unlockedSector);
+  const availableBuildNodes = unlockedNodes.filter(n => !isNodeOccupiedByHub(n, hubs));
+  const nextSectorNumber = unlockedSector < 4 ? ((unlockedSector + 1) as 2 | 3 | 4) : null;
+  const nextLockedSectorNodes = nextSectorNumber
+    ? city.roadNodes.filter(n => (n.sector || 1) === nextSectorNumber && !isNodeOccupiedByHub(n, hubs))
+    : [];
+  const totalBuiltNodes = city.roadNodes.filter(n => isNodeOccupiedByHub(n, hubs)).length;
+
+  return {
+    unlockedSector,
+    currentSectorNameEn: sectorMap[unlockedSector].en,
+    currentSectorNameZh: sectorMap[unlockedSector].zh,
+    currentSectorBuilt,
+    currentSectorTotal: currentSectorNodes.length,
+    totalBuiltNodes,
+    totalCityNodes: city.roadNodes.length,
+    unlockedNodes,
+    availableBuildNodes,
+    nextLockedSectorNodes,
+    nextSectorNumber
+  };
 }
 
 export interface TrafficCorridor {
@@ -78,21 +160,29 @@ export const SINGAPORE_CITY: CityData = {
     }
   ],
   roadNodes: [
-    { id: 'sg-n1', name: 'Marina Boulevard Junction', nameZh: '滨海大道交叉口', lat: 1.2805, lng: 103.8540, neighbors: ['sg-n2', 'sg-n5', 'sg-n7'] },
-    { id: 'sg-n2', name: 'Raffles Quay / Collyer Quay', nameZh: '莱佛士码头', lat: 1.2835, lng: 103.8530, neighbors: ['sg-n1', 'sg-n3', 'sg-n6'] },
-    { id: 'sg-n3', name: 'Fullerton Road / Victoria St', nameZh: '浮尔顿路', lat: 1.2870, lng: 103.8535, neighbors: ['sg-n2', 'sg-n4', 'sg-n8'] },
-    { id: 'sg-n4', name: 'Esplanade Bridge / Marina Bay Sands', nameZh: '滨海艺术中心桥', lat: 1.2890, lng: 103.8570, neighbors: ['sg-n3', 'sg-n5', 'sg-n9'] },
-    { id: 'sg-n5', name: 'Bayfront Avenue / MBS', nameZh: '海湾道 (金沙)', lat: 1.2830, lng: 103.8595, neighbors: ['sg-n4', 'sg-n1', 'sg-n10'] },
-    { id: 'sg-n6', name: 'Raffles Place / Battery Road', nameZh: '莱佛士坊中心', lat: 1.2845, lng: 103.8510, neighbors: ['sg-n2', 'sg-n7', 'sg-n11'] },
-    { id: 'sg-n7', name: 'Shenton Way / Robinson Rd', nameZh: '珊顿道', lat: 1.2760, lng: 103.8490, neighbors: ['sg-n1', 'sg-n6', 'sg-n12'] },
-    { id: 'sg-n8', name: 'Bras Basah / City Hall', nameZh: '百胜路 / 政府大厦', lat: 1.2930, lng: 103.8520, neighbors: ['sg-n3', 'sg-n9', 'sg-n13'] },
-    { id: 'sg-n9', name: 'Suntec City / Temasek Blvd', nameZh: '新达城 / 坦马锡林荫道', lat: 1.2940, lng: 103.8580, neighbors: ['sg-n4', 'sg-n8', 'sg-n10'] },
-    { id: 'sg-n10', name: 'Marina Coastal Expressway (MCE)', nameZh: '滨海高速 (MCE)', lat: 1.2750, lng: 103.8610, neighbors: ['sg-n5', 'sg-n9', 'sg-n12'] },
-    { id: 'sg-n11', name: 'Chinatown / South Bridge Rd', nameZh: '牛车水 / 南桥路', lat: 1.2830, lng: 103.8440, neighbors: ['sg-n6', 'sg-n12', 'sg-n14'] },
-    { id: 'sg-n12', name: 'Tanjong Pagar / Anson Rd', nameZh: '丹戎巴葛', lat: 1.2740, lng: 103.8450, neighbors: ['sg-n7', 'sg-n10', 'sg-n11'] },
-    { id: 'sg-n13', name: 'Dhoby Ghaut / Orchard Rd Entrance', nameZh: '多美歌 / 乌节路入口', lat: 1.2990, lng: 103.8460, neighbors: ['sg-n8', 'sg-n14', 'sg-n15'] },
-    { id: 'sg-n14', name: 'Clarke Quay / River Valley Rd', nameZh: '克拉码头 / 里峇峇利路', lat: 1.2900, lng: 103.8440, neighbors: ['sg-n11', 'sg-n13', 'sg-n15'] },
-    { id: 'sg-n15', name: 'Orchard Central / Somerset Rd', nameZh: '乌节中心 / 索美塞', lat: 1.3008, lng: 103.8390, neighbors: ['sg-n13', 'sg-n14'] }
+    // Sector 1: Marina Bay & Financial Core
+    { id: 'sg-n1', name: 'Marina Boulevard Junction', nameZh: '滨海大道交叉口', lat: 1.2805, lng: 103.8540, neighbors: ['sg-n2', 'sg-n5', 'sg-n7'], sector: 1 },
+    { id: 'sg-n2', name: 'Raffles Quay / Collyer Quay', nameZh: '莱佛士码头', lat: 1.2835, lng: 103.8530, neighbors: ['sg-n1', 'sg-n3', 'sg-n6'], sector: 1 },
+    { id: 'sg-n5', name: 'Bayfront Avenue / MBS', nameZh: '海湾道 (金沙)', lat: 1.2830, lng: 103.8595, neighbors: ['sg-n4', 'sg-n1', 'sg-n10'], sector: 1 },
+    { id: 'sg-n6', name: 'Raffles Place / Battery Road', nameZh: '莱佛士坊中心', lat: 1.2845, lng: 103.8510, neighbors: ['sg-n2', 'sg-n7', 'sg-n11'], sector: 1 },
+    { id: 'sg-n7', name: 'Shenton Way / Robinson Rd', nameZh: '珊顿道', lat: 1.2760, lng: 103.8490, neighbors: ['sg-n1', 'sg-n6', 'sg-n12'], sector: 1 },
+    // Sector 2: Civic District & Suntec Belt
+    { id: 'sg-n3', name: 'Fullerton Road / Victoria St', nameZh: '浮尔顿路', lat: 1.2870, lng: 103.8535, neighbors: ['sg-n2', 'sg-n4', 'sg-n8'], sector: 2 },
+    { id: 'sg-n4', name: 'Esplanade Bridge / Marina Bay Sands', nameZh: '滨海艺术中心桥', lat: 1.2890, lng: 103.8570, neighbors: ['sg-n3', 'sg-n5', 'sg-n9'], sector: 2 },
+    { id: 'sg-n8', name: 'Bras Basah / City Hall', nameZh: '百胜路 / 政府大厦', lat: 1.2930, lng: 103.8520, neighbors: ['sg-n3', 'sg-n9', 'sg-n13', 'sg-n16'], sector: 2 },
+    { id: 'sg-n9', name: 'Suntec City / Temasek Blvd', nameZh: '新达城 / 坦马锡林荫道', lat: 1.2940, lng: 103.8580, neighbors: ['sg-n4', 'sg-n8', 'sg-n10', 'sg-n16'], sector: 2 },
+    { id: 'sg-n10', name: 'Marina Coastal Expressway (MCE)', nameZh: '滨海高速 (MCE)', lat: 1.2750, lng: 103.8610, neighbors: ['sg-n5', 'sg-n9', 'sg-n12'], sector: 2 },
+    // Sector 3: Chinatown, Clarke Quay & Orchard Corridor
+    { id: 'sg-n11', name: 'Chinatown / South Bridge Rd', nameZh: '牛车水 / 南桥路', lat: 1.2830, lng: 103.8440, neighbors: ['sg-n6', 'sg-n12', 'sg-n14', 'sg-n19'], sector: 3 },
+    { id: 'sg-n12', name: 'Tanjong Pagar / Anson Rd', nameZh: '丹戎巴葛', lat: 1.2740, lng: 103.8450, neighbors: ['sg-n7', 'sg-n10', 'sg-n11', 'sg-n19'], sector: 3 },
+    { id: 'sg-n13', name: 'Dhoby Ghaut / Orchard Rd Entrance', nameZh: '多美歌 / 乌节路入口', lat: 1.2990, lng: 103.8460, neighbors: ['sg-n8', 'sg-n14', 'sg-n15', 'sg-n16', 'sg-n17'], sector: 3 },
+    { id: 'sg-n14', name: 'Clarke Quay / River Valley Rd', nameZh: '克拉码头 / 里峇峇利路', lat: 1.2900, lng: 103.8440, neighbors: ['sg-n11', 'sg-n13', 'sg-n15', 'sg-n19'], sector: 3 },
+    { id: 'sg-n15', name: 'Orchard Central / Somerset Rd', nameZh: '乌节中心 / 索美塞', lat: 1.3008, lng: 103.8390, neighbors: ['sg-n13', 'sg-n14', 'sg-n18'], sector: 3 },
+    // Sector 4: Greater Metropolis Expansion (Bugis, Little India, Newton/Novena, Outram Medical)
+    { id: 'sg-n16', name: 'Bugis Junction / Victoria St', nameZh: '武吉士商业枢纽', lat: 1.2995, lng: 103.8555, neighbors: ['sg-n8', 'sg-n9', 'sg-n13', 'sg-n17'], sector: 4 },
+    { id: 'sg-n17', name: 'Little India / Tekka Centre', nameZh: '小印度 / 竹脚中心', lat: 1.3065, lng: 103.8518, neighbors: ['sg-n13', 'sg-n16', 'sg-n18'], sector: 4 },
+    { id: 'sg-n18', name: 'Newton Circus / Novena Hub', nameZh: '纽顿圈 / 诺维娜枢纽', lat: 1.3125, lng: 103.8385, neighbors: ['sg-n15', 'sg-n17'], sector: 4 },
+    { id: 'sg-n19', name: 'Outram Park / SGH Medical Hub', nameZh: '欧南园医疗中心', lat: 1.2800, lng: 103.8365, neighbors: ['sg-n11', 'sg-n12', 'sg-n14'], sector: 4 }
   ],
   trafficCorridors: [
     {
@@ -302,18 +392,26 @@ export const TOKYO_CITY: CityData = {
     }
   ],
   roadNodes: [
-    { id: 'ty-n1', name: 'Shibuya Scramble Crossing', nameZh: '涩谷十字路口', lat: 35.6595, lng: 139.7004, neighbors: ['ty-n2', 'ty-n4', 'ty-n6'] },
-    { id: 'ty-n2', name: 'Shibuya Station East Exit', nameZh: '涩谷站东口', lat: 35.6580, lng: 139.7030, neighbors: ['ty-n1', 'ty-n3', 'ty-n5'] },
-    { id: 'ty-n3', name: 'Aoyama-dori Junction', nameZh: '青山通交叉路口', lat: 35.6620, lng: 139.7110, neighbors: ['ty-n2', 'ty-n4', 'ty-n7'] },
-    { id: 'ty-n4', name: 'Cat Street / Omotesando', nameZh: '猫街 / 表参道', lat: 35.6655, lng: 139.7060, neighbors: ['ty-n1', 'ty-n3', 'ty-n8'] },
-    { id: 'ty-n5', name: 'Shuto Expressway Route 3', nameZh: '首都高3号线', lat: 35.6540, lng: 139.7150, neighbors: ['ty-n2', 'ty-n7', 'ty-n9'] },
-    { id: 'ty-n6', name: 'Dogenzaka / Shibuya 109', nameZh: '道玄坂 / 109大楼', lat: 35.6598, lng: 139.6980, neighbors: ['ty-n1', 'ty-n8'] },
-    { id: 'ty-n7', name: 'Nogi-zaka / Roppongi Entrance', nameZh: '乃木坂 / 六本木入口', lat: 35.6640, lng: 139.7240, neighbors: ['ty-n3', 'ty-n5', 'ty-n10'] },
-    { id: 'ty-n8', name: 'Harajuku Takeshita Street', nameZh: '原宿竹下通', lat: 35.6710, lng: 139.7030, neighbors: ['ty-n4', 'ty-n6', 'ty-n11'] },
-    { id: 'ty-n9', name: 'Hiroo / Azabu Border', nameZh: '广尾 / 麻布交界', lat: 35.6520, lng: 139.7220, neighbors: ['ty-n5', 'ty-n10'] },
-    { id: 'ty-n10', name: 'Roppongi Hills Mori Tower', nameZh: '六本木之丘森大厦', lat: 35.6605, lng: 139.7292, neighbors: ['ty-n7', 'ty-n9', 'ty-n12'] },
-    { id: 'ty-n11', name: 'Meiji Jingu Shrine Gateway', nameZh: '明治神宫大鸟居', lat: 35.6740, lng: 139.6990, neighbors: ['ty-n8'] },
-    { id: 'ty-n12', name: 'Tokyo Midtown Roppongi', nameZh: '东京中城 (六本木)', lat: 35.6658, lng: 139.7310, neighbors: ['ty-n10'] }
+    // Sector 1: Shibuya Core
+    { id: 'ty-n1', name: 'Shibuya Scramble Crossing', nameZh: '涩谷十字路口', lat: 35.6595, lng: 139.7004, neighbors: ['ty-n2', 'ty-n4', 'ty-n6', 'ty-n14'], sector: 1 },
+    { id: 'ty-n2', name: 'Shibuya Station East Exit', nameZh: '涩谷站东口', lat: 35.6580, lng: 139.7030, neighbors: ['ty-n1', 'ty-n3', 'ty-n5', 'ty-n13'], sector: 1 },
+    { id: 'ty-n5', name: 'Shuto Expressway Route 3', nameZh: '首都高3号线', lat: 35.6540, lng: 139.7150, neighbors: ['ty-n2', 'ty-n7', 'ty-n9', 'ty-n13'], sector: 1 },
+    { id: 'ty-n6', name: 'Dogenzaka / Shibuya 109', nameZh: '道玄坂 / 109大楼', lat: 35.6598, lng: 139.6980, neighbors: ['ty-n1', 'ty-n8', 'ty-n14'], sector: 1 },
+    // Sector 2: Omotesando & Harajuku Belt
+    { id: 'ty-n3', name: 'Aoyama-dori Junction', nameZh: '青山通交叉路口', lat: 35.6620, lng: 139.7110, neighbors: ['ty-n2', 'ty-n4', 'ty-n7', 'ty-n15'], sector: 2 },
+    { id: 'ty-n4', name: 'Cat Street / Omotesando', nameZh: '猫街 / 表参道', lat: 35.6655, lng: 139.7060, neighbors: ['ty-n1', 'ty-n3', 'ty-n8'], sector: 2 },
+    { id: 'ty-n8', name: 'Harajuku Takeshita Street', nameZh: '原宿竹下通', lat: 35.6710, lng: 139.7030, neighbors: ['ty-n4', 'ty-n6', 'ty-n11', 'ty-n15'], sector: 2 },
+    { id: 'ty-n11', name: 'Meiji Jingu Shrine Gateway', nameZh: '明治神宫大鸟居', lat: 35.6740, lng: 139.6990, neighbors: ['ty-n8', 'ty-n15'], sector: 2 },
+    // Sector 3: Roppongi Hills & Midtown
+    { id: 'ty-n7', name: 'Nogi-zaka / Roppongi Entrance', nameZh: '乃木坂 / 六本木入口', lat: 35.6640, lng: 139.7240, neighbors: ['ty-n3', 'ty-n5', 'ty-n10'], sector: 3 },
+    { id: 'ty-n9', name: 'Hiroo / Azabu Border', nameZh: '广尾 / 麻布交界', lat: 35.6520, lng: 139.7220, neighbors: ['ty-n5', 'ty-n10', 'ty-n13'], sector: 3 },
+    { id: 'ty-n10', name: 'Roppongi Hills Mori Tower', nameZh: '六本木之丘森大厦', lat: 35.6605, lng: 139.7292, neighbors: ['ty-n7', 'ty-n9', 'ty-n12', 'ty-n16'], sector: 3 },
+    { id: 'ty-n12', name: 'Tokyo Midtown Roppongi', nameZh: '东京中城 (六本木)', lat: 35.6658, lng: 139.7310, neighbors: ['ty-n10', 'ty-n16'], sector: 3 },
+    // Sector 4: Greater Metropolis Expansion
+    { id: 'ty-n13', name: 'Ebisu Garden Place', nameZh: '惠比寿花园广场', lat: 35.6468, lng: 139.7100, neighbors: ['ty-n2', 'ty-n5', 'ty-n9', 'ty-n14'], sector: 4 },
+    { id: 'ty-n14', name: 'Daikanyama T-Site', nameZh: '代官山文化区', lat: 35.6490, lng: 139.6995, neighbors: ['ty-n1', 'ty-n6', 'ty-n13'], sector: 4 },
+    { id: 'ty-n15', name: 'National Stadium / Sendagaya', nameZh: '国立竞技场 / 千駄谷', lat: 35.6775, lng: 139.7145, neighbors: ['ty-n3', 'ty-n8', 'ty-n11', 'ty-n16'], sector: 4 },
+    { id: 'ty-n16', name: 'Akasaka Biz Tower', nameZh: '赤坂商业中心', lat: 35.6725, lng: 139.7360, neighbors: ['ty-n10', 'ty-n12', 'ty-n15'], sector: 4 }
   ],
   trafficCorridors: [
     {
@@ -455,17 +553,25 @@ export const NEW_YORK_CITY: CityData = {
     }
   ],
   roadNodes: [
-    { id: 'ny-n1', name: 'Times Square (7th Ave & 42nd St)', nameZh: '时代广场 (7大道42街)', lat: 40.7560, lng: -73.9868, neighbors: ['ny-n2', 'ny-n4', 'ny-n6'] },
-    { id: 'ny-n2', name: 'Broadway & 47th St', nameZh: '百老汇大道47街', lat: 40.7595, lng: -73.9845, neighbors: ['ny-n1', 'ny-n3', 'ny-n5'] },
-    { id: 'ny-n3', name: 'Rockefeller Center (5th Ave & 50th St)', nameZh: '洛克菲勒中心 (5大道50街)', lat: 40.7587, lng: -73.9787, neighbors: ['ny-n2', 'ny-n5', 'ny-n7'] },
-    { id: 'ny-n4', name: 'Bryant Park / NYPL (6th Ave & 42nd St)', nameZh: '布莱恩特公园 (6大道42街)', lat: 40.7536, lng: -73.9832, neighbors: ['ny-n1', 'ny-n5', 'ny-n8'] },
-    { id: 'ny-n5', name: 'Grand Central Terminal (Park Ave & 42nd)', nameZh: '大中央车站 (公园大道42街)', lat: 40.7527, lng: -73.9772, neighbors: ['ny-n2', 'ny-n3', 'ny-n4', 'ny-n9'] },
-    { id: 'ny-n6', name: 'Port Authority Bus Terminal (8th Ave & 42nd)', nameZh: '港务局客运总站 (8大道42街)', lat: 40.7570, lng: -73.9900, neighbors: ['ny-n1', 'ny-n10'] },
-    { id: 'ny-n7', name: 'St. Patrick\'s Cathedral (5th Ave)', nameZh: '圣帕特里克大教堂', lat: 40.7585, lng: -73.9760, neighbors: ['ny-n3', 'ny-n9'] },
-    { id: 'ny-n8', name: 'Empire State Building (5th Ave & 34th St)', nameZh: '帝国大厦 (5大道34街)', lat: 40.7484, lng: -73.9857, neighbors: ['ny-n4', 'ny-n9', 'ny-n11'] },
-    { id: 'ny-n9', name: 'Chrysler Building / 42nd St East', nameZh: '克莱斯勒大厦', lat: 40.7516, lng: -73.9755, neighbors: ['ny-n5', 'ny-n7', 'ny-n8'] },
-    { id: 'ny-n10', name: 'Hudson Yards / The Vessel', nameZh: '哈德逊园区 / 大松果', lat: 40.7538, lng: -74.0022, neighbors: ['ny-n6', 'ny-n11'] },
-    { id: 'ny-n11', name: 'Penn Station / Madison Square Garden', nameZh: '宾州车站 / 麦迪逊广场花园', lat: 40.7505, lng: -73.9935, neighbors: ['ny-n8', 'ny-n10'] }
+    // Sector 1: Times Square & Broadway Core
+    { id: 'ny-n1', name: 'Times Square (7th Ave & 42nd St)', nameZh: '时代广场 (7大道42街)', lat: 40.7560, lng: -73.9868, neighbors: ['ny-n2', 'ny-n4', 'ny-n6'], sector: 1 },
+    { id: 'ny-n2', name: 'Broadway & 47th St', nameZh: '百老汇大道47街', lat: 40.7595, lng: -73.9845, neighbors: ['ny-n1', 'ny-n3', 'ny-n5', 'ny-n12'], sector: 1 },
+    { id: 'ny-n4', name: 'Bryant Park / NYPL (6th Ave & 42nd St)', nameZh: '布莱恩特公园 (6大道42街)', lat: 40.7536, lng: -73.9832, neighbors: ['ny-n1', 'ny-n5', 'ny-n8'], sector: 1 },
+    { id: 'ny-n6', name: 'Port Authority Bus Terminal (8th Ave & 42nd)', nameZh: '港务局客运总站 (8大道42街)', lat: 40.7570, lng: -73.9900, neighbors: ['ny-n1', 'ny-n10'], sector: 1 },
+    // Sector 2: Fifth Ave & Grand Central East
+    { id: 'ny-n3', name: 'Rockefeller Center (5th Ave & 50th St)', nameZh: '洛克菲勒中心 (5大道50街)', lat: 40.7587, lng: -73.9787, neighbors: ['ny-n2', 'ny-n5', 'ny-n7', 'ny-n12'], sector: 2 },
+    { id: 'ny-n5', name: 'Grand Central Terminal (Park Ave & 42nd)', nameZh: '大中央车站 (公园大道42街)', lat: 40.7527, lng: -73.9772, neighbors: ['ny-n2', 'ny-n3', 'ny-n4', 'ny-n9'], sector: 2 },
+    { id: 'ny-n7', name: 'St. Patrick\'s Cathedral (5th Ave)', nameZh: '圣帕特里克大教堂', lat: 40.7585, lng: -73.9760, neighbors: ['ny-n3', 'ny-n9'], sector: 2 },
+    { id: 'ny-n9', name: 'Chrysler Building / 42nd St East', nameZh: '克莱斯勒大厦', lat: 40.7516, lng: -73.9755, neighbors: ['ny-n5', 'ny-n7', 'ny-n8'], sector: 2 },
+    // Sector 3: Penn Station, Empire State & Hudson Yards
+    { id: 'ny-n8', name: 'Empire State Building (5th Ave & 34th St)', nameZh: '帝国大厦 (5大道34街)', lat: 40.7484, lng: -73.9857, neighbors: ['ny-n4', 'ny-n9', 'ny-n11', 'ny-n14'], sector: 3 },
+    { id: 'ny-n10', name: 'Hudson Yards / The Vessel', nameZh: '哈德逊园区 / 大松果', lat: 40.7538, lng: -74.0022, neighbors: ['ny-n6', 'ny-n11', 'ny-n15'], sector: 3 },
+    { id: 'ny-n11', name: 'Penn Station / Madison Square Garden', nameZh: '宾州车站 / 麦迪逊广场花园', lat: 40.7505, lng: -73.9935, neighbors: ['ny-n8', 'ny-n10', 'ny-n14', 'ny-n15'], sector: 3 },
+    // Sector 4: Greater Midtown Expansion (Central Park South, Flatiron, Chelsea)
+    { id: 'ny-n12', name: 'Columbus Circle / Central Park South', nameZh: '哥伦布圆环 / 中央公园南', lat: 40.7680, lng: -73.9819, neighbors: ['ny-n2', 'ny-n3', 'ny-n13'], sector: 4 },
+    { id: 'ny-n13', name: 'Lincoln Center Plaza', nameZh: '林肯中心广场', lat: 40.7725, lng: -73.9835, neighbors: ['ny-n12'], sector: 4 },
+    { id: 'ny-n14', name: 'Flatiron Building / 23rd St', nameZh: '熨斗大厦 / 23街', lat: 40.7411, lng: -73.9897, neighbors: ['ny-n8', 'ny-n11', 'ny-n15'], sector: 4 },
+    { id: 'ny-n15', name: 'Chelsea Market / High Line', nameZh: '切尔西市场 / 高线公园', lat: 40.7424, lng: -74.0061, neighbors: ['ny-n10', 'ny-n11', 'ny-n14'], sector: 4 }
   ],
   trafficCorridors: [
     {

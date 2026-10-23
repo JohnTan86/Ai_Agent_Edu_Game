@@ -9,7 +9,7 @@ import {
   Order,
   CityWeather
 } from '../../lib/types';
-import { CITIES_DATA, CityData } from '../../lib/cityData';
+import { CITIES_DATA, CityData, getCitySectorStatus } from '../../lib/cityData';
 import { Language } from '../../lib/i18n';
 import { findCityRoadPath } from '../../lib/pathfinding';
 import {
@@ -73,6 +73,22 @@ export const RealLifeCityMap: React.FC<RealLifeCityMapProps> = ({
   }, [theme]);
 
   const currentCity: CityData = CITIES_DATA[activeCityId] || CITIES_DATA.singapore;
+  const sectorStatus = getCitySectorStatus(currentCity, state.hubs);
+  const prevUnlockedSectorRef = useRef<number>(sectorStatus.unlockedSector);
+
+  // Smoothly expand map viewport bounds whenever a new City Sector unlocks!
+  useEffect(() => {
+    if (sectorStatus.unlockedSector > prevUnlockedSectorRef.current && mapInstanceRef.current) {
+      import('leaflet').then(L => {
+        const coords = sectorStatus.unlockedNodes.map(n => [n.lat, n.lng] as [number, number]);
+        if (coords.length > 1 && mapInstanceRef.current) {
+          const bounds = L.latLngBounds(coords);
+          mapInstanceRef.current.flyToBounds(bounds, { padding: [55, 55], maxZoom: 15, duration: 1.2 });
+        }
+      });
+    }
+    prevUnlockedSectorRef.current = sectorStatus.unlockedSector;
+  }, [sectorStatus.unlockedSector, sectorStatus.unlockedNodes]);
 
   // 1. Initialize Leaflet Map
   useEffect(() => {
@@ -509,47 +525,46 @@ export const RealLifeCityMap: React.FC<RealLifeCityMapProps> = ({
         marker.addTo(pinsGroupRef.current);
       });
 
-      // Quick Build Hub Node Markers on Open Corridors (in Level 2+)
+      // Quick Build Hub Node Markers on Unlocked Sectors + Locked Preview Markers on Next Sector (in Level 2+)
       if ((state.levelProgression?.currentLevel || 1) >= 2 && onBuildHub) {
-        const candidateNodes = currentCity.roadNodes.filter(node => {
-          return !state.hubs.some(h => Math.abs((h.position.lat || 0) - node.lat) < 0.003 && Math.abs((h.position.lng || 0) - node.lng) < 0.003);
-        }).slice(0, 4);
+        const candidateNodes = sectorStatus.availableBuildNodes;
 
         candidateNodes.forEach(node => {
+          const secNum = node.sector || 1;
           const nodeHtml = `
             <div style="
-              background: rgba(88, 28, 135, 0.85);
-              border: 1px dashed #c084fc;
-              color: #f3e8ff;
-              padding: 2px 6px;
-              border-radius: 4px;
+              background: rgba(88, 28, 135, 0.92);
+              border: 1.5px dashed #e879f9;
+              color: #fae8ff;
+              padding: 2px 7px;
+              border-radius: 5px;
               font-family: monospace;
-              font-size: 8px;
-              font-weight: 800;
+              font-size: 8.5px;
+              font-weight: 900;
               cursor: pointer;
-              box-shadow: 0 0 10px rgba(168,85,247,0.4);
+              box-shadow: 0 0 12px rgba(217,70,239,0.55);
               white-space: nowrap;
-            ">➕ ${lang === 'zh' ? '建站点' : 'BUILD HUB'}</div>
+            ">➕ ${lang === 'zh' ? `建站点 [${secNum}区]` : `BUILD HUB [S${secNum}]`}</div>
           `;
-          const nodeIcon = L.divIcon({ html: nodeHtml, className: 'node-build-marker', iconSize: [56, 18], iconAnchor: [28, 9] });
-          const nodeMarker = L.marker([node.lat, node.lng], { icon: nodeIcon });
+          const nodeIcon = L.divIcon({ html: nodeHtml, className: 'node-build-marker', iconSize: [74, 20], iconAnchor: [37, 10] });
+          const nodeMarker = L.marker([node.lat, node.lng], { icon: nodeIcon, zIndexOffset: 600 });
 
           const nodePopup = document.createElement('div');
-          nodePopup.style.cssText = 'min-width: 180px; font-family: monospace; padding: 4px; color: #f8fafc;';
+          nodePopup.style.cssText = 'min-width: 195px; font-family: monospace; padding: 4px; color: #f8fafc;';
           nodePopup.innerHTML = `
-            <div style="font-weight: bold; color: #c084fc; font-size: 12px; margin-bottom: 4px;">
-              🏢 ${lang === 'zh' ? '新建物流充电枢纽' : 'Construct Logistics Hub'}
+            <div style="font-weight: bold; color: #e879f9; font-size: 12px; margin-bottom: 4px;">
+              🏢 ${lang === 'zh' ? `新建充电枢纽 (第 ${secNum} 区)` : `Construct Hub (Sector ${secNum})`}
             </div>
-            <div style="color: #cbd5e1; font-size: 10px; margin-bottom: 8px; line-height: 1.4;">
+            <div style="color: #cbd5e1; font-size: 10px; margin-bottom: 8px; line-height: 1.45;">
               📍 <b>${lang === 'zh' ? node.nameZh : node.name}</b><br/>
-              💰 ${lang === 'zh' ? '建造成本: $200' : 'Build Cost: $200'}<br/>
-              💵 ${lang === 'zh' ? '当前财库: $' + state.financials.balance.toFixed(2) : 'Cash Available: $' + state.financials.balance.toFixed(2)}
+              🗺️ ${lang === 'zh' ? `当前本区进度: ${sectorStatus.currentSectorBuilt}/${sectorStatus.currentSectorTotal} 座 (建满解锁下一区)` : `Sector Progress: ${sectorStatus.currentSectorBuilt}/${sectorStatus.currentSectorTotal} Hubs`}<br/>
+              💰 ${lang === 'zh' ? '建造成本: $200' : 'Build Cost: $200'} &bull; 💵 $${state.financials.balance.toFixed(0)}
             </div>
             <button id="btn-build-${node.id}" style="width: 100%; background: #9333ea; color: #ffffff; border: none; padding: 5px 8px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 10px;" ${state.financials.balance < 200 ? 'disabled' : ''}>
               ${state.financials.balance < 200 ? (lang === 'zh' ? '资金不足 ($200)' : 'Insufficient Funds ($200)') : (lang === 'zh' ? '确认在此投资建站 ($200)' : 'Confirm Build Hub ($200)')}
             </button>
           `;
-          nodeMarker.bindPopup(nodePopup, { maxWidth: 240 });
+          nodeMarker.bindPopup(nodePopup, { maxWidth: 250 });
           nodeMarker.on('popupopen', () => {
             const buildBtn = document.getElementById(`btn-build-${node.id}`);
             if (buildBtn && onBuildHub && state.financials.balance >= 200) {
@@ -560,6 +575,34 @@ export const RealLifeCityMap: React.FC<RealLifeCityMapProps> = ({
             }
           });
           nodeMarker.addTo(pinsGroupRef.current);
+        });
+
+        // Render Locked Next-Sector Preview Nodes so player knows where the city will expand next!
+        sectorStatus.nextLockedSectorNodes.forEach(lockedNode => {
+          const nextSec = lockedNode.sector || 2;
+          const lockedHtml = `
+            <div style="
+              background: rgba(15, 23, 42, 0.82);
+              border: 1px dashed rgba(148, 163, 184, 0.55);
+              color: #94a3b8;
+              padding: 1.5px 6px;
+              border-radius: 4px;
+              font-family: monospace;
+              font-size: 8px;
+              font-weight: 700;
+              white-space: nowrap;
+              opacity: 0.85;
+            ">🔒 ${lang === 'zh' ? `待解锁 [${nextSec}区]` : `LOCKED [S${nextSec}]`}</div>
+          `;
+          const lockedIcon = L.divIcon({ html: lockedHtml, className: 'node-locked-marker', iconSize: [70, 18], iconAnchor: [35, 9] });
+          const lockedMarker = L.marker([lockedNode.lat, lockedNode.lng], { icon: lockedIcon });
+          lockedMarker.bindTooltip(
+            lang === 'zh'
+              ? `<b>🔒 ${lockedNode.nameZh} (第 ${nextSec} 扩张区)</b><br/>请先建满当前第 ${sectorStatus.unlockedSector} 区的剩余站点 (${sectorStatus.currentSectorBuilt}/${sectorStatus.currentSectorTotal}) 即可解锁本区域！`
+              : `<b>🔒 ${lockedNode.name} (Sector ${nextSec})</b><br/>Complete all Hub sites in Sector ${sectorStatus.unlockedSector} (${sectorStatus.currentSectorBuilt}/${sectorStatus.currentSectorTotal}) to unlock this district!`,
+            { direction: 'top', opacity: 0.95 }
+          );
+          lockedMarker.addTo(pinsGroupRef.current);
         });
       }
 
@@ -912,6 +955,43 @@ export const RealLifeCityMap: React.FC<RealLifeCityMapProps> = ({
           })}
         </div>
       </div>
+
+      {/* 1.8. Progressive City Sector Expansion HUD Bar (Level 2+) */}
+      {(state.levelProgression?.currentLevel || 1) >= 2 && (
+        <div className="absolute top-[94px] left-3 z-10 hidden sm:flex items-center gap-2 bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-purple-500/50 text-[10px] font-mono shadow-xl">
+          <span className="text-purple-300 font-bold">
+            🗺️ {lang === 'zh' ? sectorStatus.currentSectorNameZh : sectorStatus.currentSectorNameEn}
+          </span>
+          <span className="px-1.5 py-0.5 rounded bg-purple-950/80 border border-purple-500/40 text-purple-200 font-bold">
+            {lang === 'zh'
+              ? `本区站点: ${sectorStatus.currentSectorBuilt}/${sectorStatus.currentSectorTotal}`
+              : `Sector Hubs: ${sectorStatus.currentSectorBuilt}/${sectorStatus.currentSectorTotal}`}
+          </span>
+          {sectorStatus.availableBuildNodes.length > 0 ? (
+            <button
+              onClick={() => {
+                import('leaflet').then(L => {
+                  const coords = sectorStatus.availableBuildNodes.map(n => [n.lat, n.lng] as [number, number]);
+                  if (coords.length === 1 && mapInstanceRef.current) {
+                    mapInstanceRef.current.flyTo(coords[0], 15, { duration: 0.9 });
+                  } else if (coords.length > 1 && mapInstanceRef.current) {
+                    const bounds = L.latLngBounds(coords);
+                    mapInstanceRef.current.flyToBounds(bounds, { padding: [70, 70], maxZoom: 15, duration: 0.9 });
+                  }
+                });
+              }}
+              className="px-2 py-0.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold transition-all shadow-[0_0_10px_rgba(168,85,247,0.4)]"
+              title={lang === 'zh' ? '点击在地图上聚焦显示当前可建站的位置' : 'Pan map to available Hub build sites'}
+            >
+              📍 {lang === 'zh' ? `定位可建站点 (${sectorStatus.availableBuildNodes.length})` : `Locate Build Sites (${sectorStatus.availableBuildNodes.length})`}
+            </button>
+          ) : (
+            <span className="text-emerald-400 font-bold">
+              🏆 {lang === 'zh' ? '全城4大区域全部建满!' : 'All 4 City Sectors Maxed!'}
+            </span>
+          )}
+        </div>
+      )}
 
       {/* 2. Top Right: Atmospheric Weather, Hazards & Map Layer Controls */}
       <div className="absolute top-3 right-3 z-10 flex flex-wrap items-center justify-end gap-1.5 max-w-[90vw]">

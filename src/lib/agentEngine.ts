@@ -13,7 +13,7 @@ import {
 } from './types';
 import { findPathAStar, findCityRoadPath, findNearestHub, manhattanDistance } from './pathfinding';
 import { formatSimTimestamp } from './constants';
-import { CITIES_DATA } from './cityData';
+import { CITIES_DATA, getCitySectorStatus, isNodeOccupiedByHub } from './cityData';
 
 /**
  * Parses user prompt guidelines for heuristic configuration in English and Chinese
@@ -292,9 +292,14 @@ export async function runAgentDispatchCycle(
           homeHubId: r.homeHubId
         })),
         financials: environment?.financials,
-        candidateNodes: activeCity.roadNodes.filter(node => {
-          return !hubs.some(h => Math.abs((h.position.lat || 0) - node.lat) < 0.003 && Math.abs((h.position.lng || 0) - node.lng) < 0.003);
-        }).map(n => ({ id: n.id, name: n.name, nameZh: n.nameZh, lat: n.lat, lng: n.lng })),
+        candidateNodes: getCitySectorStatus(activeCity, hubs).availableBuildNodes.map(n => ({
+          id: n.id,
+          name: n.name,
+          nameZh: n.nameZh,
+          sector: n.sector || 1,
+          lat: n.lat,
+          lng: n.lng
+        })),
         hubs: hubs.map(h => ({
           id: h.id,
           name: h.name,
@@ -359,11 +364,12 @@ export async function runAgentDispatchCycle(
       if (Array.isArray(data.infrastructureActions)) {
         for (const infra of data.infrastructureActions) {
           if (infra.action === 'build_hub') {
-            const targetNode = activeCity.roadNodes.find(n =>
+            const availNodes = getCitySectorStatus(activeCity, hubs).availableBuildNodes;
+            const targetNode = availNodes.find(n =>
               n.id === infra.nodeId ||
               n.name.toLowerCase().includes(String(infra.nodeId || '').toLowerCase()) ||
               n.nameZh.includes(String(infra.nodeId || ''))
-            ) || activeCity.roadNodes.find(n => !hubs.some(h => Math.abs((h.position.lat || 0) - n.lat) < 0.003));
+            ) || availNodes[0];
 
             if (targetNode) {
               const newHubName = isZh ? `${targetNode.nameZh}中心站` : `${targetNode.name} Depot`;
@@ -758,7 +764,7 @@ export async function runAgentDispatchCycle(
   // 5. Evaluate Infrastructure & Pending Orders
   const currentBalance = environment?.financials?.balance ?? 350;
   if (directives.autoBuildHub && currentBalance >= 280) {
-    const candidateNode = activeCity.roadNodes.find(n => !hubs.some(h => Math.abs((h.position.lat || 0) - n.lat) < 0.003 && Math.abs((h.position.lng || 0) - n.lng) < 0.003));
+    const candidateNode = getCitySectorStatus(activeCity, hubs).availableBuildNodes[0];
     if (candidateNode && !infrastructureActions.some(i => i.action === 'build_hub')) {
       const newHubName = isZh ? `${candidateNode.nameZh}中心站` : `${candidateNode.name} Depot`;
       infrastructureActions.push({
