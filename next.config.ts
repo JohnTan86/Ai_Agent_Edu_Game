@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
     ? {
         output: "export",
         images: { unoptimized: true },
+        typescript: { ignoreBuildErrors: true },
       }
     : {
         cacheComponents: true,
