@@ -1,0 +1,15 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Route POST /api/dispatch directly to /api/dispatch/index.php without 301 redirect
+  RewriteRule ^api/dispatch/?$ api/dispatch/index.php [L,QSA]
+
+  # Serve existing files and directories directly
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # SPA Fallback to index.html
+  RewriteRule ^ index.html [L]
+</IfModule>
