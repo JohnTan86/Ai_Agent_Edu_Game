@@ -3,16 +3,51 @@ import { Language } from './i18n';
 
 export const GRID_WIDTH = 18;
 export const GRID_HEIGHT = 18;
+export const TICKS_PER_DAY = 100; // 08:00 AM to 06:00 PM (18:00) = 10 hours (6 mins per tick)
 
 /**
- * Deterministic simulation timestamp helper (prevents SSR prerender hydration mismatch)
+ * Computes structured Day & Clock info for the 08:00 AM - 06:00 PM (18:00) shift
+ */
+export function getDayClockInfo(tick: number, explicitDay?: number, isShiftEnded?: boolean) {
+  const day = explicitDay || Math.floor(tick / TICKS_PER_DAY) + 1;
+  const rawDayTick = tick - (day - 1) * TICKS_PER_DAY;
+  const dayTick = isShiftEnded && rawDayTick >= TICKS_PER_DAY
+    ? TICKS_PER_DAY
+    : Math.max(0, Math.min(TICKS_PER_DAY, rawDayTick));
+
+  const totalMins = dayTick * 6; // 100 ticks * 6 mins = 600 mins = 10 hours (08:00 -> 18:00)
+  const hours24 = 8 + Math.floor(totalMins / 60);
+  const mins = totalMins % 60;
+  const ampm = hours24 >= 12 ? 'PM' : 'AM';
+  const hours12 = hours24 > 12 ? hours24 - 12 : hours24;
+
+  const time24 = `${hours24.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+  const time12 = `${hours12.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')} ${ampm}`;
+  const progressPct = Math.min(100, Math.round((dayTick / TICKS_PER_DAY) * 100));
+
+  return {
+    day,
+    dayTick,
+    hours24,
+    mins,
+    time24,
+    time12,
+    progressPct,
+    isPreShift: dayTick === 0 && !isShiftEnded,
+    isShiftEnd: dayTick >= TICKS_PER_DAY || Boolean(isShiftEnded)
+  };
+}
+
+/**
+ * Deterministic simulation timestamp helper (08:00 to 18:00 work shift clock)
  */
 export function formatSimTimestamp(tick: number): string {
-  const totalSecs = tick * 2; // Each tick = 2 in-world seconds
-  const hours = 8 + Math.floor(totalSecs / 3600);
-  const mins = Math.floor((totalSecs % 3600) / 60);
-  const secs = totalSecs % 60;
-  return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  const day = Math.floor(Math.max(0, tick - 1) / TICKS_PER_DAY) + 1;
+  const dayTick = tick === 0 ? 0 : ((tick - 1) % TICKS_PER_DAY) + 1;
+  const totalMins = dayTick * 6;
+  const hours = 8 + Math.floor(totalMins / 60);
+  const mins = totalMins % 60;
+  return `D${day} ${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
 }
 
 // Economic constants

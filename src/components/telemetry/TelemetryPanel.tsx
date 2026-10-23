@@ -33,6 +33,7 @@ import {
   Order,
   DeliveryRobot
 } from '../../lib/types';
+import { getDayClockInfo, formatSimTimestamp } from '../../lib/constants';
 import { translations, Language } from '../../lib/i18n';
 
 interface TelemetryPanelProps {
@@ -106,7 +107,7 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({
             <Activity className="w-3.5 h-3.5 text-cyan-400" />
             {t.title}
           </span>
-          <span className="text-[10px] text-slate-500 font-mono">TICK {tick}</span>
+          <span className="text-[10px] text-cyan-400 font-mono font-bold">{formatSimTimestamp(tick)}</span>
         </div>
 
         {/* Low Cash Alert Banner */}
@@ -312,7 +313,9 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">{t.rewardSla}</span>
-                <span className="font-bold text-emerald-400">${selectedOrder.reward} / Deadline: T{selectedOrder.deadlineTick}</span>
+                <span className="font-bold text-emerald-400">
+                  ${selectedOrder.reward} / {getDayClockInfo(selectedOrder.deadlineTick).time12}
+                </span>
               </div>
             </div>
           )}
@@ -484,8 +487,12 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({
                     <span>Status: {order.status.toUpperCase()}</span>
                     <span className={isUrgent ? 'text-rose-400 font-bold' : ''}>
                       {order.status === 'delivered'
-                        ? `Delivered @ T${order.deliveredAtTick}`
-                        : `SLA: ${remainingTicks}t ${t.ticksLeft}`}
+                        ? (isZh ? `已送达 @ ${getDayClockInfo(order.deliveredAtTick || tick).time12}` : `Delivered @ ${getDayClockInfo(order.deliveredAtTick || tick).time12}`)
+                        : order.status === 'failed'
+                        ? (isZh ? `已超时违约 (截止 ${getDayClockInfo(order.deadlineTick).time12})` : `Failed (Due ${getDayClockInfo(order.deadlineTick).time12})`)
+                        : (isZh
+                            ? `截止 ${getDayClockInfo(order.deadlineTick).time12} (剩 ${Math.max(0, remainingTicks * 6)}分钟)`
+                            : `Due ${getDayClockInfo(order.deadlineTick).time12} (${Math.max(0, remainingTicks * 6)}m left)`)}
                     </span>
                   </div>
                 </div>

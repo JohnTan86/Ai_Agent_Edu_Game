@@ -17,10 +17,11 @@ import {
   PROMPT_PRESETS_ZH,
   getPromptPresets,
   formatSimTimestamp,
+  TICKS_PER_DAY,
   ROBOT_SHOP_CONFIG,
   UPGRADE_PRICES
 } from '../lib/constants';
-import { initializeSimulationState, advanceTick, applyDispatchActionsToState } from '../lib/simulation';
+import { initializeSimulationState, advanceTick, applyDispatchActionsToState, startNextDayShift } from '../lib/simulation';
 import { runAgentDispatchCycle } from '../lib/agentEngine';
 import { Language } from '../lib/i18n';
 import { CITIES_DATA } from '../lib/cityData';
@@ -197,17 +198,89 @@ export function useSimulation(initialScenario: GameScenario = DEFAULT_SCENARIOS[
     setState(prev => ({ ...prev, status: 'paused' }));
   }, []);
 
-  const togglePlay = useCallback(() => {
+  // 6. Run Agent Dispatch Cycle (Pre-Shift 08:00 AM Planning or Manual Re-Dispatch)
+  const runDispatchCycle = useCallback(async () => {
+    if (isAgentExecutingRef.current) return;
+    isAgentExecutingRef.current = true;
+    setIsAgentExecuting(true);
+
+    try {
+      const current = stateRef.current;
+      const result = await runAgentDispatchCycle(
+        agentConfigRef.current,
+        current.tick,
+        current.orders,
+        current.robots,
+        current.grid,
+        current.hubs,
+        {
+          weather: current.weather,
+          rushHourActive: current.rushHourActive,
+          roadClosureNodeId: current.roadClosureNodeId,
+          financials: current.financials
+        }
+      );
+
+      setState(prev => {
+        const stateWithInfra = applyInfrastructureActions(prev, result.infrastructureActions);
+        const updated = applyDispatchActionsToState(stateWithInfra, result.actions);
+        stateRef.current = updated;
+        return {
+          ...updated,
+          lastCycleResult: result,
+          thoughtLogs: [...result.reasoningTrace, ...updated.thoughtLogs].slice(0, 100),
+          metrics: {
+            ...updated.metrics,
+            totalTokensConsumed: updated.metrics.totalTokensConsumed + result.tokensUsed
+          }
+        };
+      });
+    } catch (err: any) {
+      console.error('Dispatch cycle error:', err);
+    } finally {
+      isAgentExecutingRef.current = false;
+      setIsAgentExecuting(false);
+    }
+  }, []);
+
+  const startNextDay = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    isAgentExecutingRef.current = false;
+    setIsAgentExecuting(false);
     setState(prev => {
-      if (prev.status === 'running') {
-        return { ...prev, status: 'paused' };
-      } else if (prev.status === 'game_over') {
-        return prev;
-      } else {
-        return { ...prev, status: 'running' };
-      }
+      const next = startNextDayShift(prev);
+      stateRef.current = next;
+      return next;
     });
   }, []);
+
+  const togglePlay = useCallback(async () => {
+    const current = stateRef.current;
+    if (current.status === 'game_over') return;
+
+    if (current.status === 'running') {
+      setState(prev => ({ ...prev, status: 'paused' }));
+      return;
+    }
+
+    // If the day's 08:00-18:00 shift already ended, transition to 08:00 AM of the next day first
+    if (current.isShiftEnded) {
+      startNextDay();
+      return;
+    }
+
+    // If at 08:00 AM pre-shift and orders haven't been planned yet, run LLM Pre-Shift Planning FIRST while clock stays at 08:00 AM!
+    const hasPending = current.orders.some(o => o.status === 'pending');
+    const hasInTransit = current.orders.some(o => o.status === 'in_transit');
+    if (hasPending && !hasInTransit && !isAgentExecutingRef.current) {
+      await runDispatchCycle();
+    }
+
+    setState(prev => {
+      if (prev.status === 'game_over') return prev;
+      return { ...prev, status: 'running' };
+    });
+  }, [runDispatchCycle, startNextDay]);
 
   const setSpeed = useCallback((speed: 1 | 2 | 5) => {
     setState(prev => ({ ...prev, speed }));
@@ -236,47 +309,6 @@ export function useSimulation(initialScenario: GameScenario = DEFAULT_SCENARIOS[
       return initializeSimulationState(scenario, prev.currentCityId, lvl);
     });
   }, []);
-
-  // 6. Run Agent Dispatch Cycle
-  const runDispatchCycle = useCallback(async () => {
-    if (isAgentExecuting) return;
-    setIsAgentExecuting(true);
-
-    try {
-      const result = await runAgentDispatchCycle(
-        agentConfig,
-        state.tick,
-        state.orders,
-        state.robots,
-        state.grid,
-        state.hubs,
-        {
-          weather: state.weather,
-          rushHourActive: state.rushHourActive,
-          roadClosureNodeId: state.roadClosureNodeId,
-          financials: state.financials
-        }
-      );
-
-      setState(prev => {
-        const stateWithInfra = applyInfrastructureActions(prev, result.infrastructureActions);
-        const updated = applyDispatchActionsToState(stateWithInfra, result.actions);
-        return {
-          ...updated,
-          lastCycleResult: result,
-          thoughtLogs: [...result.reasoningTrace, ...updated.thoughtLogs].slice(0, 100),
-          metrics: {
-            ...updated.metrics,
-            totalTokensConsumed: updated.metrics.totalTokensConsumed + result.tokensUsed
-          }
-        };
-      });
-    } catch (err: any) {
-      console.error('Dispatch cycle error:', err);
-    } finally {
-      setIsAgentExecuting(false);
-    }
-  }, [agentConfig, isAgentExecuting, state.grid, state.hubs, state.orders, state.robots, state.tick]);
 
   // 7. Spawn dynamic test order
   const spawnTestOrder = useCallback(() => {
@@ -472,36 +504,11 @@ export function useSimulation(initialScenario: GameScenario = DEFAULT_SCENARIOS[
   }, []);
 
   const advanceToLevel2 = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
     setState(prev => {
-      const city = CITIES_DATA[prev.currentCityId] || CITIES_DATA.singapore;
       const isZh = prev.language === 'zh';
-
-      // Generate Level 2 new batch of orders across broader city area!
-      const level2Orders = city.initialOrders.map((o, idx) => ({
-        ...o,
-        id: `L2-ORD-${idx + 101}`,
-        status: 'pending' as const,
-        reward: 65 + idx * 15,
-        deadlineTick: prev.tick + 85 + idx * 25
-      }));
-
-      const logMsg = isZh
-        ? '🚀【晋升 Level 2：大亨阶段】车队科技升级与自主建站系统已全线激活！解锁：重载型小车（一次装2单）、极速轻骑跑车、站点快充升级与智能建站指令。'
-        : '🚀 [PROMOTED TO LEVEL 2: TYCOON PHASE] Fleet upgrades and autonomous hub infrastructure unlocked! New capabilities: Heavy Hauler (multi-drop 2+ parcels), Speedy Scout, Hub Supercharging, and prompt-driven hub construction!';
-
-      return {
+      const upgradedLevelState: SimulationState = {
         ...prev,
-        orders: [...prev.orders.filter(o => o.status !== 'failed'), ...level2Orders],
-        thoughtLogs: [
-          {
-            id: `lvl2-welcome-${prev.tick}-${Date.now()}`,
-            type: 'observe',
-            timestamp: formatSimTimestamp(prev.tick),
-            tick: prev.tick,
-            content: logMsg
-          },
-          ...prev.thoughtLogs
-        ],
         levelProgression: {
           currentLevel: 2,
           levelDeliveriesCompleted: prev.levelProgression.levelDeliveriesCompleted,
@@ -517,6 +524,27 @@ export function useSimulation(initialScenario: GameScenario = DEFAULT_SCENARIOS[
           }
         }
       };
+
+      const nextDayState = startNextDayShift(upgradedLevelState);
+      const logMsg = isZh
+        ? `🚀【晋升 Level 2 • 第 ${nextDayState.currentDay} 天 08:00 AM 开工前备战】车队科技商店已解锁！今日待送订单已全部列出，可先买车/改装并点击「执行调度」让 LLM 做好全天规划，再点击「开始仿真」正式计时（18:00 收工）！`
+        : `🚀 [PROMOTED TO LEVEL 2 • DAY ${nextDayState.currentDay} • 08:00 AM PRE-SHIFT] Tech Shop unlocked! Today's orders are visible—upgrade your fleet, click [EXECUTE DISPATCH] for LLM planning, then press [SIMULATE] to start the 08:00 AM - 06:00 PM shift!`;
+
+      const finalState: SimulationState = {
+        ...nextDayState,
+        thoughtLogs: [
+          {
+            id: `lvl2-welcome-${nextDayState.tick}-${Date.now()}`,
+            type: 'observe',
+            timestamp: `D${nextDayState.currentDay} 08:00`,
+            tick: nextDayState.tick,
+            content: logMsg
+          },
+          ...nextDayState.thoughtLogs
+        ].slice(0, 100)
+      };
+      stateRef.current = finalState;
+      return finalState;
     });
   }, []);
 
@@ -527,67 +555,12 @@ export function useSimulation(initialScenario: GameScenario = DEFAULT_SCENARIOS[
       const isZh = prev.language === 'zh';
       const cityName = isZh ? city.nameZh : city.name;
 
-      // Keep ALL player's existing hubs and existing robots in current city!
-      const currentHubs = prev.hubs;
-      const primaryHub = currentHubs[0] || city.hubs[0];
-
-      // Keep robots in place, ready for Level 3 citywide dispatch
-      const currentRobots = prev.robots.map(r => ({
-        ...r,
-        pathQueue: [],
-        carriedOrderIds: [],
-        missionQueue: [],
-        status: (r.status === 'moving' || r.status === 'delivering' ? 'idle' : r.status) as any,
-        targetDestination: undefined
-      }));
-
-      // Generate 12 high-density metropolitan orders distributed across current city hubs & road nodes
-      const level3Orders = Array.from({ length: 12 }, (_, idx) => {
-        const baseOrder = city.initialOrders[idx % city.initialOrders.length];
-        const randomNode = city.roadNodes[(idx * 3 + 1) % city.roadNodes.length];
-        const assignedHub = currentHubs[idx % currentHubs.length] || primaryHub;
-        return {
-          ...baseOrder,
-          id: `L3-ORD-${idx + 201}`,
-          status: 'pending' as const,
-          sender: `${city.name} Express #${idx + 10}`,
-          recipientAddress: {
-            x: Math.round(randomNode.lat * 100) % 18,
-            y: Math.round(randomNode.lng * 100) % 18,
-            lat: randomNode.lat,
-            lng: randomNode.lng,
-            zone: isZh ? randomNode.nameZh : randomNode.name
-          },
-          reward: 75 + (idx % 5) * 20,
-          deadlineTick: prev.tick + 90 + idx * 18,
-          pickupHubId: assignedHub.id,
-          weightKg: +((idx % 4) * 2.5 + 2).toFixed(1)
-        };
-      });
-
-      const logMsg = isZh
-        ? `👑【晋升 Level 3：全城物流霸主】开启！全城覆盖雷达已激活。继续坐镇【${cityName}】扩建你的智能物流商业王国！保留现有全部车队与充电枢纽，向全城覆盖率 ≥85% 与 $1,000 最终大奖进军！`
-        : `👑 [PROMOTED TO LEVEL 3: METROPOLIS DOMINATION] City coverage radar online! Continue expanding your logistics kingdom in ${city.name} with your existing fleet & hub network! Target: >=85% city coverage & $1,000 cash reserves!`;
-
-      return {
+      const upgradedLevelState: SimulationState = {
         ...prev,
-        // Keep delivered orders in history and append the 12 new high-density pending orders
-        orders: [...prev.orders.filter(o => o.status === 'delivered'), ...level3Orders],
-        robots: currentRobots,
-        thoughtLogs: [
-          {
-            id: `lvl3-welcome-${prev.tick}-${Date.now()}`,
-            type: 'observe',
-            timestamp: formatSimTimestamp(prev.tick),
-            tick: prev.tick,
-            content: logMsg
-          },
-          ...prev.thoughtLogs
-        ],
         levelProgression: {
           currentLevel: 3,
           levelDeliveriesCompleted: prev.levelProgression.levelDeliveriesCompleted,
-          levelTargetDeliveries: 12,
+          levelTargetDeliveries: 14,
           levelTargetCash: 1000,
           isLevelUpModalOpen: false,
           unlockedFeatures: {
@@ -599,33 +572,43 @@ export function useSimulation(initialScenario: GameScenario = DEFAULT_SCENARIOS[
           }
         }
       };
+
+      const nextDayState = startNextDayShift(upgradedLevelState);
+      const logMsg = isZh
+        ? `👑【晋升 Level 3 • 第 ${nextDayState.currentDay} 天 08:00 AM 开工前备战】欢迎统治【${cityName}】！今日全城待送订单已全部公布在地图上。请先让 LLM 完成开工前路线与建站规划，再点击「开始仿真」在 18:00 收工前完成派送！`
+        : `👑 [PROMOTED TO LEVEL 3 • DAY ${nextDayState.currentDay} • 08:00 AM PRE-SHIFT] Metropolis radar online in ${city.name}! Today's full order manifest is displayed. Run LLM Pre-Shift Planning first, then press [SIMULATE] to start the 08:00 AM - 06:00 PM clock!`;
+
+      const finalState: SimulationState = {
+        ...nextDayState,
+        thoughtLogs: [
+          {
+            id: `lvl3-welcome-${nextDayState.tick}-${Date.now()}`,
+            type: 'observe',
+            timestamp: `D${nextDayState.currentDay} 08:00`,
+            tick: nextDayState.tick,
+            content: logMsg
+          },
+          ...nextDayState.thoughtLogs
+        ].slice(0, 100)
+      };
+      stateRef.current = finalState;
+      return finalState;
     });
   }, []);
 
   const continueEndlessMode = useCallback(() => {
     setIsReportOpen(false);
     setState(prev => {
-      const isZh = prev.language === 'zh';
-      return {
+      const endlessBase: SimulationState = {
         ...prev,
-        status: 'running',
         levelProgression: {
           ...prev.levelProgression,
           isEndlessMode: true
-        },
-        thoughtLogs: [
-          {
-            id: `endless-mode-active-${Date.now()}`,
-            type: 'observe',
-            timestamp: formatSimTimestamp(prev.tick),
-            tick: prev.tick,
-            content: isZh
-              ? '👑【无尽大亨沙盒模式已激活】只要车队财库资金不耗尽，订单将源源不断流入！你可以持续扩建车队规模、投资遍布全城的快充站点，打造千万元级自动化物流商业帝国！'
-              : '👑 [ENDLESS TYCOON SANDBOX ACTIVATED] Orders will continuously stream into the metropolis! Expand your fleet and charging hubs infinitely as long as you remain solvent!'
-          },
-          ...prev.thoughtLogs
-        ]
+        }
       };
+      const nextDayState = startNextDayShift(endlessBase);
+      stateRef.current = nextDayState;
+      return nextDayState;
     });
   }, []);
 
@@ -891,6 +874,9 @@ export function useSimulation(initialScenario: GameScenario = DEFAULT_SCENARIOS[
   useEffect(() => {
     if (state.status === 'running') {
       timerRef.current = setInterval(async () => {
+        // Freeze simulation clock while LLM is thinking so network latency never eats into daily shift hours
+        if (isAgentExecutingRef.current) return;
+
         // Step 1: Advance simulation state by 1 tick using prompt directives
         let nextTickState = stateRef.current;
         setState(prev => {
@@ -899,9 +885,10 @@ export function useSimulation(initialScenario: GameScenario = DEFAULT_SCENARIOS[
           return nextTickState;
         });
 
-        // Step 2: Autonomous Dispatch Orchestration
-        // Automatically check if there are pending orders and any available robot!
+        // Step 2: Autonomous Dispatch Orchestration (if any order remains unassigned and a robot is idle)
         const current = nextTickState || stateRef.current;
+        if (current.isShiftEnded || current.status !== 'running') return;
+
         const hasPending = current.orders.some(o => o.status === 'pending');
         const hasAvailableBot = current.robots.some(
           r => r.status === 'idle' && (!r.missionQueue || r.missionQueue.length === 0)
@@ -975,6 +962,7 @@ export function useSimulation(initialScenario: GameScenario = DEFAULT_SCENARIOS[
     reset,
     selectScenario,
     runDispatchCycle,
+    startNextDay,
     spawnTestOrder,
     toggleTrafficHeatmap,
     selectRobot,

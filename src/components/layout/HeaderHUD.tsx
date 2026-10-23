@@ -15,10 +15,13 @@ import {
   Truck,
   Lock,
   Sun,
-  Moon
+  Moon,
+  Clock,
+  Calendar
 } from 'lucide-react';
 import { GameScenario, SimulationStatus, LevelProgression } from '../../lib/types';
 import { DEFAULT_SCENARIOS } from '../../lib/defaultScenarios';
+import { getDayClockInfo } from '../../lib/constants';
 import { translations, Language } from '../../lib/i18n';
 
 interface HeaderHUDProps {
@@ -26,6 +29,8 @@ interface HeaderHUDProps {
   onSelectScenario: (scenario: GameScenario) => void;
   status: SimulationStatus;
   tick: number;
+  currentDay?: number;
+  isShiftEnded?: boolean;
   levelProgression?: LevelProgression;
   balance?: number;
   cityCoveragePct?: number;
@@ -46,6 +51,8 @@ export const HeaderHUD: React.FC<HeaderHUDProps> = ({
   onSelectScenario,
   status,
   tick,
+  currentDay,
+  isShiftEnded,
   levelProgression,
   balance = 100,
   cityCoveragePct,
@@ -61,6 +68,7 @@ export const HeaderHUD: React.FC<HeaderHUDProps> = ({
   onToggleTheme
 }) => {
   const t = translations[lang];
+  const clockInfo = getDayClockInfo(tick, currentDay, isShiftEnded);
 
   const getStatusBadge = () => {
     switch (status) {
@@ -211,13 +219,35 @@ export const HeaderHUD: React.FC<HeaderHUDProps> = ({
         {/* Status Pill */}
         <div>{getStatusBadge()}</div>
 
-        {/* Tick Counter HUD */}
-        <div className="flex items-center gap-1.5 bg-slate-900/90 border border-cyan-950 px-3 py-1 rounded-lg">
-          <Zap className="w-3.5 h-3.5 text-cyan-400" />
-          <span className="text-[11px] font-mono text-slate-400">{t.tickLabel}</span>
-          <span className="text-xs font-mono font-bold text-cyan-300">
-            {tick.toString().padStart(4, '0')}
-          </span>
+        {/* Day & Real-Time Shift Clock HUD (08:00 AM - 06:00 PM) */}
+        <div className="flex items-center gap-2 bg-slate-900/90 border border-cyan-500/40 px-3 py-1 rounded-lg shadow-[0_0_12px_rgba(6,182,212,0.18)]">
+          <div className="flex items-center gap-1 pr-2 border-r border-slate-700/80">
+            <Calendar className="w-3.5 h-3.5 text-amber-400" />
+            <span className="text-xs font-mono font-bold text-amber-300">
+              {lang === 'zh' ? `第 ${clockInfo.day} 天` : `DAY ${clockInfo.day}`}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Clock className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="text-xs font-mono font-bold text-cyan-300 tracking-wide">
+              {clockInfo.time12}
+            </span>
+            <span
+              className={`hidden xl:inline-block text-[10px] font-mono px-1.5 py-0.5 rounded border ${
+                clockInfo.isShiftEnd
+                  ? 'bg-rose-950/70 border-rose-500/40 text-rose-300'
+                  : clockInfo.isPreShift
+                  ? 'bg-amber-950/70 border-amber-500/40 text-amber-300'
+                  : 'bg-emerald-950/70 border-emerald-500/40 text-emerald-300'
+              }`}
+            >
+              {clockInfo.isShiftEnd
+                ? (lang === 'zh' ? '🌇 18:00 已收工' : '🌇 06:00 PM Closed')
+                : clockInfo.isPreShift
+                ? (lang === 'zh' ? '🌅 08:00 开工前规划' : '🌅 08:00 AM Pre-Shift')
+                : (lang === 'zh' ? '🚚 08:00-18:00 班次中' : '🚚 Shift Active')}
+            </span>
+          </div>
         </div>
       </div>
 

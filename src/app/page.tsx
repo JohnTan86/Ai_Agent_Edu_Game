@@ -58,6 +58,7 @@ export default function RoboFlowApp() {
     advanceToLevel2,
     advanceToLevel3,
     continueEndlessMode,
+    startNextDay,
     isShopOpen,
     openShop,
     closeShop,
@@ -142,6 +143,8 @@ export default function RoboFlowApp() {
         onSelectScenario={selectScenario}
         status={state.status}
         tick={state.tick}
+        currentDay={state.currentDay}
+        isShiftEnded={state.isShiftEnded}
         levelProgression={state.levelProgression}
         balance={state.financials.balance}
         cityCoveragePct={cityCoveragePct}
@@ -196,6 +199,8 @@ export default function RoboFlowApp() {
             onSetSpeed={setSpeed}
             onStepForward={stepForward}
             onReset={() => reset()}
+            onStartNextDay={startNextDay}
+            isAgentExecuting={isAgentExecuting}
             lang={lang}
           />
         </div>

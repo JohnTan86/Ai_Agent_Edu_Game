@@ -11,7 +11,7 @@ import {
   LevelProgression,
   Position
 } from './types';
-import { COSTS, ROBOT_PARAMS, formatSimTimestamp } from './constants';
+import { COSTS, ROBOT_PARAMS, TICKS_PER_DAY, formatSimTimestamp } from './constants';
 import { createEmptyGrid, applyTrafficHotspots, DEFAULT_SCENARIOS } from './defaultScenarios';
 import { CITIES_DATA } from './cityData';
 import { findNearestHub, findCityRoadPath, findPathAStar } from './pathfinding';
@@ -65,7 +65,7 @@ export function initializeSimulationState(
         carriedOrderIds: []
       }));
 
-  // Orders according to level
+  // All daily orders are known at 08:00 AM before the shift starts, and must be delivered before 06:00 PM (18:00, tick 100)
   const initialOrders: Order[] = level === 1
     ? city.initialOrders
         .filter(o => o.pickupHubId === primaryHub.id)
@@ -76,7 +76,7 @@ export function initializeSimulationState(
           id: `L1-ORD-0${idx + 1}`,
           pickupHubId: primaryHub.id,
           reward: 50 + idx * 10, // $50, $60, $70 -> potential: $180
-          deadlineTick: 75 + idx * 25, // generous SLA for learning
+          deadlineTick: 65 + idx * 15, // Due at 14:30, 16:00, 17:30 (all before 18:00 closing!)
           status: 'pending' as const
         }))
     : (level === 2
@@ -85,15 +85,15 @@ export function initializeSimulationState(
             id: `L2-ORD-${idx + 101}`,
             status: 'pending' as const,
             reward: 65 + (idx % 4) * 15,
-            deadlineTick: 85 + idx * 20
+            deadlineTick: Math.min(TICKS_PER_DAY, 55 + idx * 6)
           }))
-        : Array.from({ length: 12 }, (_, idx) => {
+        : Array.from({ length: 8 }, (_, idx) => {
             const baseOrder = city.initialOrders[idx % city.initialOrders.length];
             const randomNode = city.roadNodes[(idx * 3 + 1) % city.roadNodes.length];
             const assignedHub = initialHubs[idx % initialHubs.length] || primaryHub;
             return {
               ...baseOrder,
-              id: `L3-ORD-${idx + 201}`,
+              id: `D1-ORD-${idx + 201}`,
               status: 'pending' as const,
               sender: `${city.name} Express #${idx + 10}`,
               recipientAddress: {
@@ -103,8 +103,8 @@ export function initializeSimulationState(
                 lng: randomNode.lng,
                 zone: randomNode.name
               },
-              reward: 80 + (idx % 5) * 20,
-              deadlineTick: 95 + idx * 18,
+              reward: 85 + (idx % 5) * 20,
+              deadlineTick: Math.min(TICKS_PER_DAY, 55 + idx * 6),
               pickupHubId: assignedHub.id,
               weightKg: +((idx % 4) * 2.5 + 2).toFixed(1)
             };
@@ -149,19 +149,15 @@ export function initializeSimulationState(
   const welcomeLog: ThoughtStep = {
     id: 'welcome-log',
     type: 'observe',
-    timestamp: formatSimTimestamp(0),
+    timestamp: 'D1 08:00',
     tick: 0,
     content: level === 1
       ? (city.id === 'singapore'
-          ? '【新手学徒：第一阶段开启】欢迎指挥官！初始资产：1座滨海湾中心站点、1台全能配送小车与3笔同城配送单。在左侧编写你的系统提示词，引导机器人完成全部 3 笔订单并赚取 $180 资金以晋升 Level 2！'
-          : '[LEVEL 1: THE FIRST MILE] Welcome Architect! You have 1 Central Hub, 1 Rover, and 3 Pending Orders. Write your system prompt to guide your fleet. Deliver all 3 orders and achieve $180 cash to unlock Level 2: Fleet & Hub Tycoon!')
+          ? '🌅【第 1 天 08:00 AM 开工前备战】今日全部 3 笔待送订单已显示在清单与地图上！请在左侧编写 System Prompt 并点击「执行调度」让 LLM 做好全天规划，随后点击下方「开始仿真」在 18:00 收工前送完所有包裹！'
+          : '🌅 [DAY 1 • 08:00 AM PRE-SHIFT BRIEFING] All 3 daily orders are loaded! Write your System Prompt and click [EXECUTE DISPATCH] so the LLM plans your routes upfront, then press [SIMULATE] to deliver everything before 06:00 PM (18:00)!')
       : (level === 2
-          ? (city.id === 'singapore'
-              ? '【第 2 关：车队扩建与枢纽大亨】欢迎来到大亨阶段！车队商城、多车型改装、站点快充升级与智能建站已全部解锁。完成 8 笔订单并累计 $500 资金以进军 Level 3 全球大都会！'
-              : '[LEVEL 2: FLEET & HUB TYCOON] Welcome to the Tycoon phase! Vehicle store, multi-drop rovers, hub upgrades, and prompt-driven hub construction unlocked. Deliver 8 orders & reach $500 capital to advance to Level 3!')
-          : (city.id === 'singapore'
-              ? '【第 3 关：全球大都会全城霸主】全城覆盖雷达已激活。部署多中心站点覆盖全城路网，向全城覆盖率 ≥85% 与 $1,000 最终大奖发起总攻！'
-              : `[LEVEL 3: METROPOLIS DOMINATION] Welcome to [${city.name}]! City coverage radar online. Build hubs across the metropolis and achieve >=85% city coverage with $1,000 cash reserves to win the Grand Architect Trophy!`))
+          ? '🌅【Level 2 • 08:00 AM 开工前备战】今日 8 笔同城订单已全部列出！开工前可先在科技商店购置新车或让 LLM 规划全天一车多单路线，按下「开始仿真」后须在 18:00 下班前全部送达！'
+          : `🌅 [LEVEL 3 • DAY 1 • 08:00 AM] Today's metropolitan order manifest is ready! Use pre-shift planning to let your LLM orchestrate the entire day's routes before starting the 08:00 AM - 06:00 PM clock!`)
   };
 
   const levelProgression: LevelProgression = {
@@ -200,7 +196,99 @@ export function initializeSimulationState(
     weather: 'clear',
     rushHourActive: false,
     roadClosureNodeId: undefined,
-    levelProgression
+    levelProgression,
+    currentDay: 1,
+    dayTick: 0,
+    isShiftEnded: false
+  };
+}
+
+/**
+ * Transitions the simulation to 08:00 AM of the next day (Day N+1) with a full pre-shift manifest of orders
+ * and recharged robots stationed at their home hubs.
+ */
+export function startNextDayShift(state: SimulationState): SimulationState {
+  const nextDay = (state.currentDay || 1) + 1;
+  const dayStartTick = (nextDay - 1) * TICKS_PER_DAY;
+  const dayEndTick = dayStartTick + TICKS_PER_DAY;
+  const isZh = state.language === 'zh';
+  const city = CITIES_DATA[state.currentCityId] || CITIES_DATA.singapore;
+  const lvl = state.levelProgression?.currentLevel || 1;
+
+  // Return all robots to their home hub at 100% battery for 08:00 AM start
+  const readyRobots: DeliveryRobot[] = state.robots.map(bot => {
+    const homeHub = state.hubs.find(h => h.id === bot.homeHubId) || state.hubs[0];
+    return {
+      ...bot,
+      position: homeHub ? { ...homeHub.position } : { ...bot.position },
+      batteryPct: 100,
+      currentPayloadKg: 0,
+      status: 'idle',
+      currentOrderId: undefined,
+      carriedOrderIds: [],
+      missionQueue: [],
+      pathQueue: [],
+      targetDestination: undefined
+    };
+  });
+
+  // Determine how many orders to generate for today's shift (all visible at 08:00 AM!)
+  const dailyOrderCount = lvl === 1 ? 3 : (lvl === 2 ? 6 : Math.min(10, 6 + readyRobots.length));
+  const newDailyOrders: Order[] = Array.from({ length: dailyOrderCount }, (_, idx) => {
+    const randomNode = city.roadNodes[(nextDay * 3 + idx * 2) % city.roadNodes.length];
+    const assignedHub = state.hubs[(nextDay + idx) % state.hubs.length] || state.hubs[0];
+    const reward = (lvl === 1 ? 55 : (lvl === 2 ? 70 : 85)) + (idx % 4) * 15;
+    // SLA deadline is within today's 08:00 - 18:00 shift (tick dayStartTick + 55 .. dayEndTick)
+    const deadlineOffset = Math.min(TICKS_PER_DAY, 55 + Math.floor((idx / Math.max(1, dailyOrderCount - 1)) * 45));
+    return {
+      id: `D${nextDay}-ORD-${idx + 101}`,
+      sender: `${city.name} Express #${(nextDay * 10 + idx) % 89 + 10}`,
+      recipientAddress: {
+        x: Math.round(randomNode.lat * 100) % 18,
+        y: Math.round(randomNode.lng * 100) % 18,
+        lat: randomNode.lat,
+        lng: randomNode.lng,
+        zone: isZh ? randomNode.nameZh : randomNode.name
+      },
+      deadlineTick: dayStartTick + deadlineOffset,
+      reward,
+      weightKg: +((idx % 4) * 2.0 + 2.0).toFixed(1),
+      status: 'pending' as const,
+      createdAtTick: dayStartTick,
+      pickupHubId: assignedHub.id
+    };
+  });
+
+  const keptHistory = state.orders.filter(o => o.status === 'delivered' || o.status === 'failed');
+  const combinedOrders = [...newDailyOrders, ...keptHistory];
+
+  const morningLog: ThoughtStep = {
+    id: `day-${nextDay}-start-${Date.now()}`,
+    type: 'observe',
+    timestamp: `D${nextDay} 08:00`,
+    tick: dayStartTick,
+    content: isZh
+      ? `🌅【第 ${nextDay} 天 • 早上 08:00 开工前备战】全车队已满电就位，今日共有 ${dailyOrderCount} 笔待送包裹已全部公布！请先点击左下角「执行调度」让 LLM 规划今日全套派送路线，再点击「开始仿真」正式计时（18:00 收工）！`
+      : `🌅 [DAY ${nextDay} • 08:00 AM PRE-SHIFT BRIEFING] All rovers charged to 100%. Today's ${dailyOrderCount} orders are now visible! Click [EXECUTE DISPATCH] to let your LLM plan the day's routes upfront, then press [SIMULATE] to start the 08:00 AM – 06:00 PM clock!`
+  };
+
+  return {
+    ...state,
+    status: 'idle',
+    tick: dayStartTick,
+    currentDay: nextDay,
+    dayTick: 0,
+    isShiftEnded: false,
+    robots: readyRobots,
+    orders: combinedOrders,
+    activeActions: [],
+    metrics: {
+      ...state.metrics,
+      totalOrdersSpawned: combinedOrders.length,
+      pendingCount: newDailyOrders.length,
+      inTransitCount: 0
+    },
+    thoughtLogs: [morningLog, ...state.thoughtLogs].slice(0, 100)
   };
 }
 
@@ -801,49 +889,34 @@ export function advanceTick(state: SimulationState, systemPrompt?: string): Simu
     }
   });
 
-  // 2b. Dynamic Living City Order Flow in Level 3 / Endless Tycoon Mode
-  const isLevel3OrEndless = state.levelProgression?.currentLevel === 3 || Boolean(state.levelProgression?.isEndlessMode);
-  if (
-    isLevel3OrEndless &&
-    state.status === 'running' &&
-    currentTick > 0 &&
-    currentTick % 16 === 0
-  ) {
-    const currentPending = orders.filter(o => o.status === 'pending').length;
-    if (currentPending < 6) {
-      const city = CITIES_DATA[state.currentCityId] || CITIES_DATA.tokyo;
-      const randomNode = city.roadNodes[Math.floor(Math.random() * city.roadNodes.length)];
-      const randomHub = state.hubs[Math.floor(Math.random() * state.hubs.length)] || state.hubs[0];
-      const newOrderId = `ORD-${state.currentCityId.slice(0, 2).toUpperCase()}-${currentTick}-${Math.floor(Math.random() * 900 + 100)}`;
-      const newReward = Math.floor(Math.random() * 50 + 60);
-      const newOrder: Order = {
-        id: newOrderId,
-        sender: `${city.name} Express #${Math.floor(Math.random() * 90 + 10)}`,
-        recipientAddress: {
-          x: Math.round(randomNode.lat * 100) % 18,
-          y: Math.round(randomNode.lng * 100) % 18,
-          lat: randomNode.lat,
-          lng: randomNode.lng,
-          zone: isZh ? randomNode.nameZh : randomNode.name
-        },
-        deadlineTick: currentTick + Math.floor(Math.random() * 35 + 45),
-        reward: newReward,
-        weightKg: +(Math.random() * 6 + 1.5).toFixed(1),
-        status: 'pending',
-        createdAtTick: currentTick,
-        pickupHubId: randomHub.id
-      };
-      orders.unshift(newOrder);
-      logs.unshift({
-        id: `live-order-${newOrderId}`,
-        type: 'observe',
-        timestamp: formatSimTimestamp(currentTick),
-        tick: currentTick,
-        content: isZh
-          ? `📦【都会新单到达】[${randomHub.name}] ➔ [${newOrder.recipientAddress.zone}]，报酬: +$${newReward}，SLA限时: ${newOrder.deadlineTick - currentTick} 周期。`
-          : `📦 [NEW ORDER ARRIVED] [${randomHub.name}] ➔ [${newOrder.recipientAddress.zone}], Reward: +$${newReward}, SLA: ${newOrder.deadlineTick - currentTick} ticks.`
-      });
-    }
+  // 2b. Daily Shift Clock Evaluation (08:00 AM to 06:00 PM / 18:00 = TICKS_PER_DAY ticks)
+  const currentDay = state.currentDay || 1;
+  const dayStartTick = (currentDay - 1) * TICKS_PER_DAY;
+  const dayTick = currentTick - dayStartTick;
+  let isShiftEnded = Boolean(state.isShiftEnded);
+
+  // If 06:00 PM (18:00) closing time is reached, any remaining unfulfilled orders fail due to shift end
+  if (dayTick >= TICKS_PER_DAY) {
+    isShiftEnded = true;
+    orders.forEach(order => {
+      if (order.status === 'pending' || order.status === 'in_transit') {
+        order.status = 'failed';
+        order.failedReason = `Shift ended at 18:00 (Day ${currentDay}) before delivery completion`;
+        financials.slaPenalties += COSTS.SLA_BREACH_PENALTY;
+        financials.totalExpenses += COSTS.SLA_BREACH_PENALTY;
+        financials.balance -= COSTS.SLA_BREACH_PENALTY;
+
+        logs.unshift({
+          id: `shift-end-expire-${currentTick}-${order.id}`,
+          type: 'error',
+          timestamp: `D${currentDay} 18:00`,
+          tick: currentTick,
+          content: isZh
+            ? `⏰【18:00 收工超时】订单 #${order.id} 未能在下午 6:00 下班前送达！扣除违约金：-$${COSTS.SLA_BREACH_PENALTY}。`
+            : `⏰ [18:00 SHIFT OVERTIME] Order #${order.id} was not delivered before 06:00 PM closing! Penalty: -$${COSTS.SLA_BREACH_PENALTY}.`
+        });
+      }
+    });
   }
 
   // 2c. Living Economy: Periodic Operational Invoices every 20 ticks
@@ -932,7 +1005,7 @@ export function advanceTick(state: SimulationState, systemPrompt?: string): Simu
     fleetUtilizationRate
   };
 
-  // 4. Level Progression Evaluation
+  // 4. Level Progression & Daily Shift Completion Evaluation
   let status: SimulationStatus = state.status;
   let gameOverReason: string | undefined = undefined;
   let showReportModal = state.showReportModal;
@@ -956,6 +1029,32 @@ export function advanceTick(state: SimulationState, systemPrompt?: string): Simu
 
   nextLevelProgression.levelDeliveriesCompleted = totalDelivered;
 
+  // Check if all of today's orders have been cleared before 18:00
+  if (pendingCount === 0 && inTransitCount === 0 && !isShiftEnded) {
+    isShiftEnded = true;
+    status = 'paused';
+    logs.unshift({
+      id: `day-${currentDay}-cleared-${currentTick}`,
+      type: 'observe',
+      timestamp: formatSimTimestamp(currentTick),
+      tick: currentTick,
+      content: isZh
+        ? `🎉【第 ${currentDay} 天全部包裹提前送达！】当前时间 ${formatSimTimestamp(currentTick)}（赶在 18:00 收工前完成全部订单）！点击下方「🌅 开启第 ${currentDay + 1} 天 (08:00 AM)」获取明日订单并让 LLM 进行开工前规划！`
+        : `🎉 [DAY ${currentDay} ORDERS CLEARED EARLY!] All parcels delivered at ${formatSimTimestamp(currentTick)} before 06:00 PM closing! Click [🌅 Start Day ${currentDay + 1} (08:00 AM)] below for tomorrow's pre-shift planning!`
+    });
+  } else if (dayTick >= TICKS_PER_DAY) {
+    status = 'paused';
+    logs.unshift({
+      id: `day-${currentDay}-end-${currentTick}`,
+      type: 'observe',
+      timestamp: `D${currentDay} 18:00`,
+      tick: currentTick,
+      content: isZh
+        ? `🌇【第 ${currentDay} 天 18:00 下班收工】今日 08:00 - 18:00 运营时段结束！点击下方「🌅 开启第 ${currentDay + 1} 天 (08:00 AM)」进入下一天开工前排程！`
+        : `🌇 [DAY ${currentDay} • 06:00 PM SHIFT ENDED] Operating hours (08:00 AM – 06:00 PM) concluded! Click [🌅 Start Day ${currentDay + 1} (08:00 AM)] below to plan tomorrow's shift!`
+    });
+  }
+
   if (
     nextLevelProgression.currentLevel === 1 &&
     totalDelivered >= nextLevelProgression.levelTargetDeliveries &&
@@ -974,7 +1073,7 @@ export function advanceTick(state: SimulationState, systemPrompt?: string): Simu
     });
   } else if (
     nextLevelProgression.currentLevel === 2 &&
-    (totalDelivered >= nextLevelProgression.levelTargetDeliveries || (pendingCount === 0 && inTransitCount === 0 && totalDelivered >= 6)) &&
+    totalDelivered >= nextLevelProgression.levelTargetDeliveries &&
     !nextLevelProgression.isLevelUpModalOpen
   ) {
     nextLevelProgression.isLevelUpModalOpen = true;
@@ -985,8 +1084,8 @@ export function advanceTick(state: SimulationState, systemPrompt?: string): Simu
       timestamp: formatSimTimestamp(currentTick),
       tick: currentTick,
       content: isZh
-        ? `🏆【第 2 关大亨达成！】新加坡城际智能网络运营卓越，累计完成 ${totalDelivered} 笔派送！资金储备：$${financials.balance.toFixed(2)}。恭喜解锁 Level 3【全城物流霸主 · 进军东京/纽约全球大都会网络】！`
-        : `🏆 [LEVEL 2 COMPLETE: TYCOON MASTER!] Singapore network conquered with ${totalDelivered} deliveries! Bank capital: $${financials.balance.toFixed(2)}. Unlocked Level 3 [Metropolis Domination: Tokyo & New York]!`
+        ? `🏆【第 2 关大亨达成！】城际智能网络运营卓越，累计完成 ${totalDelivered} 笔派送！资金储备：$${financials.balance.toFixed(2)}。恭喜解锁 Level 3【全城物流霸主 · 进军东京/纽约全球大都会网络】！`
+        : `🏆 [LEVEL 2 COMPLETE: TYCOON MASTER!] Network conquered with ${totalDelivered} deliveries! Bank capital: $${financials.balance.toFixed(2)}. Unlocked Level 3 [Metropolis Domination: Tokyo & New York]!`
     });
   }
 
@@ -1021,8 +1120,8 @@ export function advanceTick(state: SimulationState, systemPrompt?: string): Simu
   } else if (
     pendingCount === 0 &&
     inTransitCount === 0 &&
-    totalDelivered > 0 &&
-    currentTick >= 30 &&
+    totalDelivered >= nextLevelProgression.levelTargetDeliveries &&
+    financials.balance >= nextLevelProgression.levelTargetCash &&
     nextLevelProgression.currentLevel >= 3 &&
     !nextLevelProgression.isEndlessMode
   ) {
@@ -1042,6 +1141,9 @@ export function advanceTick(state: SimulationState, systemPrompt?: string): Simu
   return {
     ...state,
     tick: currentTick,
+    currentDay,
+    dayTick,
+    isShiftEnded,
     status,
     gameOverReason,
     showReportModal,

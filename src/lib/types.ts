@@ -262,4 +262,7 @@ export interface SimulationState {
   rushHourActive: boolean;
   roadClosureNodeId?: string;
   levelProgression: LevelProgression;
+  currentDay?: number;
+  dayTick?: number;
+  isShiftEnded?: boolean;
 }
