@@ -5,6 +5,9 @@
   # Route POST /api/dispatch directly to /api/dispatch/index.php without 301 redirect
   RewriteRule ^api/dispatch/?$ api/dispatch/index.php [L,QSA]
 
+  # Route /api/git-sync directly to /api/git-sync/index.php
+  RewriteRule ^api/git-sync/?$ api/git-sync/index.php [L,QSA]
+
   # Serve existing files and directories directly
   RewriteCond %{REQUEST_FILENAME} -f [OR]
   RewriteCond %{REQUEST_FILENAME} -d
