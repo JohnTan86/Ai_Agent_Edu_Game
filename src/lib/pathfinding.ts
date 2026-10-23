@@ -17,15 +17,21 @@ export function lookupStreetRoute(
   startLng: number,
   goalLat: number,
   goalLng: number,
-  maxDistanceThreshold: number = 0.0045 // ~450m proximity search
+  maxDistanceThreshold: number = 0.0008 // ~85m tight proximity search (prevents cross-river jumps)
 ): Array<[number, number]> | null {
-  // 1. Direct exact key lookup
+  // 1. Direct exact key lookup (forward)
   const exactKey = `${startLat.toFixed(4)},${startLng.toFixed(4)}->${goalLat.toFixed(4)},${goalLng.toFixed(4)}`;
   if (PRECOMPUTED_STREET_ROUTES[exactKey]) {
     return PRECOMPUTED_STREET_ROUTES[exactKey];
   }
 
-  // 2. Proximity search among precomputed routes
+  // 2. Direct exact key lookup (reverse)
+  const reverseKey = `${goalLat.toFixed(4)},${goalLng.toFixed(4)}->${startLat.toFixed(4)},${startLng.toFixed(4)}`;
+  if (PRECOMPUTED_STREET_ROUTES[reverseKey]) {
+    return [...PRECOMPUTED_STREET_ROUTES[reverseKey]].reverse();
+  }
+
+  // 3. Tight proximity search among precomputed routes (forward & reverse)
   let bestMatch: Array<[number, number]> | null = null;
   let bestDist = Infinity;
 
@@ -34,6 +40,7 @@ export function lookupStreetRoute(
     const [kFromLat, kFromLng] = fromStr.split(',').map(Number);
     const [kToLat, kToLng] = toStr.split(',').map(Number);
 
+    // Forward proximity
     const distFrom = Math.hypot(startLat - kFromLat, startLng - kFromLng);
     const distTo = Math.hypot(goalLat - kToLat, goalLng - kToLng);
 
@@ -42,6 +49,18 @@ export function lookupStreetRoute(
       if (totalDist < bestDist) {
         bestDist = totalDist;
         bestMatch = coords;
+      }
+    }
+
+    // Reverse proximity
+    const revDistFrom = Math.hypot(startLat - kToLat, startLng - kToLng);
+    const revDistTo = Math.hypot(goalLat - kFromLat, goalLng - kFromLng);
+
+    if (revDistFrom <= maxDistanceThreshold && revDistTo <= maxDistanceThreshold) {
+      const totalRevDist = revDistFrom + revDistTo;
+      if (totalRevDist < bestDist) {
+        bestDist = totalRevDist;
+        bestMatch = [...coords].reverse();
       }
     }
   }
@@ -249,24 +268,64 @@ export function findCityRoadPath(
     closedSet.add(current.id);
 
     if (current.id === goalNode.id) {
-      // Reconstruct path
-      const resultWaypoints: Point[] = [];
+      // Reconstruct sequence of road nodes from A*
+      const nodeChain: RoadNode[] = [];
       let curr: GraphState | undefined = current;
       while (curr) {
-        resultWaypoints.unshift({
-          x: Math.round(curr.node.lat * 100) % 18,
-          y: Math.round(curr.node.lng * 100) % 18,
-          lat: curr.node.lat,
-          lng: curr.node.lng
-        });
+        nodeChain.unshift(curr.node);
         curr = curr.parent;
       }
 
-      // Add actual origin and target destinations
+      // Stitch high-precision OSRM street geometry along every consecutive road segment!
+      const stitchedCoords: Array<[number, number]> = [];
+      const appendSegment = (fromLat: number, fromLng: number, toLat: number, toLng: number) => {
+        if (haversineDistance(fromLat, fromLng, toLat, toLng) < 15) return;
+        const segCoords = lookupStreetRoute(fromLat, fromLng, toLat, toLng, 0.0012);
+        if (segCoords && segCoords.length > 0) {
+          if (stitchedCoords.length > 0) {
+            stitchedCoords.push(...segCoords.slice(1));
+          } else {
+            stitchedCoords.push(...segCoords);
+          }
+        } else {
+          if (stitchedCoords.length === 0) {
+            stitchedCoords.push([fromLat, fromLng]);
+          }
+          stitchedCoords.push([toLat, toLng]);
+        }
+      };
+
+      const originLat = start.lat ?? startNode.lat;
+      const originLng = start.lng ?? startNode.lng;
+      const destLat = goal.lat ?? goalNode.lat;
+      const destLng = goal.lng ?? goalNode.lng;
+
+      // 1. Connector from actual start point to first roadNode
+      appendSegment(originLat, originLng, nodeChain[0].lat, nodeChain[0].lng);
+
+      // 2. Street segments between each roadNode in the A* chain
+      for (let i = 0; i < nodeChain.length - 1; i++) {
+        appendSegment(
+          nodeChain[i].lat,
+          nodeChain[i].lng,
+          nodeChain[i + 1].lat,
+          nodeChain[i + 1].lng
+        );
+      }
+
+      // 3. Connector from last roadNode to actual goal point
+      const lastNode = nodeChain[nodeChain.length - 1];
+      appendSegment(lastNode.lat, lastNode.lng, destLat, destLng);
+
+      if (stitchedCoords.length >= 2) {
+        const desiredSteps = Math.max(14, Math.min(28, Math.round(stitchedCoords.length / 3)));
+        return resampleStreetCoordinates(stitchedCoords, start, goal, desiredSteps);
+      }
+
+      // Fallback if stitchedCoords had fewer than 2 points
       return [
-        { x: start.x, y: start.y, lat: start.lat || startNode.lat, lng: start.lng || startNode.lng },
-        ...resultWaypoints,
-        { x: goal.x, y: goal.y, lat: goal.lat || goalNode.lat, lng: goal.lng || goalNode.lng }
+        { x: start.x, y: start.y, lat: originLat, lng: originLng },
+        { x: goal.x, y: goal.y, lat: destLat, lng: destLng }
       ];
     }
 
