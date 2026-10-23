@@ -13,7 +13,9 @@ import {
   Globe,
   Award,
   Truck,
-  Lock
+  Lock,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { GameScenario, SimulationStatus, LevelProgression } from '../../lib/types';
 import { DEFAULT_SCENARIOS } from '../../lib/defaultScenarios';
@@ -35,6 +37,8 @@ interface HeaderHUDProps {
   onToggleHeatmap: () => void;
   lang: Language;
   onToggleLang: () => void;
+  theme?: 'dark' | 'light';
+  onToggleTheme?: () => void;
 }
 
 export const HeaderHUD: React.FC<HeaderHUDProps> = ({
@@ -52,7 +56,9 @@ export const HeaderHUD: React.FC<HeaderHUDProps> = ({
   showHeatmap,
   onToggleHeatmap,
   lang,
-  onToggleLang
+  onToggleLang,
+  theme = 'dark',
+  onToggleTheme
 }) => {
   const t = translations[lang];
 
@@ -215,8 +221,33 @@ export const HeaderHUD: React.FC<HeaderHUDProps> = ({
         </div>
       </div>
 
-      {/* Right Actions: Heatmap, Spawn Order, Report, Language Toggle, Guide */}
+      {/* Right Actions: Theme Toggle, Language Toggle, Heatmap, Spawn Order, Report, Guide */}
       <div className="flex items-center gap-2">
+        {/* Light / Dark Theme Toggle Button */}
+        {onToggleTheme && (
+          <button
+            onClick={onToggleTheme}
+            title={
+              lang === 'zh'
+                ? (theme === 'dark' ? '切换至亮色主题 (Light Theme)' : '切换至暗色主题 (Dark Theme)')
+                : (theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme')
+            }
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 transition-all hover:text-amber-300"
+          >
+            {theme === 'dark' ? (
+              <>
+                <Sun className="w-3.5 h-3.5 text-amber-400" />
+                <span className="hidden sm:inline">{lang === 'zh' ? '亮色' : 'Light'}</span>
+              </>
+            ) : (
+              <>
+                <Moon className="w-3.5 h-3.5 text-indigo-500" />
+                <span className="hidden sm:inline">{lang === 'zh' ? '暗色' : 'Dark'}</span>
+              </>
+            )}
+          </button>
+        )}
+
         {/* Multi-language Toggle Button */}
         <button
           onClick={onToggleLang}

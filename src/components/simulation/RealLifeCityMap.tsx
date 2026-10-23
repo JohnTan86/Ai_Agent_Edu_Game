@@ -37,6 +37,7 @@ interface RealLifeCityMapProps {
   onUpgradeHub?: (hubId: string, targetLevel: 2 | 3) => void;
   onSellHub?: (hubId: string) => void;
   lang?: Language;
+  theme?: 'dark' | 'light';
 }
 
 export const RealLifeCityMap: React.FC<RealLifeCityMapProps> = ({
@@ -50,7 +51,8 @@ export const RealLifeCityMap: React.FC<RealLifeCityMapProps> = ({
   onBuildHub,
   onUpgradeHub,
   onSellHub,
-  lang = 'en'
+  lang = 'en',
+  theme = 'dark'
 }) => {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<any>(null);
@@ -61,9 +63,14 @@ export const RealLifeCityMap: React.FC<RealLifeCityMapProps> = ({
   const tileLayerRef = useRef<any>(null);
   const robotMarkersMapRef = useRef<Map<string, any>>(new Map());
 
-  const [mapStyle, setMapStyle] = useState<'dark' | 'satellite' | 'streets'>('dark');
+  const [mapStyle, setMapStyle] = useState<'dark' | 'satellite' | 'streets'>(theme === 'light' ? 'streets' : 'dark');
   const [showTraffic, setShowTraffic] = useState(true);
   const [activeCityId, setActiveCityId] = useState<string>(state.currentCityId || 'singapore');
+
+  // Sync map basemap style when global light/dark theme is toggled
+  useEffect(() => {
+    setMapStyle(theme === 'light' ? 'streets' : 'dark');
+  }, [theme]);
 
   const currentCity: CityData = CITIES_DATA[activeCityId] || CITIES_DATA.singapore;
 

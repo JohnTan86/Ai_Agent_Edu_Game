@@ -69,6 +69,30 @@ export default function RoboFlowApp() {
   } = useSimulation();
 
   const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('roboflow_theme');
+    if (savedTheme === 'light' || savedTheme === 'dark') {
+      setTheme(savedTheme);
+    }
+  }, []);
+
+  useEffect(() => {
+    const htmlEl = document.documentElement;
+    if (theme === 'light') {
+      htmlEl.classList.add('light-theme');
+      htmlEl.classList.remove('dark');
+    } else {
+      htmlEl.classList.remove('light-theme');
+      htmlEl.classList.add('dark');
+    }
+    localStorage.setItem('roboflow_theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
+  };
 
   // Keyboard shortcut listener
   useEffect(() => {
@@ -129,6 +153,8 @@ export default function RoboFlowApp() {
         onToggleHeatmap={toggleTrafficHeatmap}
         lang={lang}
         onToggleLang={toggleLang}
+        theme={theme}
+        onToggleTheme={toggleTheme}
       />
 
       {/* 2. Main 3-Column Single-Screen Dashboard */}
@@ -159,6 +185,7 @@ export default function RoboFlowApp() {
               onUpgradeHub={upgradeHub}
               onSellHub={sellHub}
               lang={lang}
+              theme={theme}
             />
           </div>
 
