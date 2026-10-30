@@ -17,12 +17,9 @@ import {
   Sun,
   Moon,
   Clock,
-  Calendar,
-  Trophy,
-  User,
-  Sparkles
+  Calendar
 } from 'lucide-react';
-import { GameScenario, SimulationStatus, LevelProgression, StudentUser } from '../../lib/types';
+import { GameScenario, SimulationStatus, LevelProgression } from '../../lib/types';
 import { DEFAULT_SCENARIOS } from '../../lib/defaultScenarios';
 import { getDayClockInfo } from '../../lib/constants';
 import { translations, Language } from '../../lib/i18n';
@@ -47,14 +44,6 @@ interface HeaderHUDProps {
   onToggleLang: () => void;
   theme?: 'dark' | 'light';
   onToggleTheme?: () => void;
-  currentUser?: StudentUser | null;
-  onOpenAuth?: () => void;
-  onOpenLeaderboard?: () => void;
-  onStartTournament?: () => void;
-  isTournamentMode?: boolean;
-  tournamentTargetOrders?: number;
-  tournamentDeliveredCount?: number;
-  netProfit?: number;
 }
 
 export const HeaderHUD: React.FC<HeaderHUDProps> = ({
@@ -76,15 +65,7 @@ export const HeaderHUD: React.FC<HeaderHUDProps> = ({
   lang,
   onToggleLang,
   theme = 'dark',
-  onToggleTheme,
-  currentUser,
-  onOpenAuth,
-  onOpenLeaderboard,
-  onStartTournament,
-  isTournamentMode,
-  tournamentTargetOrders = 100,
-  tournamentDeliveredCount = 0,
-  netProfit
+  onToggleTheme
 }) => {
   const t = translations[lang];
   const clockInfo = getDayClockInfo(tick, currentDay, isShiftEnded);
@@ -274,84 +255,12 @@ export const HeaderHUD: React.FC<HeaderHUDProps> = ({
           </div>
         </div>
 
-        {/* Tournament Progress Banner */}
-        {isTournamentMode && (
-          <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-gradient-to-r from-amber-950/90 via-slate-900 to-amber-950/90 border border-amber-500/60 shadow-[0_0_15px_rgba(245,158,11,0.3)] font-mono shrink-0">
-            <span className="text-amber-400 text-xs">🏁</span>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] font-bold text-amber-300">
-                {lang === 'zh' ? '100单挑战' : '100 RACE'}:
-              </span>
-              <span className="text-xs font-black text-cyan-300">
-                {tournamentDeliveredCount}/{tournamentTargetOrders} 📦
-              </span>
-            </div>
-            <div className="w-14 sm:w-20 h-2 rounded-full bg-slate-950 border border-slate-700 overflow-hidden hidden sm:block">
-              <div
-                className="h-full bg-gradient-to-r from-amber-400 to-emerald-400 transition-all duration-300"
-                style={{ width: `${Math.min(100, Math.round((tournamentDeliveredCount / tournamentTargetOrders) * 100))}%` }}
-              />
-            </div>
-            {netProfit !== undefined && (
-              <div className="text-xs font-bold text-emerald-400 hidden md:block">
-                {netProfit >= 0 ? `+$${netProfit.toFixed(1)}` : `-$${Math.abs(netProfit).toFixed(1)}`}
-              </div>
-            )}
-          </div>
-        )}
-
         {/* Status Pill */}
         <div className="shrink-0 whitespace-nowrap">{getStatusBadge()}</div>
       </div>
 
       {/* 3. Right: Sleek Action Buttons (Tooltips on hover, compact responsive layout) */}
       <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 whitespace-nowrap">
-        {/* Tournament Fast Launch Button */}
-        {!isTournamentMode && onStartTournament && (
-          <button
-            onClick={onStartTournament}
-            title={lang === 'zh' ? '开启固定 100 笔订单比赛，比拼最终净利润！' : 'Start 100-Order Profit Race!'}
-            className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-mono font-black bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 shadow-[0_0_15px_rgba(245,158,11,0.4)] transition-all shrink-0 whitespace-nowrap cursor-pointer"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-slate-950 fill-slate-950" />
-            <span>{lang === 'zh' ? '100单比赛' : '100 RACE'}</span>
-          </button>
-        )}
-
-        {/* Leaderboard Button */}
-        {onOpenLeaderboard && (
-          <button
-            onClick={onOpenLeaderboard}
-            title={lang === 'zh' ? '查看 100 笔订单比赛全球排行榜' : 'View 100-Order Tournament Leaderboard'}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-mono bg-gradient-to-r from-amber-500/20 via-yellow-500/20 to-amber-500/20 hover:from-amber-500/30 hover:to-yellow-500/30 border border-amber-500/60 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.25)] transition-all shrink-0 whitespace-nowrap cursor-pointer"
-          >
-            <Trophy className="w-3.5 h-3.5 text-amber-400 fill-amber-400/40" />
-            <span className="font-bold">{lang === 'zh' ? '排行榜' : 'RANKS'}</span>
-          </button>
-        )}
-
-        {/* Student Profile / Google Sign-In Pill */}
-        {onOpenAuth && (
-          <button
-            onClick={onOpenAuth}
-            title={currentUser ? (lang === 'zh' ? `已登录: ${currentUser.name}` : `Signed in: ${currentUser.name}`) : (lang === 'zh' ? '点击进行 Google 账号或学生身份登录' : 'Sign in to record race score')}
-            className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-mono transition-all shrink-0 whitespace-nowrap cursor-pointer ${
-              currentUser
-                ? 'bg-slate-900 hover:bg-slate-800 border border-cyan-500/50 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.2)]'
-                : 'bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-400/80 text-cyan-200 animate-pulse'
-            }`}
-          >
-            {currentUser?.avatar ? (
-              <img src={currentUser.avatar} alt="avatar" className="w-4 h-4 rounded-full object-cover" />
-            ) : (
-              <User className="w-3.5 h-3.5 text-cyan-400" />
-            )}
-            <span className="font-bold max-w-[85px] truncate">
-              {currentUser ? currentUser.name : (lang === 'zh' ? '竞赛登录' : 'Sign In')}
-            </span>
-          </button>
-        )}
-
         {/* Light / Dark Theme Toggle */}
         {onToggleTheme && (
           <button

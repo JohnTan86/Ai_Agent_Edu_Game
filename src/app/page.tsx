@@ -8,9 +8,6 @@ import { HelpGuideModal } from '../components/layout/HelpGuideModal';
 import { PerformanceReportModal } from '../components/layout/PerformanceReportModal';
 import { LevelUpModal } from '../components/layout/LevelUpModal';
 import { FleetHubShopModal } from '../components/shop/FleetHubShopModal';
-import { StudentAuthModal } from '../components/auth/StudentAuthModal';
-import { LeaderboardModal } from '../components/leaderboard/LeaderboardModal';
-import { TournamentFinishModal } from '../components/leaderboard/TournamentFinishModal';
 import { AgentWorkspace } from '../components/workspace/AgentWorkspace';
 import { PlaybackControls } from '../components/simulation/PlaybackControls';
 import { TelemetryPanel } from '../components/telemetry/TelemetryPanel';
@@ -70,20 +67,7 @@ export default function RoboFlowApp() {
     upgradeRobot,
     upgradeHub,
     buildHub,
-    sellHub,
-    currentUser,
-    saveStudentUser,
-    logoutStudentUser,
-    isLeaderboardOpen,
-    openLeaderboard,
-    closeLeaderboard,
-    isAuthModalOpen,
-    openAuthModal,
-    closeAuthModal,
-    isTournamentFinishOpen,
-    closeTournamentFinishModal,
-    startTournamentMode,
-    exitTournamentMode
+    sellHub
   } = useSimulation();
 
   const [isGuideOpen, setIsGuideOpen] = useState(false);
@@ -175,20 +159,6 @@ export default function RoboFlowApp() {
         onToggleLang={toggleLang}
         theme={theme}
         onToggleTheme={toggleTheme}
-        currentUser={currentUser}
-        onOpenAuth={openAuthModal}
-        onOpenLeaderboard={openLeaderboard}
-        onStartTournament={() => {
-          if (!currentUser) {
-            openAuthModal();
-          } else {
-            startTournamentMode();
-          }
-        }}
-        isTournamentMode={state.isTournamentMode}
-        tournamentTargetOrders={state.tournamentTargetOrders}
-        tournamentDeliveredCount={state.tournamentDeliveredCount}
-        netProfit={state.financials.totalRevenue - state.financials.totalExpenses}
       />
 
       {/* 2. Main 3-Column Single-Screen Dashboard */}
@@ -297,42 +267,6 @@ export default function RoboFlowApp() {
         onUpgradeHub={upgradeHub}
         onBuildHub={buildHub}
         onSellHub={sellHub}
-        lang={lang}
-      />
-
-      {/* 7. Student Auth & Google Profile Modal */}
-      <StudentAuthModal
-        isOpen={isAuthModalOpen}
-        onClose={closeAuthModal}
-        currentUser={currentUser}
-        onSaveUser={saveStudentUser}
-        onLogout={logoutStudentUser}
-        lang={lang}
-      />
-
-      {/* 8. Global Tournament Leaderboard Modal */}
-      <LeaderboardModal
-        isOpen={isLeaderboardOpen}
-        onClose={closeLeaderboard}
-        currentUser={currentUser}
-        onStartTournament={() => {
-          if (!currentUser) {
-            openAuthModal();
-          } else {
-            startTournamentMode();
-          }
-        }}
-        lang={lang}
-      />
-
-      {/* 9. 100-Order Tournament Finish Celebration Modal */}
-      <TournamentFinishModal
-        isOpen={isTournamentFinishOpen}
-        onClose={closeTournamentFinishModal}
-        state={state}
-        currentUser={currentUser}
-        onOpenLeaderboard={openLeaderboard}
-        onRestartTournament={() => startTournamentMode()}
         lang={lang}
       />
     </div>

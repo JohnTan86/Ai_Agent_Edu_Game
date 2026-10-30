@@ -269,40 +269,4 @@ export interface SimulationState {
   currentDay?: number;
   dayTick?: number;
   isShiftEnded?: boolean;
-  isTournamentMode?: boolean;
-  tournamentTargetOrders?: number; // Standard: 100 orders
-  tournamentDeliveredCount?: number;
-  tournamentFinished?: boolean;
-  tournamentResult?: LeaderboardEntry;
 }
-
-export interface StudentUser {
-  id: string;
-  name: string;
-  email?: string;
-  avatar?: string;
-  schoolClass?: string;
-  loginType: 'google' | 'classroom';
-  loggedInAt: string;
-}
-
-export interface LeaderboardEntry {
-  id: string;
-  rank?: number;
-  user_id?: string;
-  name: string;
-  email?: string;
-  avatar?: string;
-  school_class?: string;
-  net_profit: number;
-  total_revenue: number;
-  total_expenses: number;
-  on_time_rate: number;
-  orders_delivered: number;
-  target_orders: number;
-  duration_ticks: number;
-  city_id: string;
-  prompt_snippet?: string;
-  created_at: string;
-}
-
