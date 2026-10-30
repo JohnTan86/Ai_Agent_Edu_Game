@@ -90,7 +90,9 @@ export function initializeSimulationState(
           }))
         : Array.from({ length: 8 }, (_, idx) => {
             const baseOrder = city.initialOrders[idx % city.initialOrders.length];
-            const randomNode = city.roadNodes[(idx * 3 + 1) % city.roadNodes.length];
+            const sectorStatus = getCitySectorStatus(city, initialHubs);
+            const activeSectorNodes = sectorStatus.unlockedNodes.length > 0 ? sectorStatus.unlockedNodes : city.roadNodes.filter(n => (n.sector || 1) <= 1);
+            const randomNode = activeSectorNodes[(idx * 3 + 1) % activeSectorNodes.length];
             const assignedHub = initialHubs[idx % initialHubs.length] || primaryHub;
             return {
               ...baseOrder,

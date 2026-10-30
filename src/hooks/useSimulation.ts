@@ -319,7 +319,11 @@ export function useSimulation(initialScenario: GameScenario = DEFAULT_SCENARIOS[
     setState(prev => {
       const randomHub = prev.hubs[Math.floor(Math.random() * prev.hubs.length)];
       const city = CITIES_DATA[prev.currentCityId] || CITIES_DATA.singapore;
-      const randomNode = city.roadNodes[Math.floor(Math.random() * city.roadNodes.length)];
+      const sectorStatus = getCitySectorStatus(city, prev.hubs);
+      const activeSectorNodes = sectorStatus.unlockedNodes.length > 0
+        ? sectorStatus.unlockedNodes
+        : city.roadNodes.filter(n => (n.sector || 1) <= 1);
+      const randomNode = activeSectorNodes[Math.floor(Math.random() * activeSectorNodes.length)];
 
       const newId = (prev.orders.length + 101).toString();
       const newOrder = {
