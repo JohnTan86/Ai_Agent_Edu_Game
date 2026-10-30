@@ -8,7 +8,8 @@ import {
   CityWeather,
   DeliveryRobot,
   Hub,
-  InfrastructureAction
+  InfrastructureAction,
+  StudentUser
 } from '../lib/types';
 import { DEFAULT_SCENARIOS } from '../lib/defaultScenarios';
 import {
@@ -155,6 +156,77 @@ export function useSimulation(initialScenario: GameScenario = DEFAULT_SCENARIOS[
       setIsReportOpen(true);
     }
   }, [state.showReportModal]);
+
+  // Tournament, Leaderboard & Student Profile States
+  const [currentUser, setCurrentUser] = useState<StudentUser | null>(null);
+  const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isTournamentFinishOpen, setIsTournamentFinishOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('roboflow_student_user');
+      if (saved) {
+        setCurrentUser(JSON.parse(saved));
+      }
+    } catch (e) {
+      console.warn('Failed to load student user profile:', e);
+    }
+  }, []);
+
+  const saveStudentUser = useCallback((user: StudentUser) => {
+    setCurrentUser(user);
+    try {
+      localStorage.setItem('roboflow_student_user', JSON.stringify(user));
+    } catch (e) {}
+  }, []);
+
+  const logoutStudentUser = useCallback(() => {
+    setCurrentUser(null);
+    try {
+      localStorage.removeItem('roboflow_student_user');
+    } catch (e) {}
+  }, []);
+
+  const openLeaderboard = useCallback(() => setIsLeaderboardOpen(true), []);
+  const closeLeaderboard = useCallback(() => setIsLeaderboardOpen(false), []);
+  const openAuthModal = useCallback(() => setIsAuthModalOpen(true), []);
+  const closeAuthModal = useCallback(() => setIsAuthModalOpen(false), []);
+  const openTournamentFinishModal = useCallback(() => setIsTournamentFinishOpen(true), []);
+  const closeTournamentFinishModal = useCallback(() => setIsTournamentFinishOpen(false), []);
+
+  // When 100 orders are completed in Tournament mode, auto-open TournamentFinishModal
+  useEffect(() => {
+    if (state.isTournamentMode && state.tournamentFinished) {
+      setIsTournamentFinishOpen(true);
+    }
+  }, [state.isTournamentMode, state.tournamentFinished]);
+
+  const startTournamentMode = useCallback((cityId?: string) => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    isAgentExecutingRef.current = false;
+    setIsAgentExecuting(false);
+    const targetCity = cityId || stateRef.current.currentCityId || 'singapore';
+    setState(prev => {
+      const next = initializeSimulationState(prev.scenario, targetCity, 2, {
+        isTournamentMode: true,
+        tournamentTargetOrders: 100
+      });
+      stateRef.current = next;
+      return next;
+    });
+  }, []);
+
+  const exitTournamentMode = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    isAgentExecutingRef.current = false;
+    setIsAgentExecuting(false);
+    setState(prev => {
+      const next = initializeSimulationState(prev.scenario, prev.currentCityId, 1);
+      stateRef.current = next;
+      return next;
+    });
+  }, []);
 
   // 4. Agent Workspace Config
   const [agentConfig, setAgentConfig] = useState<AgentConfig>({
@@ -1021,6 +1093,21 @@ export function useSimulation(initialScenario: GameScenario = DEFAULT_SCENARIOS[
     upgradeRobot,
     upgradeHub,
     buildHub,
-    sellHub
+    sellHub,
+    // Tournament & Leaderboard & Student Profile
+    currentUser,
+    saveStudentUser,
+    logoutStudentUser,
+    isLeaderboardOpen,
+    openLeaderboard,
+    closeLeaderboard,
+    isAuthModalOpen,
+    openAuthModal,
+    closeAuthModal,
+    isTournamentFinishOpen,
+    openTournamentFinishModal,
+    closeTournamentFinishModal,
+    startTournamentMode,
+    exitTournamentMode
   };
 }

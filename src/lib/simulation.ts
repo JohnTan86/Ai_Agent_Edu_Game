@@ -24,21 +24,69 @@ import { parsePromptDirectives } from './agentEngine';
 export function initializeSimulationState(
   scenario: GameScenario = DEFAULT_SCENARIOS[0],
   cityId: string = 'singapore',
-  level: 1 | 2 | 3 = 1
+  level: 1 | 2 | 3 = 1,
+  options?: {
+    isTournamentMode?: boolean;
+    tournamentTargetOrders?: number;
+  }
 ): SimulationState {
+  const isTournament = options?.isTournamentMode ?? false;
+  const targetOrders = options?.tournamentTargetOrders ?? 100;
   const city = CITIES_DATA[cityId] || CITIES_DATA.singapore;
   const grid = createEmptyGrid(scenario.gridSize.width, scenario.gridSize.height);
   applyTrafficHotspots(grid, scenario.trafficHotspots);
 
   // Level 1: Exactly 1 Central Hub, 1 Robot, and 3 Delivery orders within 10 km
+  // In Tournament Mode: Start with 2 primary hubs and 2 rovers for fast pacing!
   const primaryHub = { ...city.hubs[0], level: 1, chargingRatePerTick: 6.0 };
-  const initialHubs = level === 1 ? [primaryHub] : city.hubs.map(h => ({ ...h, level: 1, chargingRatePerTick: 6.0 }));
+  const initialHubs = isTournament
+    ? city.hubs.slice(0, 2).map(h => ({ ...h, level: 1, chargingRatePerTick: 7.0 }))
+    : (level === 1 ? [primaryHub] : city.hubs.map(h => ({ ...h, level: 1, chargingRatePerTick: 6.0 })));
 
   const defaultBotName = city.id === 'singapore'
     ? 'MerlionRover-01'
     : (city.id === 'tokyo' ? 'ShibuyaRunner-01' : 'EmpireRover-01');
 
-  const initialRobots: DeliveryRobot[] = level === 1
+  const initialRobots: DeliveryRobot[] = isTournament
+    ? [
+        {
+          id: `${city.id}-trn-01`,
+          name: `${city.name.slice(0, 3).toUpperCase()}-Rover-Alpha`,
+          position: { ...initialHubs[0].position },
+          batteryPct: 100,
+          maxCapacityKg: 10,
+          currentPayloadKg: 0,
+          speed: 1,
+          costPerTick: 0.15,
+          status: 'idle',
+          homeHubId: initialHubs[0].id,
+          pathQueue: [],
+          totalDistanceTraveled: 0,
+          totalDeliveriesCompleted: 0,
+          color: '#06b6d4',
+          archetype: 'standard',
+          carriedOrderIds: []
+        },
+        {
+          id: `${city.id}-trn-02`,
+          name: `${city.name.slice(0, 3).toUpperCase()}-Rover-Beta`,
+          position: { ...(initialHubs[1]?.position || initialHubs[0].position) },
+          batteryPct: 100,
+          maxCapacityKg: 10,
+          currentPayloadKg: 0,
+          speed: 1,
+          costPerTick: 0.15,
+          status: 'idle',
+          homeHubId: initialHubs[1]?.id || initialHubs[0].id,
+          pathQueue: [],
+          totalDistanceTraveled: 0,
+          totalDeliveriesCompleted: 0,
+          color: '#a855f7',
+          archetype: 'standard',
+          carriedOrderIds: []
+        }
+      ]
+    : (level === 1
     ? [
         {
           id: `${city.id}-bot-01`,
@@ -64,10 +112,33 @@ export function initializeSimulationState(
         pathQueue: [...r.pathQueue],
         archetype: 'standard' as const,
         carriedOrderIds: []
-      }));
+      })));
 
   // All daily orders are known at 08:00 AM before the shift starts, and must be delivered before 06:00 PM (18:00, tick 100)
-  const initialOrders: Order[] = level === 1
+  const initialOrders: Order[] = isTournament
+    ? Array.from({ length: 15 }, (_, idx) => {
+        const randomNode = city.roadNodes[(idx * 3 + 1) % city.roadNodes.length];
+        const assignedHub = initialHubs[idx % initialHubs.length];
+        const orderNum = idx + 1;
+        return {
+          id: `TRN-ORD-${orderNum.toString().padStart(3, '0')}`,
+          sender: `${city.name} Express #${idx + 10}`,
+          recipientAddress: {
+            x: Math.round(randomNode.lat * 100) % 18,
+            y: Math.round(randomNode.lng * 100) % 18,
+            lat: randomNode.lat,
+            lng: randomNode.lng,
+            zone: randomNode.nameZh || randomNode.name
+          },
+          deadlineTick: 75 + (idx % 4) * 15,
+          reward: 65 + (idx % 5) * 15,
+          weightKg: +((idx % 4) * 2.0 + 2.0).toFixed(1),
+          status: 'pending' as const,
+          createdAtTick: 0,
+          pickupHubId: assignedHub.id
+        };
+      })
+    : (level === 1
     ? city.initialOrders
         .filter(o => o.pickupHubId === primaryHub.id)
         .concat(city.initialOrders)
@@ -110,7 +181,7 @@ export function initializeSimulationState(
               weightKg: +((idx % 4) * 2.5 + 2).toFixed(1)
             };
           })
-      );
+      ));
 
   // Set hub cells on grid
   initialHubs.forEach(hub => {
@@ -122,7 +193,7 @@ export function initializeSimulationState(
   });
 
   const initialFinancials: Financials = {
-    balance: level === 1 ? 100 : (level === 2 ? 260 : 600), // Progressive seed capital
+    balance: isTournament ? 1000 : (level === 1 ? 100 : (level === 2 ? 260 : 600)), // Tournament gives $1000 standard capital
     totalRevenue: 0,
     totalExpenses: 0,
     energyCosts: 0,
@@ -152,29 +223,46 @@ export function initializeSimulationState(
     type: 'observe',
     timestamp: 'D1 08:00',
     tick: 0,
-    content: level === 1
+    content: isTournament
+      ? '🏁【100 笔订单比赛模式启动】目标：以最高的净利润（Net Profit）完成全部 100 笔配送！起步资金 $1,000，配备 2 台智能车与 2 座中继站。成绩将自动上传至班级排行榜！'
+      : (level === 1
       ? (city.id === 'singapore'
           ? '🌅【第 1 天 08:00 AM 开工前备战】今日全部 3 笔待送订单已显示在清单与地图上！请在左侧编写 System Prompt 并点击「执行调度」让 LLM 做好全天规划，随后点击下方「开始仿真」在 18:00 收工前送完所有包裹！'
           : '🌅 [DAY 1 • 08:00 AM PRE-SHIFT BRIEFING] All 3 daily orders are loaded! Write your System Prompt and click [EXECUTE DISPATCH] so the LLM plans your routes upfront, then press [SIMULATE] to deliver everything before 06:00 PM (18:00)!')
       : (level === 2
           ? '🌅【Level 2 • 08:00 AM 开工前备战】今日 8 笔同城订单已全部列出！开工前可先在科技商店购置新车或让 LLM 规划全天一车多单路线，按下「开始仿真」后须在 18:00 下班前全部送达！'
-          : `🌅 [LEVEL 3 • DAY 1 • 08:00 AM] Today's metropolitan order manifest is ready! Use pre-shift planning to let your LLM orchestrate the entire day's routes before starting the 08:00 AM - 06:00 PM clock!`)
+          : `🌅 [LEVEL 3 • DAY 1 • 08:00 AM] Today's metropolitan order manifest is ready! Use pre-shift planning to let your LLM orchestrate the entire day's routes before starting the 08:00 AM - 06:00 PM clock!`))
   };
 
-  const levelProgression: LevelProgression = {
-    currentLevel: level,
-    levelDeliveriesCompleted: 0,
-    levelTargetDeliveries: level === 1 ? 3 : (level === 2 ? 8 : 12),
-    levelTargetCash: level === 1 ? 180 : (level === 2 ? 500 : 1000),
-    isLevelUpModalOpen: false,
-    unlockedFeatures: {
-      robotShop: level >= 2,
-      hubUpgrades: level >= 2,
-      hubConstruction: level >= 2,
-      multiOrderCarrying: level >= 2,
-      cityDomination: level >= 3
-    }
-  };
+  const levelProgression: LevelProgression = isTournament
+    ? {
+        currentLevel: 2,
+        levelDeliveriesCompleted: 0,
+        levelTargetDeliveries: targetOrders,
+        levelTargetCash: 5000,
+        isLevelUpModalOpen: false,
+        unlockedFeatures: {
+          robotShop: true,
+          hubUpgrades: true,
+          hubConstruction: true,
+          multiOrderCarrying: true,
+          cityDomination: false
+        }
+      }
+    : {
+        currentLevel: level,
+        levelDeliveriesCompleted: 0,
+        levelTargetDeliveries: level === 1 ? 3 : (level === 2 ? 8 : 12),
+        levelTargetCash: level === 1 ? 180 : (level === 2 ? 500 : 1000),
+        isLevelUpModalOpen: false,
+        unlockedFeatures: {
+          robotShop: level >= 2,
+          hubUpgrades: level >= 2,
+          hubConstruction: level >= 2,
+          multiOrderCarrying: level >= 2,
+          cityDomination: level >= 3
+        }
+      };
 
   return {
     scenario,
@@ -203,7 +291,11 @@ export function initializeSimulationState(
     levelProgression,
     currentDay: 1,
     dayTick: 0,
-    isShiftEnded: false
+    isShiftEnded: false,
+    isTournamentMode: isTournament,
+    tournamentTargetOrders: targetOrders,
+    tournamentDeliveredCount: 0,
+    tournamentFinished: false
   };
 }
 
@@ -904,6 +996,41 @@ export function advanceTick(state: SimulationState, systemPrompt?: string): Simu
     }
   });
 
+  // 2a. Tournament Mode: Continuous replenishment of orders until 100 orders are spawned
+  if (state.isTournamentMode && !state.tournamentFinished) {
+    const targetOrders = state.tournamentTargetOrders || 100;
+    const totalSpawned = orders.length;
+    const pendingOrders = orders.filter(o => o.status === 'pending');
+    if (totalSpawned < targetOrders && pendingOrders.length < 6) {
+      const currentCity = CITIES_DATA[state.currentCityId] || CITIES_DATA.singapore;
+      const batchSize = Math.min(6, targetOrders - totalSpawned);
+      const sectorStatus = getCitySectorStatus(currentCity, state.hubs);
+      const activeNodes = sectorStatus.unlockedNodes.length > 0 ? sectorStatus.unlockedNodes : currentCity.roadNodes;
+      for (let i = 0; i < batchSize; i++) {
+        const orderNum = totalSpawned + i + 1;
+        const randomNode = activeNodes[(currentTick * 3 + i * 2) % activeNodes.length];
+        const assignedHub = state.hubs[(i + currentTick) % state.hubs.length] || state.hubs[0];
+        orders.push({
+          id: `TRN-ORD-${orderNum.toString().padStart(3, '0')}`,
+          sender: `${currentCity.name} Express #${(orderNum * 7) % 89 + 10}`,
+          recipientAddress: {
+            x: Math.round(randomNode.lat * 100) % 18,
+            y: Math.round(randomNode.lng * 100) % 18,
+            lat: randomNode.lat,
+            lng: randomNode.lng,
+            zone: isZh ? (randomNode.nameZh || randomNode.name) : randomNode.name
+          },
+          deadlineTick: currentTick + 75 + (i % 3) * 15,
+          reward: 65 + (orderNum % 5) * 15,
+          weightKg: +((i % 4) * 2.0 + 2.0).toFixed(1),
+          status: 'pending',
+          createdAtTick: currentTick,
+          pickupHubId: assignedHub.id
+        });
+      }
+    }
+  }
+
   // 2b. Daily Shift Clock Evaluation (08:00 AM to 06:00 PM / 18:00 = TICKS_PER_DAY ticks)
   const currentDay = state.currentDay || 1;
   const dayStartTick = (currentDay - 1) * TICKS_PER_DAY;
@@ -1294,6 +1421,24 @@ export function advanceTick(state: SimulationState, systemPrompt?: string): Simu
     });
   }
 
+  // Tournament Victory Check (Fixed 100 Orders Race)
+  let tournamentFinished = state.tournamentFinished || false;
+  if (state.isTournamentMode && !tournamentFinished && totalDelivered >= (state.tournamentTargetOrders || 100)) {
+    tournamentFinished = true;
+    status = 'victory';
+    showReportModal = false; // We use dedicated TournamentFinishModal
+    const finalNetProfit = +(financials.totalRevenue - financials.totalExpenses).toFixed(2);
+    logs.unshift({
+      id: `tournament-complete-${currentTick}`,
+      type: 'observe',
+      timestamp: formatSimTimestamp(currentTick),
+      tick: currentTick,
+      content: isZh
+        ? `🏆【100 笔订单比赛圆满达成！】全网累计完成 100 笔极速配送！最终净利润: $${finalNetProfit}，准时履约率: ${onTimeDeliveryRate}%！成绩已生成！`
+        : `🏆 [100 ORDERS TOURNAMENT COMPLETE!] Finished all 100 deliveries! Net Profit: $${finalNetProfit}, On-time: ${onTimeDeliveryRate}%. Score recorded!`
+    });
+  }
+
   return {
     ...state,
     tick: currentTick,
@@ -1314,6 +1459,10 @@ export function advanceTick(state: SimulationState, systemPrompt?: string): Simu
     rushHourActive: nextRushHour,
     rushHourDurationTicks: rushHourRemainingTicks,
     roadClosureNodeId: nextRoadClosure,
-    roadClosureDurationTicks: roadClosureRemainingTicks
+    roadClosureDurationTicks: roadClosureRemainingTicks,
+    isTournamentMode: state.isTournamentMode,
+    tournamentTargetOrders: state.tournamentTargetOrders,
+    tournamentDeliveredCount: totalDelivered,
+    tournamentFinished
   };
 }
