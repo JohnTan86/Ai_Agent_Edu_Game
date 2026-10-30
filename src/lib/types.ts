@@ -226,6 +226,7 @@ export interface LevelProgression {
   levelTargetDeliveries: number;
   levelTargetCash: number;
   isLevelUpModalOpen: boolean;
+  hasDismissedModal?: boolean;
   isEndlessMode?: boolean;
   unlockedFeatures: {
     robotShop: boolean;
@@ -259,8 +260,11 @@ export interface SimulationState {
   currentCityId: string;
   mapStyle: 'dark' | 'satellite' | 'streets';
   weather: CityWeather;
+  weatherDurationTicks?: number;
   rushHourActive: boolean;
+  rushHourDurationTicks?: number;
   roadClosureNodeId?: string;
+  roadClosureDurationTicks?: number;
   levelProgression: LevelProgression;
   currentDay?: number;
   dayTick?: number;

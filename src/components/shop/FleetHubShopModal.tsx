@@ -149,9 +149,14 @@ export const FleetHubShopModal: React.FC<FleetHubShopModalProps> = ({
                 <div className="p-4 rounded-xl bg-slate-900/70 border border-emerald-500/30 flex flex-col justify-between hover:border-emerald-500/60 transition-all shadow-[0_0_15px_rgba(16,185,129,0.1)]">
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <span className="px-2 py-0.5 rounded bg-emerald-950 border border-emerald-500/40 text-emerald-400 text-[10px] font-bold">
-                        {isZh ? '⚡ 极速冲刺型' : '⚡ SPEED SPRINT'}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="px-2 py-0.5 rounded bg-emerald-950 border border-emerald-500/40 text-emerald-400 text-[10px] font-bold">
+                          {isZh ? '⚡ 极速冲刺型' : '⚡ SPEED SPRINT'}
+                        </span>
+                        <span className="px-1.5 py-0.5 rounded bg-amber-950/80 border border-amber-500/40 text-amber-300 text-[9px] font-bold">
+                          {isZh ? '✨ 新手推荐' : '✨ Top Pick'}
+                        </span>
+                      </div>
                       <span className="text-sm font-black text-emerald-300">
                         ${ROBOT_SHOP_CONFIG.speedy.price}
                       </span>
@@ -505,11 +510,15 @@ export const FleetHubShopModal: React.FC<FleetHubShopModalProps> = ({
                   <span className="text-purple-300 font-bold">${UPGRADE_PRICES.NEW_HUB_CONSTRUCTION}</span>
                 </div>
 
-                <p className="text-[11px] text-slate-400 leading-relaxed">
-                  {isZh
-                    ? `当前开放：${sectorStatus.currentSectorNameZh}（本区进度 ${sectorStatus.currentSectorBuilt}/${sectorStatus.currentSectorTotal} 座）。建满当前区域全部站点后，将自动解锁下一扩张区域！`
-                    : `Active: ${sectorStatus.currentSectorNameEn} (${sectorStatus.currentSectorBuilt}/${sectorStatus.currentSectorTotal} built). Complete all hubs in the current sector to unlock the next district!`}
-                </p>
+                <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-lg bg-purple-950/60 border border-purple-500/40 text-[11px]">
+                  <div className="flex items-center gap-1.5 text-purple-200 font-bold truncate">
+                    <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse shrink-0" />
+                    <span className="truncate">{isZh ? sectorStatus.currentSectorNameZh : sectorStatus.currentSectorNameEn}</span>
+                  </div>
+                  <span className="px-2 py-0.5 rounded bg-purple-900/80 border border-purple-500/30 text-purple-200 font-bold shrink-0">
+                    {isZh ? `本区进度 ${sectorStatus.currentSectorBuilt}/${sectorStatus.currentSectorTotal} 座` : `${sectorStatus.currentSectorBuilt}/${sectorStatus.currentSectorTotal} Built`}
+                  </span>
+                </div>
 
                 {candidateNodes.length > 0 ? (
                   <div className="flex flex-wrap items-center gap-2">
@@ -541,8 +550,8 @@ export const FleetHubShopModal: React.FC<FleetHubShopModalProps> = ({
                     </button>
                   </div>
                 ) : (
-                  <div className="text-[11px] text-amber-400">
-                    {isZh ? '全城所有核心节点均已覆盖运营站点！' : 'All major city corridors are already covered with hubs!'}
+                  <div className="text-[11px] text-purple-300 animate-pulse">
+                    {isZh ? '正在为您的物流帝国解锁下一片大都会拓建区...' : 'Unlocking next metropolis expansion sector...'}
                   </div>
                 )}
               </div>

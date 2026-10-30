@@ -533,18 +533,25 @@ export const RealLifeCityMap: React.FC<RealLifeCityMapProps> = ({
           const secNum = node.sector || 1;
           const nodeHtml = `
             <div style="
-              background: rgba(88, 28, 135, 0.92);
+              position: relative;
+              background: rgba(88, 28, 135, 0.95);
               border: 1.5px dashed #e879f9;
               color: #fae8ff;
               padding: 2px 7px;
-              border-radius: 5px;
+              border-radius: 6px;
               font-family: monospace;
               font-size: 8.5px;
               font-weight: 900;
               cursor: pointer;
-              box-shadow: 0 0 12px rgba(217,70,239,0.55);
+              box-shadow: 0 0 14px rgba(217,70,239,0.65);
               white-space: nowrap;
-            ">➕ ${lang === 'zh' ? `建站点 [${secNum}区]` : `BUILD HUB [S${secNum}]`}</div>
+              display: inline-flex;
+              align-items: center;
+              gap: 3px;
+            ">
+              <span style="display: inline-block; width: 6px; height: 6px; border-radius: 9999px; background: #e879f9; box-shadow: 0 0 6px #f472b6;"></span>
+              <span>${lang === 'zh' ? `➕ 建站 [第${secNum}区]` : `➕ BUILD [S${secNum}]`}</span>
+            </div>
           `;
           const nodeIcon = L.divIcon({ html: nodeHtml, className: 'node-build-marker', iconSize: [74, 20], iconAnchor: [37, 10] });
           const nodeMarker = L.marker([node.lat, node.lng], { icon: nodeIcon, zIndexOffset: 600 });
@@ -893,30 +900,30 @@ export const RealLifeCityMap: React.FC<RealLifeCityMapProps> = ({
       )}
 
       {/* 1. Top Left: City Selector Bar */}
-      <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 bg-slate-900/90 backdrop-blur-md p-1.5 rounded-xl border border-cyan-900/60 shadow-xl">
-        <div className="flex items-center gap-1 px-2 text-[11px] font-mono font-bold text-slate-400">
+      <div className="absolute top-3 left-3 z-10 flex items-center gap-1 bg-slate-900/90 backdrop-blur-md p-1 rounded-xl border border-cyan-900/60 shadow-xl select-none">
+        <div className="flex items-center gap-1 px-1.5 text-[11px] font-mono font-bold text-slate-400">
           <Globe className="w-3.5 h-3.5 text-cyan-400" />
-          <span className="hidden sm:inline">{lang === 'zh' ? '仿真城市:' : 'CITY:'}</span>
+          <span className="hidden md:inline">{lang === 'zh' ? '城市:' : 'CITY:'}</span>
         </div>
 
         {Object.values(CITIES_DATA).map(city => (
           <button
             key={city.id}
             onClick={() => handleSelectCity(city.id)}
-            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-mono font-semibold transition-all ${
+            className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-mono font-semibold transition-all ${
               activeCityId === city.id
-                ? 'bg-cyan-500 text-slate-950 shadow-[0_0_12px_rgba(6,182,212,0.4)] font-bold'
+                ? 'bg-cyan-500 text-slate-950 shadow-[0_0_10px_rgba(6,182,212,0.4)] font-bold'
                 : 'text-slate-300 hover:bg-slate-800'
             }`}
           >
             <span>{city.flag}</span>
-            <span>{lang === 'zh' ? city.nameZh : city.name}</span>
+            <span className="hidden sm:inline">{lang === 'zh' ? city.nameZh : city.name}</span>
           </button>
         ))}
       </div>
 
       {/* 1.5. Fleet Live Quick-Tracker Bar */}
-      <div className="absolute top-14 left-3 z-10 hidden sm:flex items-center gap-1.5 bg-slate-900/90 backdrop-blur-md px-2.5 py-1.5 rounded-xl border border-slate-800 text-[10px] font-mono shadow-xl">
+      <div className="absolute top-12 left-3 z-10 hidden sm:flex items-center gap-1.5 bg-slate-900/90 backdrop-blur-md px-2.5 py-1 rounded-xl border border-slate-800 text-[10px] font-mono shadow-xl">
         <span className="text-slate-400 font-bold">{lang === 'zh' ? '车队跟踪:' : 'FLEET TRACKER:'}</span>
         <div className="flex items-center gap-1.5">
           {state.robots.map(bot => {
@@ -958,7 +965,7 @@ export const RealLifeCityMap: React.FC<RealLifeCityMapProps> = ({
 
       {/* 1.8. Progressive City Sector Expansion HUD Bar (Level 2+) */}
       {(state.levelProgression?.currentLevel || 1) >= 2 && (
-        <div className="absolute top-[94px] left-3 z-10 hidden sm:flex items-center gap-2 bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-purple-500/50 text-[10px] font-mono shadow-xl">
+        <div className="absolute top-[86px] left-3 z-10 hidden sm:flex items-center gap-2 bg-slate-900/90 backdrop-blur-md px-3 py-1 rounded-xl border border-purple-500/50 text-[10px] font-mono shadow-xl">
           <span className="text-purple-300 font-bold">
             🗺️ {lang === 'zh' ? sectorStatus.currentSectorNameZh : sectorStatus.currentSectorNameEn}
           </span>
@@ -986,88 +993,86 @@ export const RealLifeCityMap: React.FC<RealLifeCityMapProps> = ({
               📍 {lang === 'zh' ? `定位可建站点 (${sectorStatus.availableBuildNodes.length})` : `Locate Build Sites (${sectorStatus.availableBuildNodes.length})`}
             </button>
           ) : (
-            <span className="text-emerald-400 font-bold">
-              🏆 {lang === 'zh' ? '全城4大区域全部建满!' : 'All 4 City Sectors Maxed!'}
+            <span className="text-purple-300 font-bold animate-pulse">
+              ⚡ {lang === 'zh' ? '正在解锁下一片大都会拓建区...' : 'Unlocking next metropolis sector...'}
             </span>
           )}
         </div>
       )}
 
-      {/* 2. Top Right: Atmospheric Weather, Hazards & Map Layer Controls */}
-      <div className="absolute top-3 right-3 z-10 flex flex-wrap items-center justify-end gap-1.5 max-w-[90vw]">
-        {/* Weather Selector Pill */}
-        <div className="flex items-center gap-1 bg-slate-900/90 backdrop-blur-md p-1 rounded-xl border border-slate-800 shadow-xl">
-          <button
-            onClick={() => onSetWeather?.('clear')}
-            title={lang === 'zh' ? '晴天万里 (标准能耗 1.0x)' : 'Clear Skies (Standard 1.0x battery)'}
-            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-mono transition-all ${
-              state.weather === 'clear'
-                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/50 font-bold shadow-[0_0_10px_rgba(245,158,11,0.3)]'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <span>☀️</span>
-            <span className="hidden sm:inline">{lang === 'zh' ? '晴天' : 'Clear'}</span>
-          </button>
-          <button
-            onClick={() => onSetWeather?.('rain')}
-            title={lang === 'zh' ? '热带暴雨 (路面湿滑，能耗消耗+35%)' : 'Rainstorm (Wet roads, +35% battery drain)'}
-            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-mono transition-all ${
-              state.weather === 'rain'
-                ? 'bg-cyan-500/25 text-cyan-300 border border-cyan-500/60 font-bold shadow-[0_0_12px_rgba(6,182,212,0.4)]'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <span>🌧️</span>
-            <span className="hidden sm:inline">{lang === 'zh' ? '暴雨' : 'Rain'}</span>
-          </button>
-          <button
-            onClick={() => onSetWeather?.('typhoon')}
-            title={lang === 'zh' ? '强雷暴台风 (极寒强风，能耗+75%，配送享有+25%风险津贴)' : 'Typhoon (Extreme weather, +75% battery drain, +25% hazard pay)'}
-            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-mono transition-all ${
-              state.weather === 'typhoon'
-                ? 'bg-indigo-500/30 text-indigo-200 border border-indigo-400/70 font-bold shadow-[0_0_14px_rgba(99,102,241,0.5)]'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <span>⚡</span>
-            <span className="hidden sm:inline">{lang === 'zh' ? '台风' : 'Storm'}</span>
-          </button>
+      {/* 2. Top Right: Real-Time Autonomous Environmental Telemetry & Map Layer Controls */}
+      <div className="absolute top-3 right-3 z-10 flex items-center justify-end gap-1.5 max-w-[calc(100%-160px)] flex-wrap">
+        {/* Live Weather Indicator (Random autonomous atmospheric changes) */}
+        <div
+          title={
+            lang === 'zh'
+              ? `全城气象感知：当前天气为【${state.weather === 'typhoon' ? '⚡ 强雷暴台风 (能耗+75%，接单享有+25%极端天气津贴)' : (state.weather === 'rain' ? '🌧️ 热带暴雨 (路面湿滑，能耗消耗+35%)' : '☀️ 晴天万里 (标准能耗 1.0x)')}】（系统根据气象模型自动随机演进，无需学生手动设定）`
+              : `Atmospheric Sensor: Current weather [${state.weather.toUpperCase()}] (${state.weather === 'typhoon' ? '+75% drain, +25% hazard pay' : (state.weather === 'rain' ? '+35% drain' : '1.0x standard')}). Autonomously evolving.`
+          }
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-mono font-bold border backdrop-blur-md transition-all shadow-md shrink-0 ${
+            state.weather === 'typhoon'
+              ? 'bg-indigo-950/90 border-indigo-400/80 text-indigo-200 shadow-[0_0_14px_rgba(99,102,241,0.5)] animate-pulse'
+              : state.weather === 'rain'
+              ? 'bg-cyan-950/90 border-cyan-500/70 text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.35)]'
+              : 'bg-slate-900/90 border-amber-500/40 text-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.25)]'
+          }`}
+        >
+          <span className="text-sm">
+            {state.weather === 'typhoon' ? '⚡' : (state.weather === 'rain' ? '🌧️' : '☀️')}
+          </span>
+          <span className="whitespace-nowrap">
+            {lang === 'zh'
+              ? (state.weather === 'typhoon' ? '雷暴台风' : (state.weather === 'rain' ? '热带暴雨' : '晴天万里'))
+              : (state.weather === 'typhoon' ? 'TYPHOON' : (state.weather === 'rain' ? 'RAIN' : 'CLEAR'))}
+          </span>
+          <span className="text-[10px] px-1 py-0.5 rounded bg-black/40 text-slate-300 font-normal">
+            {state.weather === 'typhoon' ? '+75%⚡' : (state.weather === 'rain' ? '+35%⚡' : '1.0x')}
+          </span>
         </div>
 
-        {/* Rush Hour Peak Surge Toggle */}
-        <button
-          onClick={onToggleRushHour}
-          title={lang === 'zh' ? '点击切换晚高峰主干道大拥堵状态 (延误最高达 4.2x)' : 'Toggle Evening Rush Hour Congestion (delays up to 4.2x)'}
-          className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-mono font-bold border backdrop-blur-md transition-all ${
+        {/* Live Traffic Flow Indicator (Random autonomous rush hour & peak congestion) */}
+        <div
+          title={
+            lang === 'zh'
+              ? (state.rushHourActive ? '主干道高峰大拥堵中 (延误高达 4.2x，建议提示词加入避堵指令)' : '全市路网畅通，车流处于常态流速')
+              : (state.rushHourActive ? 'Evening Rush Hour Active (delays up to 4.2x, evaluate detours)' : 'Standard traffic flow')
+          }
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-mono font-bold border backdrop-blur-md transition-all shadow-md shrink-0 ${
             state.rushHourActive
               ? 'bg-rose-950/90 border-rose-500/80 text-rose-300 shadow-[0_0_18px_rgba(239,68,68,0.55)] animate-pulse'
-              : 'bg-slate-900/90 border-slate-800 text-slate-400 hover:text-slate-200'
+              : 'bg-slate-900/90 border-slate-800 text-slate-400'
           }`}
         >
           <span>🚦</span>
-          <span>{lang === 'zh' ? '晚高峰' : 'RUSH HOUR'}</span>
-          {state.rushHourActive && <span className="text-[10px] text-rose-400 font-sans font-black">4.2x</span>}
-        </button>
+          <span className="whitespace-nowrap">
+            {lang === 'zh'
+              ? (state.rushHourActive ? '晚高峰 4.2x' : '路况畅通')
+              : (state.rushHourActive ? 'RUSH HOUR 4.2x' : 'FLOW NORMAL')}
+          </span>
+        </div>
 
-        {/* Emergency Road Closure Hazard Toggle */}
-        <button
-          onClick={() => onToggleRoadClosure?.()}
-          title={lang === 'zh' ? '点击触发突发道路施工封闭，测试系统提示词避障绕行能力' : 'Trigger Emergency Roadblock to test prompt detour capabilities'}
-          className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-mono font-bold border backdrop-blur-md transition-all ${
-            state.roadClosureNodeId
-              ? 'bg-amber-950/90 border-amber-500/80 text-amber-300 shadow-[0_0_18px_rgba(245,158,11,0.55)]'
-              : 'bg-slate-900/90 border-slate-800 text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <span>🚧</span>
-          <span>{lang === 'zh' ? '突发封路' : 'ROADBLOCK'}</span>
-        </button>
+        {/* Dynamic Roadblock Alert (Shows up automatically when emergency municipal repairs happen) */}
+        {state.roadClosureNodeId && (
+          <div
+            title={
+              lang === 'zh'
+                ? `突发市政施工封闭：[${currentCity.roadNodes.find(n => n.id === state.roadClosureNodeId)?.nameZh || state.roadClosureNodeId}] 发生紧急抢修双向全封闭！智能体路线算法将自动避障绕行！`
+                : `Emergency Roadblock: [${currentCity.roadNodes.find(n => n.id === state.roadClosureNodeId)?.name || state.roadClosureNodeId}] closed for repairs! Fleet must detour.`
+            }
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-mono font-bold border bg-amber-950/90 border-amber-500/80 text-amber-300 shadow-[0_0_18px_rgba(245,158,11,0.55)] animate-pulse backdrop-blur-md shrink-0"
+          >
+            <span>🚧</span>
+            <span>{lang === 'zh' ? '突发封路中' : 'ROADBLOCK'}</span>
+            <span className="text-[10px] text-amber-200 truncate max-w-[90px]">
+              {currentCity.roadNodes.find(n => n.id === state.roadClosureNodeId)?.nameZh || state.roadClosureNodeId}
+            </span>
+          </div>
+        )}
 
         {/* Traffic Layer Toggle */}
         <button
           onClick={() => setShowTraffic(!showTraffic)}
-          className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-mono font-bold border backdrop-blur-md transition-all ${
+          className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-mono font-bold border backdrop-blur-md transition-all shrink-0 ${
             showTraffic
               ? 'bg-amber-950/80 border-amber-500/60 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.3)]'
               : 'bg-slate-900/90 border-slate-800 text-slate-400 hover:text-slate-200'
@@ -1078,10 +1083,10 @@ export const RealLifeCityMap: React.FC<RealLifeCityMapProps> = ({
         </button>
 
         {/* Map Style Selector */}
-        <div className="flex items-center bg-slate-900/90 backdrop-blur-md p-0.5 rounded-xl border border-slate-800 text-xs font-mono">
+        <div className="flex items-center bg-slate-900/90 backdrop-blur-md p-0.5 rounded-xl border border-slate-800 text-xs font-mono shrink-0">
           <button
             onClick={() => setMapStyle('dark')}
-            className={`px-2 py-1 rounded-lg transition-colors ${
+            className={`px-2 py-0.5 rounded-lg transition-colors ${
               mapStyle === 'dark' ? 'bg-cyan-950 text-cyan-300 border border-cyan-800/60 font-bold' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -1089,7 +1094,7 @@ export const RealLifeCityMap: React.FC<RealLifeCityMapProps> = ({
           </button>
           <button
             onClick={() => setMapStyle('satellite')}
-            className={`px-2 py-1 rounded-lg transition-colors ${
+            className={`px-2 py-0.5 rounded-lg transition-colors ${
               mapStyle === 'satellite' ? 'bg-cyan-950 text-cyan-300 border border-cyan-800/60 font-bold' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -1097,7 +1102,7 @@ export const RealLifeCityMap: React.FC<RealLifeCityMapProps> = ({
           </button>
           <button
             onClick={() => setMapStyle('streets')}
-            className={`px-2 py-1 rounded-lg transition-colors ${
+            className={`px-2 py-0.5 rounded-lg transition-colors ${
               mapStyle === 'streets' ? 'bg-cyan-950 text-cyan-300 border border-cyan-800/60 font-bold' : 'text-slate-400 hover:text-slate-200'
             }`}
           >

@@ -44,7 +44,7 @@ export const PlaybackControls: React.FC<PlaybackControlsProps> = ({
   const isVictory = state.status === 'victory';
   const clockInfo = getDayClockInfo(state.tick, state.currentDay, state.isShiftEnded);
   const unassignedCount = state.orders.filter(o => o.status === 'pending' && !o.assignedRobotId).length;
-  const activeOrdersCount = state.orders.filter(o => o.status === 'pending' || o.status === 'assigned' || o.status === 'in_transit').length;
+  const activeOrdersCount = state.orders.filter(o => o.status === 'pending' || o.status === 'in_transit').length;
 
   return (
     <div className="h-12 border-t border-cyan-950/60 bg-slate-950/90 px-4 flex items-center justify-between text-xs font-mono select-none gap-2">

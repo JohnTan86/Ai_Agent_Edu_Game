@@ -860,8 +860,32 @@ export async function runAgentDispatchCycle(
       robotActionCountsMock.set(r.id, 0);
     });
 
+    const hasMeaningfulPrompt = config.systemPrompt.trim().length >= 10 ||
+      directives.prioritizeSLA ||
+      directives.prioritizeRevenue ||
+      directives.avoidTraffic ||
+      directives.autoRecharge ||
+      directives.chainDeliveries ||
+      directives.autoBuildHub;
+
     for (const item of scoredOrders) {
       const { order, remainingTicks } = item;
+
+      // Pedagogical Safeguard: If the student hasn't written any prompt directives,
+      // only dispatch 1 single starter parcel so the student sees the robot move,
+      // then pause dispatch and prompt the student to write their own instructions!
+      if (!hasMeaningfulPrompt) {
+        const totalCompleted = robots.reduce((acc, r) => acc + (r.totalDeliveriesCompleted || 0), 0);
+        if (actions.length >= 1 || totalCompleted >= 1) {
+          addTrace(
+            'observe',
+            isZh
+              ? `💡【导师提示】检测到系统提示词（System Prompt）中尚未编写明确调度规则。智能体在完成初次演示后已在站点待命。请在左侧编辑器中补充派单策略（例如设置时效排序或电量回充阈值），然后再次点击【执行调度】继续通关！`
+              : `💡 [TUTOR GUIDANCE] No explicit prompt directives detected. The agent completed initial trial delivery and is waiting at hub. Add your dispatch rules in the editor and click [EXECUTE DISPATCH] to continue!`
+          );
+          break;
+        }
+      }
 
       // Candidate selection: First priority = idle robots with 0 assignments
       let candidateBots = robots.filter(

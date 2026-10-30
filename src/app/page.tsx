@@ -59,6 +59,7 @@ export default function RoboFlowApp() {
     advanceToLevel3,
     continueEndlessMode,
     startNextDay,
+    promptIterations,
     isShopOpen,
     openShop,
     closeShop,
@@ -241,6 +242,8 @@ export default function RoboFlowApp() {
         onRetry={() => reset()}
         onSelectScenario={selectScenario}
         onContinueEndless={continueEndlessMode}
+        agentPrompt={agentConfig.systemPrompt}
+        promptIterations={promptIterations}
         lang={lang}
       />
 

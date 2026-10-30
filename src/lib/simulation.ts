@@ -9,7 +9,8 @@ import {
   GameScenario,
   SimulationStatus,
   LevelProgression,
-  Position
+  Position,
+  CityWeather
 } from './types';
 import { COSTS, ROBOT_PARAMS, TICKS_PER_DAY, formatSimTimestamp } from './constants';
 import { createEmptyGrid, applyTrafficHotspots, DEFAULT_SCENARIOS } from './defaultScenarios';
@@ -194,8 +195,11 @@ export function initializeSimulationState(
     currentCityId: city.id,
     mapStyle: 'dark',
     weather: 'clear',
+    weatherDurationTicks: 35,
     rushHourActive: false,
+    rushHourDurationTicks: 0,
     roadClosureNodeId: undefined,
+    roadClosureDurationTicks: 0,
     levelProgression,
     currentDay: 1,
     dayTick: 0,
@@ -281,6 +285,12 @@ export function startNextDayShift(state: SimulationState): SimulationState {
     currentDay: nextDay,
     dayTick: 0,
     isShiftEnded: false,
+    weather: 'clear',
+    weatherDurationTicks: 30,
+    rushHourActive: false,
+    rushHourDurationTicks: 0,
+    roadClosureNodeId: undefined,
+    roadClosureDurationTicks: 0,
     robots: readyRobots,
     orders: combinedOrders,
     activeActions: [],
@@ -299,9 +309,10 @@ export function startNextDayShift(state: SimulationState): SimulationState {
  */
 export function applyDispatchActionsToState(
   state: SimulationState,
-  actions: AgentDispatchAction[]
+  actions: AgentDispatchAction[] = []
 ): SimulationState {
-  console.log('[SIMULATION] applyDispatchActionsToState called with actions:', actions.map(a => a.orderId));
+  if (!Array.isArray(actions) || actions.length === 0) return state;
+  console.log('[SIMULATION] applyDispatchActionsToState called with actions:', actions.map(a => a?.orderId).filter(Boolean));
   const nextRobots = state.robots.map(r => ({
     ...r,
     pathQueue: [...r.pathQueue],
@@ -688,8 +699,10 @@ export function advanceTick(state: SimulationState, systemPrompt?: string): Simu
             if (isDeliveredOnTime) {
               order.status = 'delivered';
               order.deliveredAtTick = currentTick;
-              financials.totalRevenue += order.reward;
-              financials.balance += order.reward;
+              const hazardBonus = state.weather === 'typhoon' ? Math.round(order.reward * 0.25) : 0;
+              const finalPayout = order.reward + hazardBonus;
+              financials.totalRevenue += finalPayout;
+              financials.balance += finalPayout;
 
               logs.unshift({
                 id: `delivered-${currentTick}-${order.id}`,
@@ -697,8 +710,8 @@ export function advanceTick(state: SimulationState, systemPrompt?: string): Simu
                 timestamp: formatSimTimestamp(currentTick),
                 tick: currentTick,
                 content: isZh
-                  ? `【配送成功】订单 #${order.id} 已由 ${bot.name} 准时送达客户！运费收益：+$${order.reward}。`
-                  : `[DELIVERY SUCCESS] Order #${order.id} delivered by ${bot.name} on time! Earned: +$${order.reward}.`
+                  ? `【配送成功】订单 #${order.id} 已由 ${bot.name} 准时送达客户！运费收益：+$${order.reward}${hazardBonus > 0 ? ` (含强台风恶劣天气津贴 +$${hazardBonus})` : ''}。`
+                  : `[DELIVERY SUCCESS] Order #${order.id} delivered by ${bot.name} on time! Earned: +$${order.reward}${hazardBonus > 0 ? ` (includes +$${hazardBonus} typhoon hazard pay)` : ''}.`
               });
             } else {
               // SLA Breach delivery
@@ -968,6 +981,145 @@ export function advanceTick(state: SimulationState, systemPrompt?: string): Simu
     }
   }
 
+  // 2d. Autonomous Dynamic Weather & Real-World Traffic Simulation (Random events)
+  let nextWeather = state.weather || 'clear';
+  let weatherRemainingTicks = (state.weatherDurationTicks !== undefined ? state.weatherDurationTicks : 30) - 1;
+  let nextRushHour = Boolean(state.rushHourActive);
+  let rushHourRemainingTicks = (state.rushHourDurationTicks !== undefined ? state.rushHourDurationTicks : 0) - 1;
+  let nextRoadClosure = state.roadClosureNodeId;
+  let roadClosureRemainingTicks = (state.roadClosureDurationTicks !== undefined ? state.roadClosureDurationTicks : 0) - 1;
+
+  if (state.status === 'running') {
+    const lvl = state.levelProgression?.currentLevel || 1;
+    const activeCity = CITIES_DATA[state.currentCityId] || CITIES_DATA.singapore;
+
+    // 1. Dynamic Weather Evolution
+    if (weatherRemainingTicks <= 0) {
+      const roll = Math.random();
+      let pickedWeather: CityWeather = 'clear';
+      let duration = 30;
+
+      if (lvl === 1) {
+        // Level 1: Beginner apprentice - mostly clear skies, occasional brief light rain
+        if (roll < 0.85) {
+          pickedWeather = 'clear';
+          duration = Math.floor(Math.random() * 20 + 35); // 35-55 ticks
+        } else {
+          pickedWeather = 'rain';
+          duration = Math.floor(Math.random() * 8 + 15);  // 15-23 ticks
+        }
+      } else {
+        // Level 2 & 3: Dynamic metropolis atmospheric simulation
+        if (roll < 0.60) {
+          pickedWeather = 'clear';
+          duration = Math.floor(Math.random() * 15 + 30); // 30-45 ticks
+        } else if (roll < 0.88) {
+          pickedWeather = 'rain';
+          duration = Math.floor(Math.random() * 10 + 18); // 18-28 ticks
+        } else {
+          pickedWeather = 'typhoon';
+          duration = Math.floor(Math.random() * 8 + 12);  // 12-20 ticks
+        }
+      }
+
+      if (pickedWeather !== nextWeather) {
+        nextWeather = pickedWeather;
+        const weatherName = pickedWeather === 'typhoon'
+          ? (isZh ? '⚡ 强雷暴台风' : '⚡ Severe Typhoon')
+          : (pickedWeather === 'rain' ? (isZh ? '🌧️ 热带暴雨' : '🌧️ Tropical Rainstorm') : (isZh ? '☀️ 晴天万里' : '☀️ Clear Skies'));
+
+        const weatherDesc = pickedWeather === 'typhoon'
+          ? (isZh ? '能耗剧增 +75%，路面湿滑，但每单享有 +25% 极端天气风险津贴！' : 'Energy drain +75%, road grip reduced, +25% hazard pay bonus awarded per delivery!')
+          : (pickedWeather === 'rain'
+            ? (isZh ? '路面湿滑，车队电池能耗增加 35%！' : 'Wet roads, fleet battery drain increased by 35%!')
+            : (isZh ? '城市气象恢复常态，路面附着力与能耗恢复 1.0x 标准水平。' : 'Atmosphere normalized, standard 1.0x battery consumption resumed.'));
+
+        logs.unshift({
+          id: `weather-auto-${currentTick}`,
+          type: 'observe',
+          timestamp: formatSimTimestamp(currentTick),
+          tick: currentTick,
+          content: isZh
+            ? `【气象随机突变】气象雷达显示城市上空突变：${weatherName}！${weatherDesc}`
+            : `[DYNAMIC WEATHER] Radar scan detected atmospheric shift to ${weatherName}! ${weatherDesc}`
+        });
+      }
+
+      weatherRemainingTicks = duration;
+    }
+
+    // 2. Dynamic Rush Hour Traffic (Daily afternoon/evening peak: ticks 65 - 88)
+    const isEveningPeak = dayTick >= 65 && dayTick <= 88;
+    if (isEveningPeak && !nextRushHour) {
+      nextRushHour = true;
+      logs.unshift({
+        id: `rush-start-${currentTick}`,
+        type: 'observe',
+        timestamp: formatSimTimestamp(currentTick),
+        tick: currentTick,
+        content: isZh
+          ? `🚦【晚高峰突发】城市进入晚高峰拥堵时段！主干道与跨区快速路延误飙升至 4.2x！智能体将自动评估拥堵绕行。`
+          : `🚦 [TRAFFIC SURGE] Evening rush hour declared! Major avenues experience up to 4.2x travel delay. Fleet will evaluate detours.`
+      });
+    } else if (!isEveningPeak && nextRushHour && dayTick > 88) {
+      nextRushHour = false;
+      logs.unshift({
+        id: `rush-end-${currentTick}`,
+        type: 'observe',
+        timestamp: formatSimTimestamp(currentTick),
+        tick: currentTick,
+        content: isZh
+          ? `🚦【高峰回落】晚高峰车流消退，全市主要交通干道恢复常态通行。`
+          : `🚦 [TRAFFIC NORMALIZED] Evening rush hour congestion subsided. Arterial roads returned to normal traffic flow.`
+      });
+    }
+
+    // 3. Dynamic Emergency Roadblock / Municipal Construction Hazard (Level 2 & 3 only)
+    if (lvl >= 2) {
+      if (nextRoadClosure) {
+        if (roadClosureRemainingTicks <= 0) {
+          const closedNode = activeCity.roadNodes.find(n => n.id === nextRoadClosure);
+          const nodeName = isZh ? (closedNode?.nameZh || nextRoadClosure) : (closedNode?.name || nextRoadClosure);
+          logs.unshift({
+            id: `roadblock-clear-${currentTick}`,
+            type: 'observe',
+            timestamp: formatSimTimestamp(currentTick),
+            tick: currentTick,
+            content: isZh
+              ? `🚧【道路施工恢复】节点 [${nodeName}] 紧急市政抢修完工，封闭路段已解除管制，恢复双向通行！`
+              : `🚧 [ROADBLOCK CLEARED] Emergency repairs completed at [${nodeName}]. Normal two-way traffic restored!`
+          });
+          nextRoadClosure = undefined;
+          roadClosureRemainingTicks = 0;
+        }
+      } else {
+        // Chance of spontaneous roadblock event: check every 15 ticks with 20% chance
+        if (currentTick % 15 === 0 && Math.random() < 0.20) {
+          const hubNodeIds = state.hubs.map(h => {
+            const nearest = activeCity.roadNodes.find(n => Math.abs(n.lat - h.position.lat!) < 0.005);
+            return nearest?.id;
+          });
+          const candidateNodes = activeCity.roadNodes.filter(n => !hubNodeIds.includes(n.id));
+          if (candidateNodes.length > 0) {
+            const chosen = candidateNodes[Math.floor(Math.random() * candidateNodes.length)];
+            nextRoadClosure = chosen.id;
+            roadClosureRemainingTicks = Math.floor(Math.random() * 12 + 16); // 16-28 ticks
+            const nodeName = isZh ? chosen.nameZh : chosen.name;
+            logs.unshift({
+              id: `roadblock-start-${currentTick}`,
+              type: 'observe',
+              timestamp: formatSimTimestamp(currentTick),
+              tick: currentTick,
+              content: isZh
+                ? `🚧【突发封路告警】紧急施工：节点 [${nodeName}] 突发市政水管抢修，路段双向紧急全封闭！路线算法将自动避障绕行！`
+                : `🚧 [ROAD HAZARD] Emergency closure at [${nodeName}] due to utility repair! Fleet algorithms will calculate bypass detours.`
+            });
+          }
+        }
+      }
+    }
+  }
+
   // 3. Compute Metrics
   const totalDelivered = orders.filter(o => o.status === 'delivered').length;
   const totalFailed = orders.filter(o => o.status === 'failed').length;
@@ -1060,7 +1212,8 @@ export function advanceTick(state: SimulationState, systemPrompt?: string): Simu
   if (
     nextLevelProgression.currentLevel === 1 &&
     totalDelivered >= nextLevelProgression.levelTargetDeliveries &&
-    !nextLevelProgression.isLevelUpModalOpen
+    !nextLevelProgression.isLevelUpModalOpen &&
+    !nextLevelProgression.hasDismissedModal
   ) {
     nextLevelProgression.isLevelUpModalOpen = true;
     status = 'paused'; // Auto-pause so player can celebrate and inspect stats
@@ -1076,7 +1229,8 @@ export function advanceTick(state: SimulationState, systemPrompt?: string): Simu
   } else if (
     nextLevelProgression.currentLevel === 2 &&
     totalDelivered >= nextLevelProgression.levelTargetDeliveries &&
-    !nextLevelProgression.isLevelUpModalOpen
+    !nextLevelProgression.isLevelUpModalOpen &&
+    !nextLevelProgression.hasDismissedModal
   ) {
     nextLevelProgression.isLevelUpModalOpen = true;
     status = 'paused'; // Auto-pause so player can celebrate Level 2 victory & advance to Level 3
@@ -1154,6 +1308,12 @@ export function advanceTick(state: SimulationState, systemPrompt?: string): Simu
     robots,
     orders,
     thoughtLogs: logs.slice(0, 100), // Keep latest 100 logs
-    levelProgression: nextLevelProgression
+    levelProgression: nextLevelProgression,
+    weather: nextWeather,
+    weatherDurationTicks: weatherRemainingTicks,
+    rushHourActive: nextRushHour,
+    rushHourDurationTicks: rushHourRemainingTicks,
+    roadClosureNodeId: nextRoadClosure,
+    roadClosureDurationTicks: roadClosureRemainingTicks
   };
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Trophy,
   AlertOctagon,
@@ -15,11 +15,14 @@ import {
   DollarSign,
   Activity,
   Zap,
-  Sparkles
+  Sparkles,
+  Copy,
+  Check
 } from 'lucide-react';
 import { SimulationState, GameScenario } from '../../lib/types';
 import { translations, Language } from '../../lib/i18n';
 import { DEFAULT_SCENARIOS } from '../../lib/defaultScenarios';
+import { CITIES_DATA, getCitySectorStatus } from '../../lib/cityData';
 
 interface PerformanceReportModalProps {
   state: SimulationState;
@@ -28,6 +31,8 @@ interface PerformanceReportModalProps {
   onRetry: () => void;
   onSelectScenario: (scenario: GameScenario) => void;
   onContinueEndless?: () => void;
+  agentPrompt?: string;
+  promptIterations?: number;
   lang: Language;
 }
 
@@ -38,8 +43,12 @@ export const PerformanceReportModal: React.FC<PerformanceReportModalProps> = ({
   onRetry,
   onSelectScenario,
   onContinueEndless,
+  agentPrompt = '',
+  promptIterations = 1,
   lang
 }) => {
+  const [isCopied, setIsCopied] = useState(false);
+
   if (!isOpen) return null;
 
   const t = translations[lang].report;
@@ -55,6 +64,9 @@ export const PerformanceReportModal: React.FC<PerformanceReportModalProps> = ({
   } = state;
 
   const netProfit = financials.totalRevenue - financials.totalExpenses;
+  const currentCity = CITIES_DATA[state.currentCityId] || CITIES_DATA.singapore;
+  const currentLevel = state.levelProgression?.currentLevel || 1;
+  const sectorStatus = getCitySectorStatus(currentCity, state.hubs);
 
   // Generate automated constructive prompt critiques based on simulation trace & metrics
   const generatePromptCritiques = (): string[] => {
@@ -113,29 +125,70 @@ export const PerformanceReportModal: React.FC<PerformanceReportModalProps> = ({
     ? ((translations[lang].scenarios as any)[nextScenario.id]?.title || nextScenario.title)
     : '';
 
+  // Copy Classroom Assignment to Clipboard
+  const handleCopyReport = () => {
+    const sectorStatus = getCitySectorStatus(currentCity, state.hubs);
+    const reportText = [
+      `=========================================`,
+      `🎓 RoboFlow 2028 课堂实验答卷 (Classroom Assignment)`,
+      `=========================================`,
+      `- 关卡阶段: 第 ${currentLevel} 关 (${currentLevel === 1 ? '新手第一公里' : currentLevel === 2 ? '车队与枢纽大亨' : '全城物流霸主'})`,
+      `- 运营城市: ${lang === 'zh' ? currentCity.nameZh : currentCity.name}`,
+      `- 商业版图扩张: 已解锁至【${lang === 'zh' ? sectorStatus.currentSectorNameZh : sectorStatus.currentSectorNameEn}】(全城拥有 ${state.hubs.length} 座枢纽站点，车队规模 ${robots.length} 台)`,
+      `- 提示词迭代优化: 共 ${promptIterations} 次调整尝试`,
+      `- 财库期末余额: $${financials.balance.toFixed(2)}`,
+      `- 净利润: $${netProfit.toFixed(2)} (净利润率: ${metrics.profitMargin}%)`,
+      `- 履约准时率 (SLA): ${metrics.onTimeDeliveryRate}%`,
+      `- 成功送达: ${metrics.totalDelivered} 单 | 超时违约: ${metrics.totalFailed} 单`,
+      `- 运营支出明细: 电力 $${financials.energyCosts.toFixed(2)} | 里程磨损 $${financials.mileageCosts.toFixed(2)} | 站点租金 $${(financials.hubRentCosts || 0).toFixed(2)} | SLA罚金 $${financials.slaPenalties.toFixed(2)}`,
+      ``,
+      `💡 系统架构师诊断与改进建议:`,
+      ...critiques.map((c, i) => `${i + 1}. ${c}`),
+      ``,
+      `📝 我的调度系统提示词 (System Prompt):`,
+      `-----------------------------------------`,
+      agentPrompt.trim() ? agentPrompt.trim() : `(学员使用空提示词/默认逻辑)`,
+      `-----------------------------------------`,
+      `提交时间: ${new Date().toLocaleString()}`,
+      `=========================================`
+    ].join('\n');
+
+    navigator.clipboard.writeText(reportText).then(() => {
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2500);
+    });
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200 select-none">
       <div className="relative w-full max-w-2xl bg-slate-900 border border-cyan-500/50 rounded-2xl shadow-[0_0_60px_rgba(6,182,212,0.25)] flex flex-col overflow-hidden max-h-[90vh]">
         {/* Header Banner */}
         <div className={`px-6 py-5 border-b flex items-center justify-between ${
           isVictory
-            ? 'bg-gradient-to-r from-cyan-950/80 via-emerald-950/40 to-slate-900 border-cyan-500/40'
-            : 'bg-gradient-to-r from-rose-950/80 via-slate-900 to-slate-900 border-rose-500/40'
+            ? 'bg-gradient-to-r from-cyan-950 via-slate-900 to-emerald-950 border-cyan-500/50'
+            : isGameOver
+            ? 'bg-gradient-to-r from-rose-950 via-slate-900 to-slate-900 border-rose-500/50'
+            : 'bg-slate-900 border-slate-800'
         }`}>
           <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-xl border ${
+            <div className={`p-2.5 rounded-xl ${
               isVictory
-                ? 'bg-cyan-900/50 border-cyan-400 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.4)]'
-                : 'bg-rose-900/50 border-rose-400 text-rose-300'
+                ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 shadow-[0_0_15px_rgba(6,182,212,0.3)]'
+                : isGameOver
+                ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40'
+                : 'bg-slate-800 text-slate-300'
             }`}>
-              {isVictory ? <Trophy className="w-6 h-6" /> : <AlertOctagon className="w-6 h-6" />}
+              {isVictory ? <Trophy className="w-6 h-6 text-amber-400" /> : <AlertOctagon className="w-6 h-6 text-rose-400" />}
             </div>
             <div>
-              <h2 className="text-sm font-black font-mono tracking-wider text-slate-100 uppercase">
-                {isVictory ? t.victoryTitle : t.defeatTitle}
+              <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
+                {isVictory ? (lang === 'zh' ? '闯关胜利！物流帝国扩张' : t.victoryTitle) : isGameOver ? (lang === 'zh' ? '挑战失败：财库破产' : t.defeatTitle) : t.title}
+                <span className="text-xs px-2 py-0.5 rounded bg-slate-800 text-cyan-300 border border-slate-700 font-mono">
+                  {lang === 'zh' ? `第${currentLevel}关` : `LVL ${currentLevel}`}
+                </span>
               </h2>
-              <p className="text-xs text-slate-400">
-                {isVictory ? t.victoryDesc : t.defeatDesc}
+              <p className="text-xs text-slate-400 font-mono mt-0.5">
+                {lang === 'zh' ? currentCity.nameZh : currentCity.name} &bull; {scenario.title} &bull; {lang === 'zh' ? `第 ${promptIterations} 次迭代` : `Iter #${promptIterations}`}
               </p>
             </div>
           </div>
@@ -148,97 +201,85 @@ export const PerformanceReportModal: React.FC<PerformanceReportModalProps> = ({
           </button>
         </div>
 
-        {/* Evaluation Metrics Grid */}
-        <div className="p-6 overflow-y-auto space-y-5 font-mono">
-          {/* Key Formula Metrics Cards */}
-          <div className="grid grid-cols-3 gap-3">
-            {/* 1. Efficiency Score */}
-            <div className="p-3.5 rounded-xl bg-slate-950/90 border border-cyan-900/60 text-center">
-              <span className="text-[10px] text-slate-400 block mb-1">
-                {t.efficiencyScore}
-              </span>
-              <div className="text-2xl font-black text-cyan-300">
-                {metrics.agentEfficiencyScore}%
-              </div>
-              <span className="text-[9px] text-slate-500">
-                ({metrics.totalDelivered} / {Math.max(1, metrics.totalTravelTicks)} ticks)
+        {/* Modal Body */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Executive KPI Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono">
+            <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 shadow-sm text-center">
+              <span className="text-[11px] text-slate-400 block mb-1">{t.netTreasury}</span>
+              <span className={`text-xl font-black ${financials.balance > 0 ? 'text-cyan-300' : 'text-rose-400'}`}>
+                ${financials.balance.toFixed(0)}
               </span>
             </div>
 
-            {/* 2. Profit Margin */}
-            <div className="p-3.5 rounded-xl bg-slate-950/90 border border-slate-800 text-center">
-              <span className="text-[10px] text-slate-400 block mb-1">
-                {t.profitMargin}
-              </span>
-              <div className={`text-2xl font-black ${metrics.profitMargin >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                {metrics.profitMargin}%
-              </div>
-              <span className="text-[9px] text-slate-500">
-                Net: ${netProfit.toFixed(2)}
+            <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 shadow-sm text-center">
+              <span className="text-[11px] text-slate-400 block mb-1">{lang === 'zh' ? '净利润' : 'Net Profit'}</span>
+              <span className={`text-xl font-black flex items-center justify-center gap-1 ${netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {netProfit >= 0 ? '+' : ''}${netProfit.toFixed(0)}
               </span>
             </div>
 
-            {/* 3. SLA Adherence */}
-            <div className="p-3.5 rounded-xl bg-slate-950/90 border border-slate-800 text-center">
-              <span className="text-[10px] text-slate-400 block mb-1">
-                {t.onTimeRate}
-              </span>
-              <div className={`text-2xl font-black ${metrics.onTimeDeliveryRate >= 80 ? 'text-emerald-400' : 'text-amber-400'}`}>
+            <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 shadow-sm text-center">
+              <span className="text-[11px] text-slate-400 block mb-1">{t.onTimeRate}</span>
+              <span className={`text-xl font-black ${metrics.onTimeDeliveryRate >= 80 ? 'text-emerald-400' : 'text-amber-400'}`}>
                 {metrics.onTimeDeliveryRate}%
-              </div>
-              <span className="text-[9px] text-slate-500">
-                {metrics.totalDelivered} on-time
+              </span>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 shadow-sm text-center">
+              <span className="text-[11px] text-slate-400 block mb-1">{t.ordersDelivered}</span>
+              <span className="text-xl font-black text-cyan-300">
+                {metrics.totalDelivered}/{metrics.totalOrdersSpawned}
               </span>
             </div>
           </div>
 
-          {/* Secondary Financial Breakdown */}
-          <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800 text-xs grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <div>
-              <span className="text-[10px] text-slate-500 block">{t.ordersDelivered}</span>
-              <span className="font-bold text-slate-200">{metrics.totalDelivered}</span>
+          {/* Logistics Empire Expansion Card */}
+          <div className="p-3.5 rounded-xl bg-gradient-to-r from-purple-950/60 via-slate-950 to-indigo-950/60 border border-purple-500/40 flex items-center justify-between gap-3 text-xs font-mono">
+            <div className="flex items-center gap-2.5">
+              <span className="text-base">🗺️</span>
+              <div>
+                <span className="text-[10px] text-purple-300 font-bold block">
+                  {lang === 'zh' ? '全城物流商业版图' : 'METROPOLIS EMPIRE EXPANSION'}
+                </span>
+                <span className="text-slate-200 font-bold">
+                  {lang === 'zh' ? sectorStatus.currentSectorNameZh : sectorStatus.currentSectorNameEn}
+                </span>
+              </div>
             </div>
-            <div>
-              <span className="text-[10px] text-slate-500 block">{t.netTreasury}</span>
-              <span className="font-bold text-cyan-300">${financials.balance.toFixed(2)}</span>
-            </div>
-            <div>
-              <span className="text-[10px] text-slate-500 block">{t.totalExpenses}</span>
-              <span className="font-bold text-rose-400">-${financials.totalExpenses.toFixed(2)}</span>
-            </div>
-            <div>
-              <span className="text-[10px] text-slate-500 block">SLA BREACHES</span>
-              <span className="font-bold text-amber-400">{metrics.totalFailed}</span>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="px-2 py-1 rounded-lg bg-purple-900/60 border border-purple-500/40 text-purple-200 font-bold text-[11px]">
+                {lang === 'zh' ? `已建 ${state.hubs.length} 座站点` : `${state.hubs.length} Hubs Active`}
+              </span>
+              <span className="px-2 py-1 rounded-lg bg-indigo-900/60 border border-indigo-500/40 text-indigo-200 font-bold text-[11px]">
+                {lang === 'zh' ? `车队 ${robots.length} 台` : `${robots.length} Bots`}
+              </span>
             </div>
           </div>
 
-          {/* Living Economy Operational Cost Breakdown */}
-          <div className="p-2.5 rounded-xl bg-slate-950/40 border border-slate-800 text-[10px] grid grid-cols-3 sm:grid-cols-5 gap-2 text-center text-slate-400">
+          {/* Detailed Financial Breakdown */}
+          <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800/80 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono">
             <div>
-              <span className="text-[9px] text-slate-500 block">{lang === 'zh' ? '充电电费' : 'Power'}</span>
+              <span className="text-[11px] text-slate-500 block">{lang === 'zh' ? '电费能耗' : 'Energy'}</span>
               <span className="font-bold text-slate-300">-${financials.energyCosts.toFixed(1)}</span>
             </div>
             <div>
-              <span className="text-[9px] text-slate-500 block">{lang === 'zh' ? '里程磨损' : 'Mileage'}</span>
+              <span className="text-[11px] text-slate-500 block">{lang === 'zh' ? '里程磨损' : 'Mileage'}</span>
               <span className="font-bold text-slate-300">-${financials.mileageCosts.toFixed(1)}</span>
             </div>
             <div>
-              <span className="text-[9px] text-slate-500 block">{lang === 'zh' ? '车队维保' : 'Maint'}</span>
-              <span className="font-bold text-slate-300">-${financials.maintenanceCosts.toFixed(1)}</span>
-            </div>
-            <div>
-              <span className="text-[9px] text-slate-500 block">{lang === 'zh' ? '站点租金' : 'Hub Rent'}</span>
+              <span className="text-[11px] text-slate-500 block">{lang === 'zh' ? '站点租金' : 'Hub Rent'}</span>
               <span className="font-bold text-slate-300">-${(financials.hubRentCosts || 0).toFixed(1)}</span>
             </div>
             <div>
-              <span className="text-[9px] text-slate-500 block">{lang === 'zh' ? 'SLA罚金' : 'Penalties'}</span>
+              <span className="text-[11px] text-slate-500 block">{lang === 'zh' ? 'SLA罚金' : 'Penalties'}</span>
               <span className="font-bold text-amber-400">-${financials.slaPenalties.toFixed(1)}</span>
             </div>
           </div>
 
           {/* Automated Constructive Prompt Critiques */}
           <div className="space-y-2.5">
-            <div className="flex items-center gap-2 text-cyan-300 text-xs font-bold uppercase tracking-wider">
+            <div className="flex items-center gap-2 text-cyan-300 text-xs font-bold uppercase tracking-wider font-mono">
               <Lightbulb className="w-4 h-4 text-amber-400" />
               <span>{t.promptCritiqueTitle}</span>
             </div>
@@ -246,7 +287,7 @@ export const PerformanceReportModal: React.FC<PerformanceReportModalProps> = ({
               {critiques.map((critique, idx) => (
                 <div
                   key={idx}
-                  className="p-3 rounded-xl bg-slate-950/90 border border-cyan-950 text-xs text-slate-300 leading-relaxed font-sans"
+                  className="p-3.5 rounded-xl bg-slate-950/90 border border-cyan-950 text-xs text-slate-200 leading-relaxed font-sans"
                 >
                   {critique}
                 </div>
@@ -256,14 +297,29 @@ export const PerformanceReportModal: React.FC<PerformanceReportModalProps> = ({
         </div>
 
         {/* Modal Actions Footer */}
-        <div className="px-6 py-4 border-t border-slate-800 bg-slate-950 flex items-center justify-between font-mono text-xs">
-          <button
-            onClick={onRetry}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 transition-colors"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>{t.playAgain}</span>
-          </button>
+        <div className="px-6 py-4 border-t border-slate-800 bg-slate-950 flex flex-wrap items-center justify-between gap-3 font-mono text-xs">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onRetry}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 transition-colors"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>{t.playAgain}</span>
+            </button>
+
+            {/* Copy Classroom Assignment Button */}
+            <button
+              onClick={handleCopyReport}
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl border transition-all font-bold ${
+                isCopied
+                  ? 'bg-emerald-950 border-emerald-500 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
+                  : 'bg-cyan-950/80 hover:bg-cyan-900 border-cyan-500/50 text-cyan-300 hover:text-white shadow-[0_0_10px_rgba(6,182,212,0.2)]'
+              }`}
+            >
+              {isCopied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-cyan-400" />}
+              <span>{isCopied ? (lang === 'zh' ? '已复制答卷到剪贴板！' : 'Copied to Clipboard!') : (lang === 'zh' ? '📋 复制课堂答卷' : '📋 Copy Assignment')}</span>
+            </button>
+          </div>
 
           <div className="flex items-center gap-2">
             {isVictory && (
@@ -272,10 +328,10 @@ export const PerformanceReportModal: React.FC<PerformanceReportModalProps> = ({
                   if (onContinueEndless) onContinueEndless();
                   else onClose();
                 }}
-                className="px-4 py-2 rounded-lg bg-gradient-to-r from-purple-500 via-indigo-500 to-cyan-500 hover:from-purple-400 hover:to-cyan-400 text-slate-950 font-bold transition-all shadow-[0_0_20px_rgba(168,85,247,0.4)] flex items-center gap-1.5"
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-500 via-indigo-500 to-cyan-500 hover:from-purple-400 hover:to-cyan-400 text-slate-950 font-bold transition-all shadow-[0_0_20px_rgba(168,85,247,0.4)] flex items-center gap-1.5"
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>{lang === 'zh' ? '👑 开启无尽大亨模式 (无限经营)' : '👑 CONTINUE ENDLESS EMPIRE'}</span>
+                <span>{lang === 'zh' ? '👑 开启无尽大亨模式' : '👑 ENDLESS EMPIRE'}</span>
               </button>
             )}
 
@@ -285,7 +341,7 @@ export const PerformanceReportModal: React.FC<PerformanceReportModalProps> = ({
                   onSelectScenario(nextScenario);
                   onClose();
                 }}
-                className="px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-950 font-bold transition-all shadow-[0_0_15px_rgba(16,185,129,0.4)]"
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-950 font-bold transition-all shadow-[0_0_15px_rgba(16,185,129,0.4)]"
               >
                 {lang === 'zh' ? '下一关卡: ' : 'NEXT LEVEL: '}
                 {nextScenarioTitle} &rarr;
@@ -294,7 +350,7 @@ export const PerformanceReportModal: React.FC<PerformanceReportModalProps> = ({
 
             <button
               onClick={onClose}
-              className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold transition-colors"
+              className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold transition-colors"
             >
               {t.closeModal}
             </button>

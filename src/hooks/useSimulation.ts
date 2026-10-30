@@ -177,6 +177,8 @@ export function useSimulation(initialScenario: GameScenario = DEFAULT_SCENARIOS[
   agentConfigRef.current = agentConfig;
   const isAgentExecutingRef = useRef(isAgentExecuting);
   isAgentExecutingRef.current = isAgentExecuting;
+  const dispatchCooldownTicksRef = useRef<number>(0);
+  const promptIterationsRef = useRef<number>(1);
 
   const getIntervalMs = (speed: 1 | 2 | 5) => {
     switch (speed) {
@@ -203,6 +205,7 @@ export function useSimulation(initialScenario: GameScenario = DEFAULT_SCENARIOS[
     if (isAgentExecutingRef.current) return;
     isAgentExecutingRef.current = true;
     setIsAgentExecuting(true);
+    promptIterationsRef.current += 1;
 
     try {
       const current = stateRef.current;
@@ -295,6 +298,7 @@ export function useSimulation(initialScenario: GameScenario = DEFAULT_SCENARIOS[
     isAgentExecutingRef.current = false;
     setIsAgentExecuting(false);
     setIsReportOpen(false);
+    promptIterationsRef.current = 1;
     setState(prev => {
       const lvl = targetLevel ?? prev.levelProgression?.currentLevel ?? 1;
       return initializeSimulationState(scenario || prev.scenario, prev.currentCityId, lvl);
@@ -498,7 +502,8 @@ export function useSimulation(initialScenario: GameScenario = DEFAULT_SCENARIOS[
       ...prev,
       levelProgression: {
         ...prev.levelProgression,
-        isLevelUpModalOpen: false
+        isLevelUpModalOpen: false,
+        hasDismissedModal: true
       }
     }));
   }, []);
@@ -515,6 +520,7 @@ export function useSimulation(initialScenario: GameScenario = DEFAULT_SCENARIOS[
           levelTargetDeliveries: 8,
           levelTargetCash: 500,
           isLevelUpModalOpen: false,
+          hasDismissedModal: false,
           unlockedFeatures: {
             robotShop: true,
             hubUpgrades: true,
@@ -535,7 +541,7 @@ export function useSimulation(initialScenario: GameScenario = DEFAULT_SCENARIOS[
         thoughtLogs: [
           {
             id: `lvl2-welcome-${nextDayState.tick}-${Date.now()}`,
-            type: 'observe',
+            type: 'observe' as const,
             timestamp: `D${nextDayState.currentDay} 08:00`,
             tick: nextDayState.tick,
             content: logMsg
@@ -563,6 +569,7 @@ export function useSimulation(initialScenario: GameScenario = DEFAULT_SCENARIOS[
           levelTargetDeliveries: 14,
           levelTargetCash: 1000,
           isLevelUpModalOpen: false,
+          hasDismissedModal: false,
           unlockedFeatures: {
             robotShop: true,
             hubUpgrades: true,
@@ -583,7 +590,7 @@ export function useSimulation(initialScenario: GameScenario = DEFAULT_SCENARIOS[
         thoughtLogs: [
           {
             id: `lvl3-welcome-${nextDayState.tick}-${Date.now()}`,
-            type: 'observe',
+            type: 'observe' as const,
             timestamp: `D${nextDayState.currentDay} 08:00`,
             tick: nextDayState.tick,
             content: logMsg
@@ -903,6 +910,10 @@ export function useSimulation(initialScenario: GameScenario = DEFAULT_SCENARIOS[
           return nextTickState;
         });
 
+        if (dispatchCooldownTicksRef.current > 0) {
+          dispatchCooldownTicksRef.current -= 1;
+        }
+
         // Step 2: Autonomous Dispatch Orchestration (if any order remains unassigned and a robot is idle)
         const current = nextTickState || stateRef.current;
         if (current.isShiftEnded || current.status !== 'running') return;
@@ -912,7 +923,7 @@ export function useSimulation(initialScenario: GameScenario = DEFAULT_SCENARIOS[
           r => r.status === 'idle' && (!r.missionQueue || r.missionQueue.length === 0)
         );
 
-        if (hasPending && hasAvailableBot && !isAgentExecutingRef.current) {
+        if (hasPending && hasAvailableBot && !isAgentExecutingRef.current && dispatchCooldownTicksRef.current <= 0) {
           isAgentExecutingRef.current = true;
           setIsAgentExecuting(true);
           try {
@@ -930,6 +941,14 @@ export function useSimulation(initialScenario: GameScenario = DEFAULT_SCENARIOS[
                 financials: current.financials
               }
             );
+
+            // If no actions could be dispatched (e.g. low battery safeguard or unreachable orders),
+            // cooldown for 8 ticks instead of rapidly hammering the engine/LLM API every tick!
+            if (!result.actions || result.actions.length === 0) {
+              dispatchCooldownTicksRef.current = 8;
+            } else {
+              dispatchCooldownTicksRef.current = 0;
+            }
 
             setState(prev => {
               const stateWithInfra = applyInfrastructureActions(prev, result.infrastructureActions);
@@ -994,6 +1013,7 @@ export function useSimulation(initialScenario: GameScenario = DEFAULT_SCENARIOS[
     advanceToLevel2,
     advanceToLevel3,
     continueEndlessMode,
+    promptIterations: promptIterationsRef.current,
     isShopOpen,
     openShop,
     closeShop,
