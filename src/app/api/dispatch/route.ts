@@ -176,7 +176,10 @@ You MUST respond with ONLY a valid, parseable JSON object matching this schema:
 
     // 1. Google Gemini Provider
     if (provider === 'gemini') {
-      let requestedModel = model || 'gemini-2.0-flash';
+      let requestedModel = model || 'gemini-2.5-flash';
+      if (requestedModel === 'gemini-2.0-flash' || requestedModel === 'gemini-2.0-flash-exp') {
+        requestedModel = 'gemini-2.5-flash';
+      }
       if (requestedModel === 'gemini-1.5-flash-latest') {
         requestedModel = 'gemini-1.5-flash';
       }
@@ -184,8 +187,9 @@ You MUST respond with ONLY a valid, parseable JSON object matching this schema:
       // Priority candidates to test on v1beta (official endpoint for systemInstruction + JSON mode)
       const candidateList = [
         { model: requestedModel, version: 'v1beta' },
-        { model: 'gemini-2.0-flash', version: 'v1beta' },
+        { model: 'gemini-2.5-flash', version: 'v1beta' },
         { model: 'gemini-1.5-flash', version: 'v1beta' },
+        { model: 'gemini-2.5-pro', version: 'v1beta' },
         { model: 'gemini-1.5-pro', version: 'v1beta' }
       ];
 

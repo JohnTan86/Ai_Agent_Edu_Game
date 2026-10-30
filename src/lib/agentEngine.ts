@@ -1177,24 +1177,65 @@ You are the Autonomous Fleet Dispatcher. Follow the User's System Prompt protoco
   let tokensUsed = 0;
 
   if (provider === 'gemini') {
-    const requestedModel = model || 'gemini-2.0-flash';
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${requestedModel}:generateContent?key=${apiKey}`;
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: systemPrompt }] },
-        contents: [{ role: 'user', parts: [{ text: promptContext }] }],
-        generationConfig: { temperature: 0.2, responseMimeType: 'application/json' }
-      })
-    });
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`Gemini API Error (${res.status}): ${errText}`);
+    let requestedModel = model || 'gemini-2.5-flash';
+    if (requestedModel === 'gemini-2.0-flash' || requestedModel === 'gemini-2.0-flash-exp') {
+      requestedModel = 'gemini-2.5-flash';
     }
-    const data = await res.json();
-    rawResponseText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-    tokensUsed = (data?.usageMetadata?.promptTokenCount || 0) + (data?.usageMetadata?.candidatesTokenCount || 0);
+    if (requestedModel === 'gemini-1.5-flash-latest') {
+      requestedModel = 'gemini-1.5-flash';
+    }
+
+    const candidateModels = Array.from(new Set([
+      requestedModel,
+      'gemini-2.5-flash',
+      'gemini-1.5-flash',
+      'gemini-2.5-pro',
+      'gemini-1.5-pro'
+    ]));
+
+    let lastError: Error | null = null;
+    let successfulData: any = null;
+
+    for (const candModel of candidateModels) {
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${candModel}:generateContent?key=${apiKey}`;
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: systemPrompt }] },
+            contents: [{ role: 'user', parts: [{ text: promptContext }] }],
+            generationConfig: { temperature: 0.2, responseMimeType: 'application/json' }
+          })
+        });
+
+        if (res.ok) {
+          successfulData = await res.json();
+          break;
+        } else {
+          const errText = await res.text();
+          lastError = new Error(`Gemini API Error (${res.status}): ${errText}`);
+          if (res.status === 404) {
+            continue;
+          } else {
+            throw lastError;
+          }
+        }
+      } catch (err: any) {
+        lastError = err;
+        if (err.message && err.message.includes('(404)')) {
+          continue;
+        }
+        throw err;
+      }
+    }
+
+    if (!successfulData) {
+      throw lastError || new Error('Gemini API Error: all model candidates unavailable');
+    }
+
+    rawResponseText = successfulData?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+    tokensUsed = (successfulData?.usageMetadata?.promptTokenCount || 0) + (successfulData?.usageMetadata?.candidatesTokenCount || 0);
   } else if (provider === 'openai') {
     const targetModel = model || 'gpt-4o-mini';
     const res = await fetch('https://api.openai.com/v1/chat/completions', {

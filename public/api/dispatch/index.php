@@ -105,23 +105,57 @@ $rawResponseText = '';
 $tokensUsed = 0;
 
 if ($provider === 'gemini') {
-    $reqModel = $model ?: 'gemini-2.0-flash';
-    if ($reqModel === 'gemini-1.5-flash-latest') $reqModel = 'gemini-1.5-flash';
-    $url = "https://generativelanguage.googleapis.com/v1beta/models/{$reqModel}:generateContent?key={$apiKey}";
+    $reqModel = $model ?: 'gemini-2.5-flash';
+    if ($reqModel === 'gemini-2.0-flash' || $reqModel === 'gemini-2.0-flash-exp') {
+        $reqModel = 'gemini-2.5-flash';
+    }
+    if ($reqModel === 'gemini-1.5-flash-latest') {
+        $reqModel = 'gemini-1.5-flash';
+    }
+
+    $candidates = array_values(array_unique([
+        $reqModel,
+        'gemini-2.5-flash',
+        'gemini-1.5-flash',
+        'gemini-2.5-pro',
+        'gemini-1.5-pro'
+    ]));
+
     $payload = [
         'systemInstruction' => ['parts' => [['text' => $systemPrompt]]],
         'contents' => [['role' => 'user', 'parts' => [['text' => $promptContext]]]],
         'generationConfig' => ['temperature' => 0.2, 'responseMimeType' => 'application/json']
     ];
-    list($status, $resp, $err) = sendCurlJson($url, $payload);
-    if ($status < 200 || $status >= 300) {
-        http_response_code($status ?: 500);
-        echo json_encode(['error' => "Gemini API Error ({$status}): " . ($resp ?: $err)]);
+
+    $lastStatus = 500;
+    $lastResp = '';
+    $lastErr = '';
+    $success = false;
+
+    foreach ($candidates as $candModel) {
+        $url = "https://generativelanguage.googleapis.com/v1beta/models/{$candModel}:generateContent?key={$apiKey}";
+        list($status, $resp, $err) = sendCurlJson($url, $payload);
+        if ($status >= 200 && $status < 300) {
+            $data = json_decode($resp, true);
+            $rawResponseText = $data['candidates'][0]['content']['parts'][0]['text'] ?? '{}';
+            $tokensUsed = ($data['usageMetadata']['promptTokenCount'] ?? 0) + ($data['usageMetadata']['candidatesTokenCount'] ?? 0);
+            $success = true;
+            break;
+        }
+        $lastStatus = $status;
+        $lastResp = $resp;
+        $lastErr = $err;
+        // If 404 (model not found / deprecated), cascade to next candidate
+        if ($status != 404) {
+            break;
+        }
+    }
+
+    if (!$success) {
+        http_response_code($lastStatus ?: 500);
+        echo json_encode(['error' => "Gemini API Error ({$lastStatus}): " . ($lastResp ?: $lastErr)]);
         exit;
     }
-    $data = json_decode($resp, true);
-    $rawResponseText = $data['candidates'][0]['content']['parts'][0]['text'] ?? '{}';
-    $tokensUsed = ($data['usageMetadata']['promptTokenCount'] ?? 0) + ($data['usageMetadata']['candidatesTokenCount'] ?? 0);
 } elseif ($provider === 'openai') {
     $reqModel = $model ?: 'gpt-4o-mini';
     $url = 'https://api.openai.com/v1/chat/completions';

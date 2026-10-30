@@ -103,7 +103,7 @@ export const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
             onChange={(e) => {
               const p = e.target.value as LLMProvider;
               let defaultModel = 'local-mock-heuristic';
-              if (p === 'gemini') defaultModel = 'gemini-2.0-flash';
+              if (p === 'gemini') defaultModel = 'gemini-2.5-flash';
               if (p === 'openai') defaultModel = 'gpt-4o-mini';
               if (p === 'deepseek') defaultModel = 'deepseek-chat';
               onChangeConfig({ ...config, provider: p, model: defaultModel });
@@ -122,14 +122,36 @@ export const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
               <span className="text-slate-400 font-bold text-[11px]">MODEL:</span>
               <button
                 type="button"
-                onClick={() => onChangeConfig({ ...config, model: 'gemini-2.0-flash' })}
+                onClick={() => onChangeConfig({ ...config, model: 'gemini-2.5-flash' })}
                 className={`px-2 py-0.5 rounded border transition-colors ${
-                  config.model === 'gemini-2.0-flash'
+                  config.model === 'gemini-2.5-flash' || config.model === 'gemini-2.0-flash'
                     ? 'bg-cyan-950 border-cyan-500 text-cyan-300 font-bold shadow-[0_0_8px_rgba(6,182,212,0.3)]'
                     : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
                 }`}
               >
-                2.0 Flash
+                2.5 Flash
+              </button>
+              <button
+                type="button"
+                onClick={() => onChangeConfig({ ...config, model: 'gemini-1.5-flash' })}
+                className={`px-2 py-0.5 rounded border transition-colors ${
+                  config.model === 'gemini-1.5-flash'
+                    ? 'bg-cyan-950 border-cyan-500 text-cyan-300 font-bold shadow-[0_0_8px_rgba(6,182,212,0.3)]'
+                    : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                1.5 Flash
+              </button>
+              <button
+                type="button"
+                onClick={() => onChangeConfig({ ...config, model: 'gemini-2.5-pro' })}
+                className={`px-2 py-0.5 rounded border transition-colors ${
+                  config.model === 'gemini-2.5-pro'
+                    ? 'bg-cyan-950 border-cyan-500 text-cyan-300 font-bold shadow-[0_0_8px_rgba(6,182,212,0.3)]'
+                    : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                2.5 Pro
               </button>
               <button
                 type="button"
@@ -143,7 +165,7 @@ export const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
                 1.5 Pro
               </button>
               <span className="ml-auto text-[10px] text-cyan-400 px-1.5 py-0.5 rounded bg-cyan-950/60 border border-cyan-800/40">
-                {config.model}
+                {config.model === 'gemini-2.0-flash' ? 'gemini-2.5-flash' : config.model}
               </span>
             </div>
           )}
