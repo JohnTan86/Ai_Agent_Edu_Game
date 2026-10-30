@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, User, Check, LogOut, Sparkles, ShieldCheck, School } from 'lucide-react';
+import { X, User, Check, LogOut, Sparkles, ShieldCheck, School, Settings, Key, AlertCircle, ExternalLink } from 'lucide-react';
 import { StudentUser } from '../../lib/types';
 import { Language } from '../../lib/i18n';
 
@@ -47,6 +47,27 @@ export const StudentAuthModal: React.FC<StudentAuthModalProps> = ({
   const [errorMsg, setErrorMsg] = useState('');
   const [isGsiLoaded, setIsGsiLoaded] = useState(false);
 
+  // Google OAuth Client ID state
+  const [googleClientId, setGoogleClientId] = useState('');
+  const [clientInput, setClientInput] = useState('');
+  const [showConfig, setShowConfig] = useState(false);
+  const [fastGoogleEmail, setFastGoogleEmail] = useState('endless18134@gmail.com');
+  const [fastGoogleName, setFastGoogleName] = useState('');
+
+  // Load configured Client ID from localStorage
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const stored = localStorage.getItem('roboflow_google_client_id') || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
+    setGoogleClientId(stored);
+    setClientInput(stored);
+  }, []);
+
+  const hasValidGoogleClient = Boolean(
+    googleClientId &&
+    googleClientId.includes('.apps.googleusercontent.com') &&
+    !googleClientId.includes('825946394872')
+  );
+
   // Load Google Identity Services SDK
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -65,16 +86,14 @@ export const StudentAuthModal: React.FC<StudentAuthModalProps> = ({
     }
   }, []);
 
-  // Initialize Google Sign-In Button if client ID is set
+  // Initialize official Google Sign-In Button ONLY if valid real client ID is configured
   useEffect(() => {
-    if (!isOpen || !isGsiLoaded || currentUser) return;
-
-    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '825946394872-eduagent.apps.googleusercontent.com';
+    if (!isOpen || !isGsiLoaded || currentUser || !hasValidGoogleClient) return;
 
     if (window.google?.accounts?.id) {
       try {
         window.google.accounts.id.initialize({
-          client_id: clientId,
+          client_id: googleClientId,
           callback: (response: any) => {
             if (response.credential) {
               try {
@@ -93,7 +112,7 @@ export const StudentAuthModal: React.FC<StudentAuthModalProps> = ({
                   id: profile.sub || `g_${Date.now()}`,
                   name: profile.name || profile.given_name || 'Google Student',
                   email: profile.email,
-                  avatar: profile.picture || PRESET_AVATARS[0],
+                  avatar: profile.picture || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(profile.email || 'student')}`,
                   schoolClass: 'Google Account',
                   loginType: 'google',
                   loggedInAt: new Date().toISOString()
@@ -123,9 +142,51 @@ export const StudentAuthModal: React.FC<StudentAuthModalProps> = ({
         console.warn('Google GSI init notice:', err);
       }
     }
-  }, [isOpen, isGsiLoaded, currentUser, isZh, onSaveUser, onClose]);
+  }, [isOpen, isGsiLoaded, currentUser, hasValidGoogleClient, googleClientId, isZh, onSaveUser, onClose]);
 
   if (!isOpen) return null;
+
+  const handleSaveClientId = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = clientInput.trim();
+    if (!trimmed) {
+      localStorage.removeItem('roboflow_google_client_id');
+      setGoogleClientId('');
+      setErrorMsg('');
+      return;
+    }
+    if (!trimmed.endsWith('.apps.googleusercontent.com')) {
+      setErrorMsg(isZh ? 'Client ID 格式错误，应以 .apps.googleusercontent.com 结尾' : 'Invalid format. Must end with .apps.googleusercontent.com');
+      return;
+    }
+    localStorage.setItem('roboflow_google_client_id', trimmed);
+    setGoogleClientId(trimmed);
+    setErrorMsg('');
+    setShowConfig(false);
+  };
+
+  const handleFastGoogleLogin = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const email = fastGoogleEmail.trim();
+    if (!email || !email.includes('@')) {
+      setErrorMsg(isZh ? '请输入有效的 Google 邮箱地址' : 'Please enter a valid Google email address');
+      return;
+    }
+
+    const displayName = fastGoogleName.trim() || email.split('@')[0];
+    const googleUser: StudentUser = {
+      id: `g_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      name: displayName,
+      email: email,
+      avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(email)}`,
+      schoolClass: 'Google Account',
+      loginType: 'google',
+      loggedInAt: new Date().toISOString()
+    };
+
+    onSaveUser(googleUser);
+    onClose();
+  };
 
   const handleClassroomSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -149,7 +210,7 @@ export const StudentAuthModal: React.FC<StudentAuthModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
-      <div className="relative w-full max-w-md bg-slate-900 border border-cyan-500/40 rounded-2xl shadow-[0_0_35px_rgba(6,182,212,0.25)] p-6 text-slate-100 flex flex-col gap-5">
+      <div className="relative w-full max-w-lg bg-slate-900 border border-cyan-500/40 rounded-2xl shadow-[0_0_35px_rgba(6,182,212,0.25)] p-6 text-slate-100 flex flex-col gap-4 max-h-[92vh] overflow-y-auto">
         
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
@@ -205,14 +266,14 @@ export const StudentAuthModal: React.FC<StudentAuthModalProps> = ({
             <div className="flex items-center gap-2">
               <button
                 onClick={onClose}
-                className="flex-1 py-2.5 rounded-xl font-bold text-sm bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white shadow-[0_0_15px_rgba(6,182,212,0.3)] transition-all"
+                className="flex-1 py-2.5 rounded-xl font-bold text-sm bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white shadow-[0_0_15px_rgba(6,182,212,0.3)] transition-all cursor-pointer"
               >
                 {isZh ? '开始参加 100 单挑战赛' : 'Ready for 100-Order Race'}
               </button>
               <button
                 onClick={onLogout}
                 title={isZh ? '退出当前账号' : 'Log Out'}
-                className="px-3.5 py-2.5 rounded-xl text-sm font-semibold bg-slate-800 hover:bg-rose-950/80 hover:text-rose-300 hover:border-rose-500/50 border border-slate-700 text-slate-400 transition-colors flex items-center gap-1.5"
+                className="px-3.5 py-2.5 rounded-xl text-sm font-semibold bg-slate-800 hover:bg-rose-950/80 hover:text-rose-300 hover:border-rose-500/50 border border-slate-700 text-slate-400 transition-colors flex items-center gap-1.5 cursor-pointer"
               >
                 <LogOut className="w-4 h-4" />
                 <span>{isZh ? '登出' : 'Log Out'}</span>
@@ -232,7 +293,7 @@ export const StudentAuthModal: React.FC<StudentAuthModalProps> = ({
                 }`}
               >
                 <span>🌐</span>
-                <span>{isZh ? 'Google 账号一键登录' : 'Google Account'}</span>
+                <span>{isZh ? 'Google 账号登录' : 'Google Account'}</span>
               </button>
               <button
                 onClick={() => setTab('classroom')}
@@ -248,54 +309,158 @@ export const StudentAuthModal: React.FC<StudentAuthModalProps> = ({
             </div>
 
             {errorMsg && (
-              <div className="p-2.5 rounded-xl bg-rose-950/80 border border-rose-500/60 text-rose-300 text-xs">
-                ⚠️ {errorMsg}
+              <div className="p-2.5 rounded-xl bg-rose-950/80 border border-rose-500/60 text-rose-300 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{errorMsg}</span>
               </div>
             )}
 
             {/* TAB 1: Google Account Sign-In */}
             {tab === 'google' && (
-              <div className="flex flex-col items-center justify-center gap-4 py-4 px-2 text-center">
-                <div className="w-12 h-12 rounded-2xl bg-slate-800/90 border border-slate-700 flex items-center justify-center text-2xl shadow-inner">
-                  🔐
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-100">
-                    {isZh ? '使用 Google 官方账号验证身份' : 'Official Google Authentication'}
-                  </h3>
-                  <p className="text-xs text-slate-400 mt-1 max-w-[280px]">
-                    {isZh
-                      ? '直接授权您的 Google 个人头像与真实姓名，比赛结束后成绩自动录入全球排行榜。'
-                      : 'Authenticate with your Google avatar and name to submit scores to the official class leaderboard.'}
-                  </p>
-                </div>
+              <div className="flex flex-col gap-4">
+                
+                {/* Official Google GSI Button (Active when Client ID configured) */}
+                {hasValidGoogleClient ? (
+                  <div className="flex flex-col items-center justify-center gap-3 p-4 rounded-xl bg-slate-950/60 border border-cyan-500/30 text-center">
+                    <p className="text-xs text-slate-300">
+                      {isZh ? '已连接官方 Google OAuth 授权：' : 'Connected to Official Google OAuth:'}
+                    </p>
+                    <div id="google-signin-btn-container" className="min-h-[44px] flex items-center justify-center" />
+                    <p className="text-[11px] text-slate-500">
+                      {isZh ? '点击按钮将弹出官方 Google 授权窗口' : 'Click to authorize with Google Identity Services'}
+                    </p>
+                  </div>
+                ) : (
+                  /* Zero-barrier Google Login when no custom client ID is bound yet */
+                  <div className="flex flex-col gap-3 p-4 rounded-xl bg-slate-950/80 border border-cyan-500/30">
+                    <div className="flex items-center gap-2 text-cyan-400 font-bold text-xs">
+                      <Sparkles className="w-4 h-4" />
+                      <span>{isZh ? 'Google 账号直接登记（无需申请凭据）' : 'Direct Google Email Sign-In (Zero Setup)'}</span>
+                    </div>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      {isZh
+                        ? '学生可直接输入学校或个人 Google 邮箱登入，成绩将自动关联该 Google 账号参与排名：'
+                        : 'Enter your school or personal Google email to link match results to your profile:'}
+                    </p>
 
-                {/* Google Official Button Mount */}
-                <div id="google-signin-btn-container" className="min-h-[44px] flex items-center justify-center my-1" />
+                    <form onSubmit={handleFastGoogleLogin} className="flex flex-col gap-2.5">
+                      <div>
+                        <label className="block text-[11px] font-mono text-slate-400 mb-1">
+                          {isZh ? 'Google 邮箱地址 *' : 'Google Email *'}
+                        </label>
+                        <input
+                          type="email"
+                          value={fastGoogleEmail}
+                          onChange={e => {
+                            setFastGoogleEmail(e.target.value);
+                            setErrorMsg('');
+                          }}
+                          placeholder="student@gmail.com"
+                          className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-sm text-cyan-300 placeholder-slate-500 focus:outline-none focus:border-cyan-400 font-mono"
+                          required
+                        />
+                      </div>
 
-                {/* Direct Google Fast Auth Fallback Button */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    const promptName = prompt(isZh ? '请输入您的 Google 邮箱或学生姓名：' : 'Enter your Google email or Name:');
-                    if (promptName && promptName.trim()) {
-                      const user: StudentUser = {
-                        id: `g_${Date.now()}`,
-                        name: promptName.trim(),
-                        email: promptName.includes('@') ? promptName.trim() : `${promptName.trim().toLowerCase()}@gmail.com`,
-                        avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(promptName)}`,
-                        schoolClass: 'Google Auth',
-                        loginType: 'google',
-                        loggedInAt: new Date().toISOString()
-                      };
-                      onSaveUser(user);
-                      onClose();
-                    }
-                  }}
-                  className="text-xs text-cyan-400 hover:text-cyan-300 underline font-mono cursor-pointer"
-                >
-                  {isZh ? '无法弹出 Google 登录窗？点击此处快速输入' : 'Pop-up blocked? Click here to fast-input'}
-                </button>
+                      <div>
+                        <label className="block text-[11px] font-mono text-slate-400 mb-1">
+                          {isZh ? '显示姓名 / 昵称 (选填)' : 'Display Name (Optional)'}
+                        </label>
+                        <input
+                          type="text"
+                          value={fastGoogleName}
+                          onChange={e => setFastGoogleName(e.target.value)}
+                          placeholder={isZh ? '留空将默认使用邮箱前缀' : 'Leave empty to use email prefix'}
+                          className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-400"
+                        />
+                      </div>
+
+                      {/* Fast Chip for endless18134@gmail.com */}
+                      <div className="flex items-center gap-2 pt-1">
+                        <span className="text-[10px] text-slate-500">{isZh ? '常用账号快捷填入：' : 'Quick fill:'}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFastGoogleEmail('endless18134@gmail.com');
+                            setFastGoogleName('Endless (Coach)');
+                          }}
+                          className="px-2 py-0.5 rounded text-[10px] font-mono bg-cyan-950/80 text-cyan-300 border border-cyan-800/80 hover:border-cyan-400 transition-colors cursor-pointer"
+                        >
+                          endless18134@gmail.com
+                        </button>
+                      </div>
+
+                      <button
+                        type="submit"
+                        className="w-full py-2.5 mt-2 rounded-xl font-bold text-sm bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white shadow-[0_0_15px_rgba(6,182,212,0.3)] transition-all cursor-pointer flex items-center justify-center gap-2"
+                      >
+                        <span>🌐</span>
+                        <span>{isZh ? '以 Google 身份确认登入' : 'Continue as Google Student'}</span>
+                      </button>
+                    </form>
+                  </div>
+                )}
+
+                {/* Collapsible Teacher / Admin OAuth 2.0 Setup */}
+                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex flex-col gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowConfig(!showConfig)}
+                    className="flex items-center justify-between text-xs text-slate-400 hover:text-cyan-300 transition-colors w-full cursor-pointer"
+                  >
+                    <div className="flex items-center gap-1.5 font-mono">
+                      <Settings className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>{isZh ? '配置学校专属 Google Cloud Client ID (教师/管理员)' : 'Configure Google Cloud OAuth Client ID (Admin)'}</span>
+                    </div>
+                    <span className="text-xs font-mono">{showConfig ? '▲' : '▼'}</span>
+                  </button>
+
+                  {showConfig && (
+                    <div className="pt-2 border-t border-slate-800 text-xs flex flex-col gap-2.5 animate-fadeIn">
+                      <p className="text-slate-400 text-[11px] leading-relaxed">
+                        {isZh
+                          ? '如需在班级中启用官方弹窗 OAuth 授权，仅需在 Google Cloud Console 中免费创建 Client ID：'
+                          : 'To enable official Google pop-up sign-in, create a free OAuth Client ID in Google Cloud Console:'}
+                      </p>
+                      
+                      <ol className="list-decimal list-inside text-[11px] text-slate-300 space-y-1 bg-slate-900/80 p-2.5 rounded-lg border border-slate-800">
+                        <li>
+                          {isZh ? '访问 ' : 'Go to '}
+                          <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noreferrer" className="text-cyan-400 underline inline-flex items-center gap-0.5">
+                            Google Cloud Console <ExternalLink className="w-2.5 h-2.5" />
+                          </a>
+                        </li>
+                        <li>{isZh ? '创建凭据 -> OAuth 客户端 ID -> 类型选择【网页应用 (Web Application)】' : 'Create Credentials -> OAuth client ID -> Web application'}</li>
+                        <li>
+                          {isZh ? '在【已获授权的 JavaScript 来源】填入：' : 'In Authorized JavaScript origins add: '}
+                          <code className="text-cyan-300 bg-black/60 px-1 py-0.5 rounded font-mono select-all">https://eduagent.makerkluang.com</code>
+                        </li>
+                        <li>{isZh ? '将生成的客户端 ID (xxx.apps.googleusercontent.com) 粘贴至下方：' : 'Paste the Client ID below and click Save:'}</li>
+                      </ol>
+
+                      <form onSubmit={handleSaveClientId} className="flex gap-2 mt-1">
+                        <input
+                          type="text"
+                          value={clientInput}
+                          onChange={e => setClientInput(e.target.value)}
+                          placeholder="xxxx.apps.googleusercontent.com"
+                          className="flex-1 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-cyan-300 placeholder-slate-600 focus:outline-none focus:border-cyan-400 font-mono"
+                        />
+                        <button
+                          type="submit"
+                          className="px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-950 border border-cyan-500/80 text-cyan-300 hover:bg-cyan-900 transition-colors cursor-pointer"
+                        >
+                          {isZh ? '保存' : 'Save'}
+                        </button>
+                      </form>
+                      {hasValidGoogleClient && (
+                        <p className="text-[10px] text-emerald-400 flex items-center gap-1">
+                          <Check className="w-3 h-3" />
+                          <span>{isZh ? '当前已绑定有效 Client ID' : 'Valid Client ID configured'}</span>
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -361,7 +526,7 @@ export const StudentAuthModal: React.FC<StudentAuthModalProps> = ({
 
                 <button
                   type="submit"
-                  className="w-full py-2.5 mt-1 rounded-xl font-bold text-sm bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white shadow-[0_0_15px_rgba(6,182,212,0.3)] transition-all"
+                  className="w-full py-2.5 mt-1 rounded-xl font-bold text-sm bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white shadow-[0_0_15px_rgba(6,182,212,0.3)] transition-all cursor-pointer"
                 >
                   {isZh ? '确认登录并加入比赛' : 'Confirm & Join Tournament'}
                 </button>
@@ -379,3 +544,4 @@ export const StudentAuthModal: React.FC<StudentAuthModalProps> = ({
     </div>
   );
 };
+
