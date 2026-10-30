@@ -83,12 +83,12 @@ body {
 
 @keyframes pulseGlow {
   0%, 100% {
-    stroke-opacity: 0.9;
-    stroke-width: 7;
+    stroke-opacity: 0.95;
+    stroke-width: 4.5;
   }
   50% {
-    stroke-opacity: 0.4;
-    stroke-width: 9;
+    stroke-opacity: 0.5;
+    stroke-width: 6.5;
   }
 }
 

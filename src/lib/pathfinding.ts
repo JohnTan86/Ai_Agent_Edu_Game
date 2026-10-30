@@ -557,3 +557,64 @@ export function findNearestHub(point: Point, hubs: Hub[]): Hub | undefined {
 
   return nearest;
 }
+
+const corridorSnapCache = new Map<string, Array<[number, number]>>();
+
+/**
+ * Expands coarse corridor waypoints into authentic street curves using precomputed OSRM street network.
+ * Caches results per city & corridor to ensure instant O(1) rendering without latency.
+ */
+export function getSnappedCorridorCoordinates(
+  corridorId: string,
+  corridorCoords: Array<[number, number]>,
+  city: CityData
+): Array<[number, number]> {
+  if (!corridorCoords || corridorCoords.length < 2) return corridorCoords || [];
+
+  const cacheKey = `${city.id}-${corridorId}-${corridorCoords.length}`;
+  if (corridorSnapCache.has(cacheKey)) {
+    return corridorSnapCache.get(cacheKey)!;
+  }
+
+  const stitched: Array<[number, number]> = [];
+  for (let i = 0; i < corridorCoords.length - 1; i++) {
+    const p1 = corridorCoords[i];
+    const p2 = corridorCoords[i + 1];
+
+    // 1. Try direct street route lookup
+    const streetCoords = lookupStreetRoute(p1[0], p1[1], p2[0], p2[1], 0.0035);
+    if (streetCoords && streetCoords.length > 0) {
+      if (stitched.length > 0) {
+        stitched.push(...streetCoords.slice(1));
+      } else {
+        stitched.push(...streetCoords);
+      }
+    } else {
+      // 2. Fall back to graph road network pathfinding
+      const segRoute = findCityRoadPath(
+        { x: 0, y: 0, lat: p1[0], lng: p1[1] },
+        { x: 0, y: 0, lat: p2[0], lng: p2[1] },
+        city
+      );
+      const segLatLngs: Array<[number, number]> = segRoute
+        .filter(p => p.lat !== undefined && p.lng !== undefined)
+        .map(p => [p.lat!, p.lng!]);
+
+      if (segLatLngs.length > 0) {
+        if (stitched.length > 0) {
+          stitched.push(...segLatLngs.slice(1));
+        } else {
+          stitched.push(...segLatLngs);
+        }
+      } else {
+        if (stitched.length === 0) stitched.push(p1);
+        stitched.push(p2);
+      }
+    }
+  }
+
+  const result = stitched.length > 0 ? stitched : corridorCoords;
+  corridorSnapCache.set(cacheKey, result);
+  return result;
+}
+

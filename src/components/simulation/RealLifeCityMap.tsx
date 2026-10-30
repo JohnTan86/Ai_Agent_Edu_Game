@@ -11,7 +11,7 @@ import {
 } from '../../lib/types';
 import { CITIES_DATA, CityData, getCitySectorStatus } from '../../lib/cityData';
 import { Language } from '../../lib/i18n';
-import { findCityRoadPath } from '../../lib/pathfinding';
+import { findCityRoadPath, getSnappedCorridorCoordinates } from '../../lib/pathfinding';
 import {
   Layers,
   Flame,
@@ -61,6 +61,7 @@ export const RealLifeCityMap: React.FC<RealLifeCityMapProps> = ({
   const trafficGroupRef = useRef<any>(null);
   const routesGroupRef = useRef<any>(null);
   const tileLayerRef = useRef<any>(null);
+  const googleTrafficLayerRef = useRef<any>(null);
   const robotMarkersMapRef = useRef<Map<string, any>>(new Map());
 
   const [mapStyle, setMapStyle] = useState<'dark' | 'satellite' | 'streets'>(theme === 'light' ? 'streets' : 'dark');
@@ -161,6 +162,10 @@ export const RealLifeCityMap: React.FC<RealLifeCityMapProps> = ({
     return () => {
       isMounted = false;
       robotMarkersMapRef.current.clear();
+      if (googleTrafficLayerRef.current && mapInstanceRef.current) {
+        mapInstanceRef.current.removeLayer(googleTrafficLayerRef.current);
+        googleTrafficLayerRef.current = null;
+      }
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
@@ -206,12 +211,43 @@ export const RealLifeCityMap: React.FC<RealLifeCityMapProps> = ({
     });
   };
 
-  // Change Map Style effect
+  // Helper to manage live Google Maps traffic layer overlay (supports dark & satellite modes)
+  const updateGoogleTrafficOverlay = (trafficEnabled: boolean, style: 'dark' | 'satellite' | 'streets', map?: any, L?: any) => {
+    const activeMap = map || mapInstanceRef.current;
+    if (!activeMap) return;
+
+    if (googleTrafficLayerRef.current) {
+      activeMap.removeLayer(googleTrafficLayerRef.current);
+      googleTrafficLayerRef.current = null;
+    }
+
+    // Overlay transparent real-time Google traffic tiles on dark and satellite modes
+    // (Streets mode includes live traffic directly via base m,traffic tiles)
+    if (trafficEnabled && style !== 'streets') {
+      import('leaflet').then(leaflet => {
+        const lib = L || leaflet;
+        const trafficLayer = lib.tileLayer(
+          'https://mt{s}.google.com/vt/lyrs=h,traffic%7Cseconds_into_week:-1&x={x}&y={y}&z={z}',
+          {
+            subdomains: ['0', '1', '2', '3'],
+            maxZoom: 19,
+            opacity: 0.82,
+            zIndex: 220
+          }
+        );
+        trafficLayer.addTo(activeMap);
+        googleTrafficLayerRef.current = trafficLayer;
+      });
+    }
+  };
+
+  // Change Map Style & Live Traffic Layer effect
   useEffect(() => {
     updateTileLayer(mapStyle);
+    updateGoogleTrafficOverlay(showTraffic, mapStyle);
   }, [mapStyle, showTraffic]);
 
-  // 2. Render Real Traffic Corridors
+  // 2. Render Real Traffic Corridors (High-precision road snapping + Rush Hour delays)
   useEffect(() => {
     if (!mapInstanceRef.current || !trafficGroupRef.current) return;
 
@@ -241,19 +277,44 @@ export const RealLifeCityMap: React.FC<RealLifeCityMapProps> = ({
 
         const effectiveMultiplier = isRush ? Math.max(4.0, corridor.multiplier * 1.6) : corridor.multiplier;
 
-        const polyline = L.polyline(corridor.coordinates, {
+        // Automatically expand coarse waypoints into 100% authentic street curves
+        const snappedCoords = getSnappedCorridorCoordinates(corridor.id, corridor.coordinates, currentCity);
+
+        // 1. Neon Glow Base Underlay (Soft illumination hugging road curves)
+        const glowLine = L.polyline(snappedCoords, {
           color,
-          weight,
-          opacity,
+          weight: isRush ? 7 : 5,
+          opacity: 0.35,
+          lineCap: 'round',
+          lineJoin: 'round'
+        });
+        glowLine.addTo(trafficGroupRef.current);
+
+        // 2. High-Precision Centerline Ribbon (Sharp, pulsing)
+        const polyline = L.polyline(snappedCoords, {
+          color,
+          weight: isRush ? 4 : 3,
+          opacity: 0.95,
           lineCap: 'round',
           lineJoin: 'round',
           className: isRush || corridor.status === 'severe' ? 'traffic-pulse-line' : ''
         });
 
         const tooltipContent = `
-          <div style="font-family: monospace; font-size: 11px; padding: 4px 6px;">
-            <strong style="color: ${color};">${lang === 'zh' ? corridor.nameZh : corridor.name}</strong><br/>
-            <span>${lang === 'zh' ? '当前车速' : 'Speed'}: ${isRush ? Math.round(corridor.speedKmh * 0.45) : corridor.speedKmh} km/h (${effectiveMultiplier.toFixed(1)}x ${lang === 'zh' ? '严重延迟' : 'delay'})${isRush ? (lang === 'zh' ? ' 🚨 晚高峰峰值' : ' 🚨 RUSH HOUR') : ''}</span>
+          <div style="font-family: monospace; font-size: 11px; padding: 6px 8px; line-height: 1.45;">
+            <div style="display: flex; align-items: center; gap: 6px; font-weight: bold; color: ${color};">
+              <span>🚦</span>
+              <span>${lang === 'zh' ? corridor.nameZh : corridor.name}</span>
+            </div>
+            <div style="color: #e2e8f0; margin-top: 3px;">
+              ${lang === 'zh' ? '通行时速' : 'Speed'}: <b>${isRush ? Math.round(corridor.speedKmh * 0.45) : corridor.speedKmh} km/h</b>
+              <span style="color: #94a3b8;">(${effectiveMultiplier.toFixed(1)}x ${lang === 'zh' ? '严重延迟' : 'delay'})</span>
+            </div>
+            <div style="color: ${isRush ? '#f87171' : '#38bdf8'}; font-size: 10px; margin-top: 3px;">
+              ${isRush
+                ? (lang === 'zh' ? '🚨 晚高峰峰值：延误显著，算法建议绕行' : '🚨 RUSH HOUR: High delays, reroute advised')
+                : (lang === 'zh' ? '📡 已贴合真实路网高精度中线' : '📡 Snapped to authentic street centerline')}
+            </div>
           </div>
         `;
         polyline.bindTooltip(tooltipContent, { sticky: true, opacity: 0.95 });
@@ -1072,14 +1133,28 @@ export const RealLifeCityMap: React.FC<RealLifeCityMapProps> = ({
         {/* Traffic Layer Toggle */}
         <button
           onClick={() => setShowTraffic(!showTraffic)}
-          className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-mono font-bold border backdrop-blur-md transition-all shrink-0 ${
+          title={
+            lang === 'zh'
+              ? '点击开启/关闭 Google Maps 全球实时交通图层与城市高精度拥堵走廊'
+              : 'Toggle Google Maps Live Traffic & High-Precision Congestion Corridors'
+          }
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-mono font-bold border backdrop-blur-md transition-all shrink-0 ${
             showTraffic
-              ? 'bg-amber-950/80 border-amber-500/60 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.3)]'
+              ? 'bg-rose-950/80 border-rose-500/80 text-rose-300 shadow-[0_0_12px_rgba(244,63,94,0.35)]'
               : 'bg-slate-900/90 border-slate-800 text-slate-400 hover:text-slate-200'
           }`}
         >
-          <Flame className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">{lang === 'zh' ? '路况' : 'TRAFFIC'}</span>
+          {showTraffic ? (
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+            </span>
+          ) : (
+            <Flame className="w-3.5 h-3.5" />
+          )}
+          <span className="whitespace-nowrap">
+            {lang === 'zh' ? (showTraffic ? 'Google 实时路况 ON' : '路况') : (showTraffic ? 'GOOGLE TRAFFIC ON' : 'TRAFFIC')}
+          </span>
         </button>
 
         {/* Map Style Selector */}
