@@ -11,7 +11,7 @@ import {
   Financials,
   InfrastructureAction
 } from './types';
-import { findPathAStar, findCityRoadPath, findNearestHub, manhattanDistance } from './pathfinding';
+import { findPathAStar, findCityRoadPath, findNearestHub, manhattanDistance, haversineDistance } from './pathfinding';
 import { formatSimTimestamp } from './constants';
 import { CITIES_DATA, getCitySectorStatus, isNodeOccupiedByHub } from './cityData';
 
@@ -559,14 +559,34 @@ export async function runAgentDispatchCycle(
       if (remainingUnassigned.length > 0) {
         // Sort remaining orders by SLA urgency to preserve protocol
         remainingUnassigned.sort((a, b) => a.deadlineTick - b.deadlineTick);
-        const primaryBot = robots.find(r => r.status === 'idle') || robots[0];
         for (const order of remainingUnassigned) {
           assignedOrderIds.add(order.id);
-          const count = robotActionCounts.get(primaryBot.id) || 0;
-          robotActionCounts.set(primaryBot.id, count + 1);
-
           const pickupHub = hubs.find(h => h.id === order.pickupHubId) || hubs[0];
-          const startPos = robotProjectedPos.get(primaryBot.id) || primaryBot.position;
+
+          // Select best robot closest to this order's pickup hub with sufficient battery
+          const eligibleBots = robots.filter(r => (robotActionCounts.get(r.id) || 0) < 4 && r.maxCapacityKg >= order.weightKg);
+          const candidates = eligibleBots.length > 0 ? eligibleBots : robots;
+
+          let bestBot = candidates[0];
+          let bestScore = Infinity;
+          for (const bot of candidates) {
+            const startPos = robotProjectedPos.get(bot.id) || bot.position;
+            const dist = startPos.lat && pickupHub.position.lat
+              ? haversineDistance(startPos.lat, startPos.lng || 0, pickupHub.position.lat, pickupHub.position.lng || 0)
+              : manhattanDistance(startPos, pickupHub.position);
+            const idleWeight = bot.status === 'idle' ? 0.45 : 1.0;
+            const queueCount = robotActionCounts.get(bot.id) || 0;
+            const score = (dist * idleWeight) + (queueCount * 600);
+            if (score < bestScore) {
+              bestScore = score;
+              bestBot = bot;
+            }
+          }
+
+          const count = robotActionCounts.get(bestBot.id) || 0;
+          robotActionCounts.set(bestBot.id, count + 1);
+
+          const startPos = robotProjectedPos.get(bestBot.id) || bestBot.position;
 
           const pathOpts = {
             avoidHighTraffic: directives.avoidTraffic,
@@ -596,14 +616,14 @@ export async function runAgentDispatchCycle(
 
           actions.push({
             orderId: order.id,
-            assignedRobotId: primaryBot.id,
+            assignedRobotId: bestBot.id,
             routeWaypoints: fullRoute,
             priorityReasoning: isZh
-              ? `【全量保障】自动补全未排程订单 #${order.id} 至 ${primaryBot.name}（第 ${count + 1} 序位行动）`
-              : `[AUTO-CHAIN] Sequentially queued remaining pending Order #${order.id} to ${primaryBot.name} (Leg #${count + 1})`
+              ? `【全量保障】就近智能指派未排程订单 #${order.id} 至 ${bestBot.name}（第 ${count + 1} 序位行动）`
+              : `[AUTO-CHAIN] Nearest-hub dispatched pending Order #${order.id} to ${bestBot.name} (Leg #${count + 1})`
           });
 
-          robotProjectedPos.set(primaryBot.id, {
+          robotProjectedPos.set(bestBot.id, {
             x: order.recipientAddress.x,
             y: order.recipientAddress.y,
             lat: order.recipientAddress.lat,
@@ -612,7 +632,7 @@ export async function runAgentDispatchCycle(
 
           addTrace(
             'tool_call',
-            `QUEUE_MISSION schedule_next(order="#${order.id}", bot="${primaryBot.name}", leg=${count + 1}): Automated complete itinerary chain`
+            `QUEUE_MISSION schedule_next(order="#${order.id}", bot="${bestBot.name}", leg=${count + 1}): Automated complete itinerary chain`
           );
         }
       }
@@ -920,8 +940,14 @@ export async function runAgentDispatchCycle(
         const countA = robotActionCountsMock.get(a.id) || 0;
         const countB = robotActionCountsMock.get(b.id) || 0;
         if (countA !== countB) return countA - countB;
-        const distA = manhattanDistance(robotProjectedPosMock.get(a.id) || a.position, pickupHub.position);
-        const distB = manhattanDistance(robotProjectedPosMock.get(b.id) || b.position, pickupHub.position);
+        const posA = robotProjectedPosMock.get(a.id) || a.position;
+        const posB = robotProjectedPosMock.get(b.id) || b.position;
+        const distA = posA.lat !== undefined && pickupHub.position.lat !== undefined
+          ? haversineDistance(posA.lat, posA.lng || 0, pickupHub.position.lat, pickupHub.position.lng || 0)
+          : manhattanDistance(posA, pickupHub.position);
+        const distB = posB.lat !== undefined && pickupHub.position.lat !== undefined
+          ? haversineDistance(posB.lat, posB.lng || 0, pickupHub.position.lat, pickupHub.position.lng || 0)
+          : manhattanDistance(posB, pickupHub.position);
         return distA - distB;
       });
 

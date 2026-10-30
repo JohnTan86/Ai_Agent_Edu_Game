@@ -232,6 +232,17 @@ export function findCityRoadPath(
     ];
   }
 
+  // Build bidirectional adjacency map to guarantee 100% two-way street connectivity
+  const neighborMap = new Map<string, string[]>();
+  for (const n of nodes) {
+    if (!neighborMap.has(n.id)) neighborMap.set(n.id, []);
+    for (const nb of n.neighbors) {
+      if (!neighborMap.get(n.id)!.includes(nb)) neighborMap.get(n.id)!.push(nb);
+      if (!neighborMap.has(nb)) neighborMap.set(nb, []);
+      if (!neighborMap.get(nb)!.includes(n.id)) neighborMap.get(nb)!.push(n.id);
+    }
+  }
+
   // A* Graph Search
   interface GraphState {
     id: string;
@@ -329,8 +340,9 @@ export function findCityRoadPath(
       ];
     }
 
-    // Expand neighbors
-    for (const neighborId of current.node.neighbors) {
+    // Expand neighbors (using bidirectional connectivity)
+    const validNeighbors = neighborMap.get(current.node.id) || current.node.neighbors;
+    for (const neighborId of validNeighbors) {
       if (closedSet.has(neighborId)) continue;
       // Skip if this road node is currently blocked by an emergency closure
       if (options.closedNodeId && neighborId === options.closedNodeId) continue;
@@ -341,17 +353,20 @@ export function findCityRoadPath(
       // Base physical distance in meters
       let edgeCost = haversineDistance(current.node.lat, current.node.lng, neighborNode.lat, neighborNode.lng);
 
-      // Check if this segment is in a congested traffic corridor
+      // Check if this segment is in a congested traffic corridor (tight 160m road buffer)
       const inCongestion = city.trafficCorridors.find(c => {
-        // Simple check if corridor points near current/neighbor
         return c.coordinates.some(
-          coord => haversineDistance(coord[0], coord[1], neighborNode.lat, neighborNode.lng) < 600
+          coord => haversineDistance(coord[0], coord[1], neighborNode.lat, neighborNode.lng) < 160
         );
       });
 
       if (inCongestion) {
-        const rushSurge = options.isRushHour ? 1.8 : 1.0;
-        edgeCost *= (options.avoidHighTraffic ? inCongestion.multiplier * 2.5 : inCongestion.multiplier) * rushSurge;
+        const rushSurge = options.isRushHour ? 1.4 : 1.0;
+        // Balanced detour trade-off: only detour if the bypass doesn't add unreasonable extra mileage
+        const delayFactor = options.avoidHighTraffic
+          ? Math.min(2.5, inCongestion.multiplier * 1.3)
+          : inCongestion.multiplier;
+        edgeCost *= delayFactor * rushSurge;
       }
 
       const tentativeG = current.g + edgeCost;
