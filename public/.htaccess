@@ -1,3 +1,5 @@
+DirectoryIndex index.html index.php
+
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
@@ -8,7 +10,14 @@
   # Route /api/git-sync directly to /api/git-sync/index.php
   RewriteRule ^api/git-sync/?$ api/git-sync/index.php [L,QSA]
 
-  # Serve clean URLs (e.g. /roboflow -> roboflow.html, /sushi -> sushi.html)
+  # Serve directory index.html for clean URLs (e.g. /roboflow -> /roboflow/index.html)
+  RewriteCond %{DOCUMENT_ROOT}/$1/index.html -f
+  RewriteRule ^(.*[^/])$ $1/index.html [L]
+
+  RewriteCond %{DOCUMENT_ROOT}/$1/index.html -f
+  RewriteRule ^(.*)/$ $1/index.html [L]
+
+  # Serve standalone .html if exists (e.g. /roboflow.html)
   RewriteCond %{REQUEST_FILENAME}.html -f
   RewriteRule ^(.*)/?$ $1.html [L]
 
