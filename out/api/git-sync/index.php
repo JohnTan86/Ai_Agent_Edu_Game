@@ -19,7 +19,12 @@ if (!is_dir($targetDir)) {
     $targetDir = dirname(__DIR__, 2);
 }
 
-$zipUrl = 'https://raw.githubusercontent.com/JohnTan86/Ai_Agent_Edu_Game/main/roboflow-cpanel.zip?t=' . time();
+$commitSha = $_SERVER['HTTP_X_COMMIT_SHA'] ?? ($_POST['commit'] ?? ($_GET['commit'] ?? ''));
+if (!empty($commitSha) && preg_match('/^[a-f0-9]{7,40}$/i', $commitSha)) {
+    $zipUrl = "https://raw.githubusercontent.com/JohnTan86/Ai_Agent_Edu_Game/{$commitSha}/roboflow-cpanel.zip";
+} else {
+    $zipUrl = 'https://raw.githubusercontent.com/JohnTan86/Ai_Agent_Edu_Game/main/roboflow-cpanel.zip?t=' . time();
+}
 $tmpZip = $targetDir . '/.roboflow_sync_tmp.zip';
 
 $ch = curl_init($zipUrl);

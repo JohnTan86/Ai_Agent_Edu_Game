@@ -36,9 +36,11 @@ if (status) {
   console.log('ℹ️ Working tree already clean.');
 }
 execSync('git push origin main', { stdio: 'inherit' });
+const headSha = execSync('git rev-parse HEAD').toString().trim();
 
 console.log('\n====================================================');
 console.log('🌐 Step 3/3: Triggering Live cPanel Sync on eduagent.makerkluang.com...');
+console.log(`📌 Deploying Commit SHA: ${headSha}`);
 console.log('====================================================');
 
 const webhookUrl = deployEnv.DEPLOY_WEBHOOK_URL || 'https://eduagent.makerkluang.com/api/git-sync/index.php';
@@ -50,6 +52,7 @@ if (secretToken) {
       method: 'POST',
       headers: {
         'X-Deploy-Token': secretToken,
+        'X-Commit-SHA': headSha,
         'User-Agent': 'RoboFlow-Ship-CLI/1.0'
       }
     });
