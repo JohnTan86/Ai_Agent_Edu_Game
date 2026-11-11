@@ -7,6 +7,7 @@ import {
   SushiSimulationState
 } from '../../lib/sushi/types';
 import { SUSHI_RECIPES } from '../../lib/sushi/recipes';
+import { SushiCartoonScene } from './SushiCartoonScene';
 import {
   Utensils,
   Clock,
@@ -17,7 +18,9 @@ import {
   Package,
   Layers,
   ChefHat,
-  HeartHandshake
+  HeartHandshake,
+  Tv,
+  LayoutGrid
 } from 'lucide-react';
 
 interface SushiRestaurantViewProps {
@@ -34,6 +37,7 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
   onSelectStation
 }) => {
   const [hoveredCustomer, setHoveredCustomer] = useState<Customer | null>(null);
+  const [viewMode, setViewMode] = useState<'cartoon' | 'classic'>('cartoon');
 
   // Helper for patience color
   const getPatienceColor = (rem: number, max: number) => {
@@ -44,13 +48,13 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
   };
 
   return (
-    <div className="w-full h-full flex flex-col bg-slate-950/90 text-slate-200 select-none overflow-y-auto p-4 gap-4 relative">
-      {/* Top Banner / Ambience HUD */}
-      <div className="flex items-center justify-between bg-gradient-to-r from-amber-950/40 via-slate-900/80 to-amber-950/40 border border-amber-900/30 rounded-xl px-4 py-2.5 shadow-sm">
+    <div className="w-full h-full flex flex-col bg-slate-950/90 text-slate-200 select-none overflow-y-auto p-3.5 gap-3 relative">
+      {/* Top Banner / Ambience HUD with View Mode Toggle */}
+      <div className="flex items-center justify-between bg-gradient-to-r from-amber-950/40 via-slate-900/80 to-amber-950/40 border border-amber-900/30 rounded-xl px-4 py-2 shadow-sm flex-shrink-0">
         <div className="flex items-center gap-3">
           <span className="text-xl">🏮</span>
           <div>
-            <h2 className="text-sm font-bold text-amber-200 tracking-wider flex items-center gap-2">
+            <h2 className="text-xs font-bold text-amber-200 tracking-wider flex items-center gap-2">
               江戶前・壽司物語 AI 旗艦店
               {state.rushHourActive && (
                 <span className="text-[10px] bg-rose-600 text-white font-mono px-2 py-0.5 rounded-full animate-bounce">
@@ -59,33 +63,72 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
               )}
             </h2>
             <p className="text-[11px] text-slate-400">
-              現場即時營運模擬實況：接待員阿葵、料理長健次、採購主管蓮、營運店長櫻
+              現場即時營運模擬：接待員阿葵、料理長健次、採購主管蓮、營運店長櫻
             </p>
           </div>
         </div>
 
-        {/* Quick status counters */}
-        <div className="flex items-center gap-4 text-xs font-mono">
-          <div className="flex items-center gap-1.5 text-slate-400">
-            <span className="w-2 h-2 rounded-full bg-sky-400" />
-            <span>排隊候位:</span>
-            <span className="text-white font-bold">{state.customersInQueue.length} 人</span>
+        {/* View Mode Switcher + Counters */}
+        <div className="flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-1 bg-slate-900/90 border border-slate-700/60 p-0.5 rounded-xl text-xs font-medium shadow-inner">
+            <button
+              onClick={() => setViewMode('cartoon')}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg transition-all ${
+                viewMode === 'cartoon'
+                  ? 'bg-gradient-to-r from-amber-600 to-rose-600 text-white font-bold shadow-md shadow-amber-950/40'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Tv className="w-3.5 h-3.5" />
+              <span>卡通動畫劇場</span>
+            </button>
+            <button
+              onClick={() => setViewMode('classic')}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg transition-all ${
+                viewMode === 'classic'
+                  ? 'bg-slate-700 text-white font-bold shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+              <span>數值看板</span>
+            </button>
           </div>
-          <div className="flex items-center gap-1.5 text-slate-400">
-            <span className="w-2 h-2 rounded-full bg-emerald-400" />
-            <span>座席就座:</span>
-            <span className="text-white font-bold">{state.seatedCustomers.length} / 6</span>
-          </div>
-          <div className="flex items-center gap-1.5 text-slate-400">
-            <span className="w-2 h-2 rounded-full bg-amber-400" />
-            <span>進行中工單:</span>
-            <span className="text-white font-bold">{state.activeTickets.length} 張</span>
+
+          {/* Quick status counters */}
+          <div className="flex items-center gap-3 text-xs font-mono">
+            <div className="flex items-center gap-1 text-slate-400">
+              <span className="w-2 h-2 rounded-full bg-sky-400" />
+              <span>候位:</span>
+              <span className="text-white font-bold">{state.customersInQueue.length}</span>
+            </div>
+            <div className="flex items-center gap-1 text-slate-400">
+              <span className="w-2 h-2 rounded-full bg-emerald-400" />
+              <span>就座:</span>
+              <span className="text-white font-bold">{state.seatedCustomers.length}/6</span>
+            </div>
+            <div className="flex items-center gap-1 text-slate-400">
+              <span className="w-2 h-2 rounded-full bg-amber-400" />
+              <span>工單:</span>
+              <span className="text-white font-bold">{state.activeTickets.length}</span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Main Restaurant Floor Grid */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 flex-1">
+      {/* Main Content: Either Animated Cartoon Scene or Classic Data Grid */}
+      {viewMode === 'cartoon' ? (
+        <div className="flex-1 flex flex-col min-h-0">
+          <SushiCartoonScene
+            state={state}
+            onSelectCustomer={onSelectCustomer}
+            onSelectTable={onSelectTable}
+            onSelectStation={onSelectStation}
+          />
+        </div>
+      ) : (
+        /* Main Restaurant Floor Grid (Classic) */
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 flex-1">
         {/* Left Column (4 cols): Queue Entrance & Cold Storage Inventory */}
         <div className="xl:col-span-4 flex flex-col gap-4">
           {/* 1. Entrance Waiting Line */}
@@ -476,6 +519,7 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 };

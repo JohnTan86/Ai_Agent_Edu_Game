@@ -260,21 +260,21 @@ export const SINGAPORE_CITY: CityData = {
     { id: 'sg-n15', name: 'Orchard Central / Somerset Rd', nameZh: '乌节中心 / 索美塞', lat: 1.3008, lng: 103.8390, neighbors: ['sg-n13', 'sg-n14', 'sg-n18'], sector: 3 },
     // Sector 4: Greater Metropolis Expansion (Bugis, Little India, Newton/Novena, Outram Medical)
     { id: 'sg-n16', name: 'Bugis Junction / Victoria St', nameZh: '武吉士商业枢纽', lat: 1.2995, lng: 103.8555, neighbors: ['sg-n8', 'sg-n9', 'sg-n13', 'sg-n17', 'sg-n20'], sector: 4 },
-    { id: 'sg-n17', name: 'Little India / Tekka Centre', nameZh: '小印度 / 竹脚中心', lat: 1.3065, lng: 103.8518, neighbors: ['sg-n13', 'sg-n16', 'sg-n18'], sector: 4 },
+    { id: 'sg-n17', name: 'Little India / Tekka Centre', nameZh: '小印度 / 竹脚中心', lat: 1.3065, lng: 103.8518, neighbors: ['sg-n13', 'sg-n16', 'sg-n18', 'sg-n28'], sector: 4 },
     { id: 'sg-n18', name: 'Newton Circus / Novena Hub', nameZh: '纽顿圈 / 诺维娜枢纽', lat: 1.3125, lng: 103.8385, neighbors: ['sg-n15', 'sg-n17', 'sg-n28'], sector: 4 },
     { id: 'sg-n19', name: 'Outram Park / SGH Medical Hub', nameZh: '欧南园医疗中心', lat: 1.2800, lng: 103.8365, neighbors: ['sg-n11', 'sg-n12', 'sg-n14', 'sg-n24'], sector: 4 },
     // Sector 5: East Coast & Changi Airport Air-Cargo Belt
-    { id: 'sg-n20', name: 'Kallang Wave / National Stadium', nameZh: '加冷体育城', lat: 1.3035, lng: 103.8745, neighbors: ['sg-n9', 'sg-n16', 'sg-n21'], sector: 5 },
-    { id: 'sg-n21', name: 'Paya Lebar Central Hub', nameZh: '巴耶利峇商业中心', lat: 1.3175, lng: 103.8925, neighbors: ['sg-n20', 'sg-n22', 'sg-n23'], sector: 5 },
+    { id: 'sg-n20', name: 'Kallang Wave / National Stadium', nameZh: '加冷体育城', lat: 1.3035, lng: 103.8745, neighbors: ['sg-n9', 'sg-n16', 'sg-n21', 'sg-n28'], sector: 5 },
+    { id: 'sg-n21', name: 'Paya Lebar Central Hub', nameZh: '巴耶利峇商业中心', lat: 1.3175, lng: 103.8925, neighbors: ['sg-n20', 'sg-n22', 'sg-n23', 'sg-n28'], sector: 5 },
     { id: 'sg-n22', name: 'Marine Parade / East Coast Park', nameZh: '马林百列/东海岸', lat: 1.3020, lng: 103.9065, neighbors: ['sg-n21', 'sg-n23'], sector: 5 },
     { id: 'sg-n23', name: 'Changi Airport Cargo Megaplex', nameZh: '樟宜空港数码货运站', lat: 1.3644, lng: 103.9915, neighbors: ['sg-n21', 'sg-n22'], sector: 5 },
     // Sector 6: West Innovation Corridor & Jurong Gateway
-    { id: 'sg-n24', name: 'Alexandra / Queenstown Hub', nameZh: '亚历山大/女皇镇', lat: 1.2885, lng: 103.8055, neighbors: ['sg-n14', 'sg-n19', 'sg-n25'], sector: 6 },
+    { id: 'sg-n24', name: 'Alexandra / Queenstown Hub', nameZh: '亚历山大/女皇镇', lat: 1.2885, lng: 103.8055, neighbors: ['sg-n14', 'sg-n15', 'sg-n19', 'sg-n25'], sector: 6 },
     { id: 'sg-n25', name: 'Buona Vista one-north Tech Park', nameZh: '波那维斯达/纬壹科技城', lat: 1.2995, lng: 103.7875, neighbors: ['sg-n24', 'sg-n26'], sector: 6 },
     { id: 'sg-n26', name: 'Clementi Town Logistics Center', nameZh: '金文泰数码换乘站', lat: 1.3150, lng: 103.7650, neighbors: ['sg-n25', 'sg-n27'], sector: 6 },
-    { id: 'sg-n27', name: 'Jurong Gateway / JCube Centre', nameZh: '裕廊商业中心/湖畔枢纽', lat: 1.3330, lng: 103.7425, neighbors: ['sg-n26', 'sg-n32'], sector: 6 },
+    { id: 'sg-n27', name: 'Jurong Gateway / JCube Centre', nameZh: '裕廊商业中心/湖畔枢纽', lat: 1.3330, lng: 103.7425, neighbors: ['sg-n24', 'sg-n26', 'sg-n32'], sector: 6 },
     // Sector 7: Northern Green Belt & Woodlands Hub
-    { id: 'sg-n28', name: 'Toa Payoh Central Hub', nameZh: '大巴窑中枢', lat: 1.3325, lng: 103.8475, neighbors: ['sg-n18', 'sg-n29'], sector: 7 },
+    { id: 'sg-n28', name: 'Toa Payoh Central Hub', nameZh: '大巴窑中枢', lat: 1.3325, lng: 103.8475, neighbors: ['sg-n17', 'sg-n18', 'sg-n20', 'sg-n21', 'sg-n29'], sector: 7 },
     { id: 'sg-n29', name: 'Bishan Junction 8', nameZh: '碧山商圈', lat: 1.3505, lng: 103.8485, neighbors: ['sg-n28', 'sg-n30'], sector: 7 },
     { id: 'sg-n30', name: 'Ang Mo Kio Central', nameZh: '宏茂桥交通枢纽', lat: 1.3695, lng: 103.8495, neighbors: ['sg-n29', 'sg-n31'], sector: 7 },
     { id: 'sg-n31', name: 'Woodlands Integrated Transport Hub', nameZh: '兀兰跨境枢纽中心', lat: 1.4370, lng: 103.7865, neighbors: ['sg-n30'], sector: 7 },

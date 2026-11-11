@@ -1256,6 +1256,38 @@ You are the Autonomous Fleet Dispatcher. Follow the User's System Prompt protoco
       }
     }
 
+    // Dynamic Model Discovery Fallback: If all static candidate models returned 404, query ListModels for this key
+    if (!successfulData) {
+      try {
+        const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+        if (listRes.ok) {
+          const listData = await listRes.json();
+          const available = (listData.models || [])
+            .filter((m: any) => m.supportedGenerationMethods?.includes('generateContent') && !m.name.includes('embedding'))
+            .map((m: any) => m.name.replace('models/', ''));
+
+          if (available.length > 0) {
+            const discoveredModel = available.find((m: string) => m.includes('flash')) || available[0];
+            const dynEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${discoveredModel}:generateContent?key=${apiKey}`;
+            const dynRes = await fetch(dynEndpoint, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                contents: [{ role: 'user', parts: [{ text: promptContext }] }],
+                generationConfig: { temperature: 0.2, responseMimeType: 'application/json' }
+              })
+            });
+            if (dynRes.ok) {
+              successfulData = await dynRes.json();
+            }
+          }
+        }
+      } catch (listErr) {
+        // Continue to throw lastError
+      }
+    }
+
     if (!successfulData) {
       throw lastError || new Error('Gemini API Error: all model candidates unavailable');
     }

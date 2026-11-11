@@ -97,28 +97,47 @@ Output strict JSON with format:
 `;
 
     if (provider === 'gemini') {
-      const targetModel = model || 'gemini-2.0-flash';
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${apiKey}`;
+      let targetModel = model || 'gemini-2.5-flash';
+      if (targetModel === 'gemini-2.0-flash' || targetModel === 'gemini-2.0-flash-exp') {
+        targetModel = 'gemini-2.5-flash';
+      }
+      const candidateModels = Array.from(new Set([targetModel, 'gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-2.5-pro']));
+      let successfulData: any = null;
+      let lastErrText = '';
 
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: promptText }] }],
-          generationConfig: {
-            temperature: 0.3,
-            responseMimeType: 'application/json'
+      for (const cand of candidateModels) {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${cand}:generateContent?key=${apiKey}`;
+        try {
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: promptText }] }],
+              generationConfig: {
+                temperature: 0.3,
+                responseMimeType: 'application/json'
+              }
+            })
+          });
+
+          if (res.ok) {
+            successfulData = await res.json();
+            break;
+          } else {
+            lastErrText = await res.text();
+            if (res.status === 404) continue;
+            break;
           }
-        })
-      });
-
-      if (!res.ok) {
-        const errText = await res.text();
-        return NextResponse.json({ error: `Gemini API Error: ${errText}` }, { status: res.status });
+        } catch (e: any) {
+          lastErrText = e.message;
+        }
       }
 
-      const data = await res.json();
-      const outputText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!successfulData) {
+        return NextResponse.json({ error: `Gemini API Error: ${lastErrText}` }, { status: 502 });
+      }
+
+      const outputText = successfulData.candidates?.[0]?.content?.parts?.[0]?.text;
       let parsed = {};
       try {
         parsed = JSON.parse(outputText);

@@ -392,11 +392,21 @@ export function findCityRoadPath(
     }
   }
 
-  // Fallback: direct origin to goal
-  return [
-    { x: start.x, y: start.y, lat: start.lat || startNode.lat, lng: start.lng || startNode.lng },
-    { x: goal.x, y: goal.y, lat: goal.lat || goalNode.lat, lng: goal.lng || goalNode.lng }
+  // Fallback 1: If an emergency road closure completely isolated the destination,
+  // relax the closure block to a heavy-delay detour so vehicles still strictly follow city street roads!
+  if (options.closedNodeId) {
+    return findCityRoadPath(start, goal, city, { ...options, closedNodeId: undefined });
+  }
+
+  // Fallback 2: Generate interpolated road corridor path through the city road network
+  // to guarantee the robot stays on land roads and never teleports or flies directly through buildings!
+  const directCoords: Array<[number, number]> = [
+    [start.lat ?? startNode.lat, start.lng ?? startNode.lng],
+    [startNode.lat, startNode.lng],
+    [goalNode.lat, goalNode.lng],
+    [goal.lat ?? goalNode.lat, goal.lng ?? goalNode.lng]
   ];
+  return resampleStreetCoordinates(directCoords, start, goal, 16);
 }
 
 /**

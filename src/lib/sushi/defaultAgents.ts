@@ -163,7 +163,7 @@ export const DEFAULT_SUSHI_AGENTS: Record<SushiAgentRole, SushiAgentConfig> = {
     color: '#38bdf8', // Cyan / Light Blue
     status: 'idle',
     provider: 'mock',
-    model: 'gemini-2.0-flash',
+    model: 'gemini-2.5-flash',
     temperature: 0.3,
     enabledTools: [
       'greet_and_seat',
@@ -190,7 +190,7 @@ export const DEFAULT_SUSHI_AGENTS: Record<SushiAgentRole, SushiAgentConfig> = {
     color: '#f97316', // Orange
     status: 'idle',
     provider: 'mock',
-    model: 'gemini-2.0-flash',
+    model: 'gemini-2.5-flash',
     temperature: 0.2,
     enabledTools: [
       'review_pending_tickets',
@@ -216,7 +216,7 @@ export const DEFAULT_SUSHI_AGENTS: Record<SushiAgentRole, SushiAgentConfig> = {
     color: '#10b981', // Emerald / Green
     status: 'idle',
     provider: 'mock',
-    model: 'gemini-2.0-flash',
+    model: 'gemini-2.5-flash',
     temperature: 0.2,
     enabledTools: [
       'check_inventory_levels',
@@ -241,7 +241,7 @@ export const DEFAULT_SUSHI_AGENTS: Record<SushiAgentRole, SushiAgentConfig> = {
     color: '#a855f7', // Purple
     status: 'idle',
     provider: 'mock',
-    model: 'gemini-2.0-flash',
+    model: 'gemini-2.5-flash',
     temperature: 0.4,
     enabledTools: [
       'audit_restaurant_kpi',

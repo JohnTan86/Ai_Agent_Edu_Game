@@ -426,4 +426,103 @@ html.light-theme .leaflet-tooltip {
   scrollbar-width: none;
 }
 
+/* ========================================================
+   🍣 SushiFlow Retro & Cartoon Chibi Anime Keyframes
+   ======================================================== */
+@keyframes lanternSwing {
+  0%, 100% { transform: rotate(-4deg); }
+  50% { transform: rotate(4deg); }
+}
+.animate-lantern {
+  transform-origin: top center;
+  animation: lanternSwing 3.2s ease-in-out infinite;
+}
+
+@keyframes chefChop {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-4px) rotate(-14deg); }
+}
+.animate-knife-chop {
+  transform-origin: bottom right;
+  animation: chefChop 0.22s ease-in-out infinite;
+}
+
+@keyframes torchFlame {
+  0%, 100% { transform: scale(0.95) rotate(-2deg); opacity: 0.85; filter: drop-shadow(0 0 6px #f97316); }
+  50% { transform: scale(1.3) rotate(5deg); opacity: 1; filter: drop-shadow(0 0 14px #ef4444); }
+}
+.animate-torch-flame {
+  animation: torchFlame 0.18s ease-in-out infinite;
+}
+
+@keyframes chibiBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+.animate-chibi-bob {
+  animation: chibiBob 2s ease-in-out infinite;
+}
+.animate-chibi-fast {
+  animation: chibiBob 0.75s ease-in-out infinite;
+}
+
+@keyframes speechPop {
+  0% { transform: scale(0.65) translateY(6px); opacity: 0; }
+  80% { transform: scale(1.05) translateY(-1px); opacity: 1; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+.animate-speech-pop {
+  animation: speechPop 0.28s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes catPawWave {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-28deg); }
+}
+.animate-cat-paw {
+  transform-origin: bottom right;
+  animation: catPawWave 1.1s ease-in-out infinite;
+}
+
+@keyframes eatingNom {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  50% { transform: scale(1.14) translateY(-3px) rotate(3deg); }
+}
+.animate-eating {
+  animation: eatingNom 0.55s ease-in-out infinite;
+}
+
+@keyframes coinFloat {
+  0% { transform: translateY(0) scale(0.8); opacity: 1; }
+  100% { transform: translateY(-30px) scale(1.2); opacity: 0; }
+}
+.animate-coin-float {
+  animation: coinFloat 1.2s ease-out forwards;
+}
+
+@keyframes steamPuff {
+  0% { transform: translateY(0) scale(0.7); opacity: 0.8; }
+  100% { transform: translateY(-16px) scale(1.4); opacity: 0; }
+}
+.animate-steam {
+  animation: steamPuff 1.6s ease-out infinite;
+}
+
+@keyframes scooterVroom {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-2px) rotate(2deg); }
+}
+.animate-scooter {
+  animation: scooterVroom 0.35s ease-in-out infinite;
+}
+
+@keyframes plateSlide {
+  0% { transform: translateX(-15px) scale(0.9); opacity: 0; }
+  100% { transform: translateX(0) scale(1); opacity: 1; }
+}
+.animate-plate-slide {
+  animation: plateSlide 0.35s ease-out forwards;
+}
+
+
 
