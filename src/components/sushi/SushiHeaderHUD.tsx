@@ -53,21 +53,43 @@ export const SushiHeaderHUD: React.FC<SushiHeaderHUDProps> = ({
   const isRunning = state.status === 'running';
 
   return (
-    <header className="h-16 bg-slate-900/95 border-b border-amber-900/40 px-4 flex items-center justify-between select-none shadow-lg z-20 backdrop-blur-md">
-      {/* 1. Brand Logo & Scenario Selector */}
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2.5">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-rose-600 flex items-center justify-center text-xl shadow-md shadow-rose-950/40">
+    <header className="h-16 bg-slate-900/95 border-b border-amber-900/40 px-3 sm:px-4 flex items-center justify-between select-none shadow-lg z-20 backdrop-blur-md overflow-hidden">
+      {/* 1. Brand Logo & Portal Navigation */}
+      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        {/* Return to Portal Hub */}
+        <Link
+          href="/"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-950/80 hover:bg-amber-900 border border-amber-500/50 text-amber-200 hover:text-white font-mono text-xs transition shrink-0 shadow-sm shadow-amber-950"
+          title="返回 AI Agent 遊戲教育大廳"
+        >
+          <span className="text-sm">🏠</span>
+          <span className="font-bold">大廳</span>
+        </Link>
+
+        {/* Switch to RoboFlow Button */}
+        <Link
+          href="/roboflow"
+          className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-sky-950/60 hover:bg-sky-900/80 text-sky-300 border border-sky-800/50 text-xs font-mono transition shrink-0"
+          title="切換至 RoboFlow 物流車隊派單遊戲"
+        >
+          <Truck className="w-3.5 h-3.5 text-sky-400" />
+          <span className="hidden xl:inline font-semibold">RoboFlow 派單</span>
+        </Link>
+
+        <div className="h-5 w-[1px] bg-slate-800 mx-0.5 hidden sm:block" />
+
+        <div className="flex items-center gap-2">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-rose-600 flex items-center justify-center text-lg shadow-md shadow-rose-950/40 shrink-0">
             🍣
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-base tracking-wide text-white">壽司物語 AI</span>
-              <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+            <div className="flex items-center gap-1.5">
+              <span className="font-bold text-sm sm:text-base tracking-wide text-white">壽司物語 AI</span>
+              <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
                 Multi-Agent
               </span>
             </div>
-            <p className="text-[11px] text-slate-400 font-mono">SushiFlow Restaurant Simulation</p>
+            <p className="hidden md:block text-[10px] text-slate-400 font-mono">SushiFlow Simulation</p>
           </div>
         </div>
 
@@ -270,27 +292,6 @@ export const SushiHeaderHUD: React.FC<SushiHeaderHUDProps> = ({
         >
           <BookOpen className="w-4 h-4" />
         </button>
-
-        {/* Return to Portal Hub */}
-        <Link
-          href="/"
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-200 hover:text-amber-300 border border-slate-700 text-xs font-medium transition"
-          title="返回 AI Agent 遊戲教育大廳"
-        >
-          <span>🏠</span>
-          <span className="hidden sm:inline">遊戲大廳</span>
-        </Link>
-
-        {/* Switch to RoboFlow Button */}
-        <Link
-          href="/roboflow"
-          className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-950/60 hover:bg-sky-900/80 text-sky-300 border border-sky-800/50 text-xs font-medium transition"
-          title="切換至 RoboFlow 物流車隊派單遊戲"
-        >
-          <Truck className="w-3.5 h-3.5 text-sky-400" />
-          <span>RoboFlow 派單</span>
-          <ArrowRightLeft className="w-3 h-3 text-sky-400/80" />
-        </Link>
       </div>
     </header>
   );

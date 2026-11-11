@@ -113,28 +113,48 @@ export const HeaderHUD: React.FC<HeaderHUDProps> = ({
   };
 
   return (
-    <header className="h-14 min-h-[56px] max-h-14 border-b border-cyan-950/60 bg-slate-950/95 backdrop-blur-md px-3 sm:px-4 flex items-center justify-between gap-2 lg:gap-3 z-20 select-none overflow-x-auto overflow-y-hidden no-scrollbar">
-      {/* 1. Left: Brand & Academy Title */}
-      <div className="flex items-center gap-2.5 shrink-0 whitespace-nowrap">
-        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-cyan-950/90 border border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.3)] shrink-0">
-          <Bot className="w-5 h-5 text-cyan-400" />
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="font-mono font-black tracking-wider text-base text-slate-100 flex items-center shrink-0">
+    <header className="h-14 min-h-[56px] max-h-14 border-b border-cyan-950/60 bg-slate-950/95 backdrop-blur-md px-2 sm:px-3 lg:px-4 flex items-center justify-between gap-1.5 sm:gap-2 lg:gap-3 z-20 select-none overflow-hidden">
+      {/* 1. Left: Navigation & Brand (Always anchored on the left, NEVER clipped) */}
+      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 whitespace-nowrap">
+        {/* Return to Portal Hub */}
+        <Link
+          href="/"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-cyan-950/90 hover:bg-cyan-900 border border-cyan-500/50 text-cyan-200 hover:text-white font-mono text-xs transition shrink-0 shadow-sm shadow-cyan-950"
+          title={lang === 'zh' ? '返回 AI Agent 遊戲教育大廳' : 'Return to Game Portal'}
+        >
+          <span className="text-sm">🏠</span>
+          <span className="font-bold">{lang === 'zh' ? '大廳' : 'Hub'}</span>
+        </Link>
+
+        {/* Switch to Sushi Restaurant Multi-Agent Game */}
+        <Link
+          href="/sushi"
+          className="hidden sm:flex items-center gap-1 px-2 py-1.5 rounded-lg bg-gradient-to-r from-amber-500/15 to-rose-500/15 hover:from-amber-500/25 hover:to-rose-500/25 border border-amber-500/40 text-amber-300 font-mono text-xs transition shrink-0"
+          title={lang === 'zh' ? '切換至 壽司物語 AI 餐廳' : 'Switch to Sushi AI'}
+        >
+          <span>🍣</span>
+          <span className="hidden xl:inline font-semibold">{lang === 'zh' ? '壽司物語' : 'Sushi AI'}</span>
+        </Link>
+
+        <div className="h-4 w-[1px] bg-slate-800 mx-0.5 hidden sm:block" />
+
+        {/* Brand Logo & Title */}
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-cyan-950/90 border border-cyan-500/50 shadow-[0_0_12px_rgba(6,182,212,0.25)] shrink-0">
+            <Bot className="w-4 h-4 text-cyan-400" />
+          </div>
+          <span className="font-mono font-black tracking-wider text-sm sm:text-base text-slate-100 flex items-center shrink-0">
             {t.appTitle}
-            <span className="text-cyan-400 ml-1.5 text-xs font-semibold tracking-normal px-1 py-0.5 rounded bg-cyan-950 border border-cyan-800/50">
+            <span className="text-cyan-400 ml-1 text-[10px] font-semibold tracking-normal px-1 py-0.5 rounded bg-cyan-950 border border-cyan-800/50">
               2028
             </span>
-          </span>
-          <span className="hidden 2xl:inline-block text-[11px] font-mono tracking-widest text-slate-400 uppercase border-l border-slate-800 pl-2 shrink-0">
-            {t.appSubtitle}
           </span>
         </div>
       </div>
 
-      {/* 2. Center: Level Progression & Shift Clock & Status */}
-      <div className="flex items-center gap-2 lg:gap-2.5 shrink-0 whitespace-nowrap">
-        {/* Scenario Selector (Compact on larger screens) */}
+      {/* 2. Center: Level Progression & Shift Clock & Status (Compact & Auto-Scaling) */}
+      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 whitespace-nowrap">
+        {/* Scenario Selector (Only on wide 2xl screens) */}
         <div className="hidden 2xl:flex items-center gap-1.5 bg-slate-900/90 border border-slate-800 rounded-lg px-2.5 py-1 shrink-0">
           <span className="text-[11px] font-mono text-slate-400 whitespace-nowrap">{t.scenarioLabel}:</span>
           <select
@@ -156,16 +176,16 @@ export const HeaderHUD: React.FC<HeaderHUDProps> = ({
           </select>
         </div>
 
-        {/* Level Progression Banner (Never wraps or squishes) */}
+        {/* Level Progression Banner */}
         {levelProgression && (
           <div
-            className={`flex items-center gap-2 px-3 py-1 rounded-xl text-xs font-mono transition-all shrink-0 whitespace-nowrap ${
+            className={`flex items-center gap-1.5 sm:gap-2 px-2.5 py-1 rounded-xl text-xs font-mono transition-all shrink-0 whitespace-nowrap ${
               levelProgression.currentLevel === 3
-                ? 'bg-gradient-to-r from-purple-950/90 via-indigo-950/80 to-cyan-950/90 border border-purple-500/60 shadow-[0_0_18px_rgba(168,85,247,0.3)]'
-                : 'bg-gradient-to-r from-cyan-950/90 to-blue-950/80 border border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.25)]'
+                ? 'bg-gradient-to-r from-purple-950/90 via-indigo-950/80 to-cyan-950/90 border border-purple-500/60 shadow-[0_0_15px_rgba(168,85,247,0.25)]'
+                : 'bg-gradient-to-r from-cyan-950/90 to-blue-950/80 border border-cyan-500/50 shadow-[0_0_12px_rgba(6,182,212,0.2)]'
             }`}
           >
-            <div className="flex items-center gap-1.5 shrink-0 whitespace-nowrap">
+            <div className="flex items-center gap-1 shrink-0 whitespace-nowrap">
               <span
                 className={`w-2 h-2 rounded-full animate-pulse shrink-0 ${
                   levelProgression.currentLevel === 3 ? 'bg-purple-400' : 'bg-cyan-400'
@@ -190,27 +210,21 @@ export const HeaderHUD: React.FC<HeaderHUDProps> = ({
                 </span>
               </span>
             </div>
-            <div className="flex items-center gap-2 pl-2 border-l border-cyan-800/60 text-[11px] shrink-0 whitespace-nowrap">
-              <span className="text-slate-400 whitespace-nowrap shrink-0">
-                <span className="hidden sm:inline">{lang === 'zh' ? '配送:' : 'Orders:'}</span>
-                <span className="sm:hidden">📦</span>
-              </span>
+            <div className="flex items-center gap-1.5 pl-1.5 border-l border-cyan-800/60 text-[11px] shrink-0 whitespace-nowrap">
+              <span className="text-slate-400 whitespace-nowrap shrink-0">📦</span>
               <span className="font-bold text-emerald-400 whitespace-nowrap shrink-0">
                 {levelProgression.levelDeliveriesCompleted}/{levelProgression.levelTargetDeliveries}
               </span>
               <span className="text-slate-600">|</span>
-              <span className="text-slate-400 whitespace-nowrap shrink-0">
-                <span className="hidden sm:inline">{lang === 'zh' ? '财库:' : 'Cash:'}</span>
-                <span className="sm:hidden">💰</span>
-              </span>
+              <span className="text-slate-400 whitespace-nowrap shrink-0">💰</span>
               <span className={`font-bold whitespace-nowrap shrink-0 ${balance >= levelProgression.levelTargetCash ? 'text-emerald-400' : 'text-amber-300'}`}>
-                ${balance.toFixed(0)}/${levelProgression.levelTargetCash}
+                ${balance.toFixed(0)}/{levelProgression.levelTargetCash}
               </span>
               {levelProgression.currentLevel === 3 && cityCoveragePct !== undefined && (
                 <>
                   <span className="text-slate-600">|</span>
                   <span className="text-slate-400 whitespace-nowrap shrink-0">
-                    {lang === 'zh' ? '覆盖:' : 'Coverage:'}
+                    {lang === 'zh' ? '覆盖:' : 'Cov:'}
                   </span>
                   <span
                     className={`font-bold whitespace-nowrap shrink-0 ${
@@ -226,11 +240,11 @@ export const HeaderHUD: React.FC<HeaderHUDProps> = ({
         )}
 
         {/* Day & Shift Clock HUD (08:00 AM - 06:00 PM) */}
-        <div className="flex items-center gap-1.5 sm:gap-2 bg-slate-900/90 border border-cyan-500/40 px-2.5 py-1 rounded-xl shadow-[0_0_12px_rgba(6,182,212,0.18)] shrink-0 whitespace-nowrap">
+        <div className="flex items-center gap-1.5 sm:gap-2 bg-slate-900/90 border border-cyan-500/40 px-2 sm:px-2.5 py-1 rounded-xl shadow-[0_0_12px_rgba(6,182,212,0.18)] shrink-0 whitespace-nowrap">
           <div className="flex items-center gap-1 pr-1.5 border-r border-slate-700/80 shrink-0 whitespace-nowrap">
             <Calendar className="w-3.5 h-3.5 text-amber-400 shrink-0" />
             <span className="text-xs font-mono font-bold text-amber-300 whitespace-nowrap shrink-0">
-              {lang === 'zh' ? `第${clockInfo.day}天` : `DAY ${clockInfo.day}`}
+              {lang === 'zh' ? `D${clockInfo.day}` : `D${clockInfo.day}`}
             </span>
           </div>
           <div className="flex items-center gap-1.5 shrink-0 whitespace-nowrap">
@@ -239,7 +253,7 @@ export const HeaderHUD: React.FC<HeaderHUDProps> = ({
               {clockInfo.time12}
             </span>
             <span
-              className={`inline-flex items-center text-[10px] font-mono px-1.5 py-0.5 rounded border shrink-0 whitespace-nowrap ${
+              className={`hidden sm:inline-flex items-center text-[10px] font-mono px-1.5 py-0.5 rounded border shrink-0 whitespace-nowrap ${
                 clockInfo.isShiftEnd
                   ? 'bg-rose-950/80 border-rose-500/50 text-rose-300'
                   : clockInfo.isPreShift
@@ -257,10 +271,10 @@ export const HeaderHUD: React.FC<HeaderHUDProps> = ({
         </div>
 
         {/* Status Pill */}
-        <div className="shrink-0 whitespace-nowrap">{getStatusBadge()}</div>
+        <div className="hidden lg:block shrink-0 whitespace-nowrap">{getStatusBadge()}</div>
       </div>
 
-      {/* 3. Right: Sleek Action Buttons (Tooltips on hover, compact responsive layout) */}
+      {/* 3. Right: Sleek Action Buttons (Ultra-compact layout to guarantee zero overflow) */}
       <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 whitespace-nowrap">
         {/* Light / Dark Theme Toggle */}
         {onToggleTheme && (
@@ -271,7 +285,7 @@ export const HeaderHUD: React.FC<HeaderHUDProps> = ({
                 ? (theme === 'dark' ? '切换至亮色模式 (Light)' : '切换至暗色模式 (Dark)')
                 : (theme === 'dark' ? 'Switch to Light' : 'Switch to Dark')
             }
-            className="flex items-center justify-center p-2 rounded-lg text-xs font-mono bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 transition-all hover:text-amber-300 shrink-0"
+            className="flex items-center justify-center w-8 h-8 rounded-lg text-xs font-mono bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 transition-all hover:text-amber-300 shrink-0"
           >
             {theme === 'dark' ? (
               <Sun className="w-3.5 h-3.5 text-amber-400" />
@@ -288,14 +302,14 @@ export const HeaderHUD: React.FC<HeaderHUDProps> = ({
           className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-mono bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 transition-all hover:text-cyan-300 shrink-0 whitespace-nowrap"
         >
           <Globe className="w-3.5 h-3.5 text-cyan-400" />
-          <span className="font-bold">{lang === 'zh' ? '中' : 'EN'}</span>
+          <span className="font-bold text-[11px]">{lang === 'zh' ? '中' : 'EN'}</span>
         </button>
 
         {/* Heatmap Toggle */}
         <button
           onClick={onToggleHeatmap}
           title={lang === 'zh' ? '切换全城交通热力图' : 'Toggle Traffic Heatmap'}
-          className={`flex items-center justify-center p-2 rounded-lg text-xs font-mono border transition-all shrink-0 ${
+          className={`flex items-center justify-center w-8 h-8 rounded-lg text-xs font-mono border transition-all shrink-0 ${
             showHeatmap
               ? 'bg-amber-950/60 border-amber-500/50 text-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.2)]'
               : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
@@ -308,7 +322,7 @@ export const HeaderHUD: React.FC<HeaderHUDProps> = ({
         <button
           onClick={onSpawnOrder}
           title={lang === 'zh' ? '人工注入加急测试包裹订单' : 'Inject dynamic parcel order'}
-          className="flex items-center justify-center p-2 rounded-lg text-xs font-mono bg-slate-900 hover:bg-slate-800 border border-slate-800 text-cyan-300 transition-all hover:border-cyan-500/40 shrink-0"
+          className="flex items-center justify-center w-8 h-8 rounded-lg text-xs font-mono bg-slate-900 hover:bg-slate-800 border border-slate-800 text-cyan-300 transition-all hover:border-cyan-500/40 shrink-0"
         >
           <PlusCircle className="w-3.5 h-3.5 text-cyan-400" />
         </button>
@@ -322,7 +336,7 @@ export const HeaderHUD: React.FC<HeaderHUDProps> = ({
                 ? (lang === 'zh' ? '第 1 关完成后解锁车队科技商店' : 'Unlocked after Level 1')
                 : (lang === 'zh' ? '打开车队与站点科技商店' : 'Open Fleet & Hub Tech Shop')
             }
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-mono transition-all shrink-0 whitespace-nowrap ${
+            className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-mono transition-all shrink-0 whitespace-nowrap ${
               levelProgression?.currentLevel === 1
                 ? 'bg-slate-900/60 border border-slate-800 text-slate-500 cursor-not-allowed opacity-75'
                 : 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 border border-amber-500/50 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.25)] animate-pulse'
@@ -333,10 +347,10 @@ export const HeaderHUD: React.FC<HeaderHUDProps> = ({
             ) : (
               <Truck className="w-3.5 h-3.5 text-amber-400" />
             )}
-            <span className="font-bold">
+            <span className="font-bold text-[11px] hidden sm:inline">
               {lang === 'zh'
-                ? (levelProgression?.currentLevel === 1 ? '商店 (L2解锁)' : '科技商店')
-                : (levelProgression?.currentLevel === 1 ? 'SHOP (LVL 2)' : 'TECH SHOP')}
+                ? (levelProgression?.currentLevel === 1 ? '商店 (L2)' : '科技商店')
+                : (levelProgression?.currentLevel === 1 ? 'SHOP (L2)' : 'SHOP')}
             </span>
           </button>
         )}
@@ -348,7 +362,7 @@ export const HeaderHUD: React.FC<HeaderHUDProps> = ({
           className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-mono bg-slate-900 hover:bg-slate-800 border border-slate-800 text-amber-300 transition-all hover:border-amber-500/40 shrink-0 whitespace-nowrap"
         >
           <Award className="w-3.5 h-3.5 text-amber-400" />
-          <span className="hidden xl:inline">{t.reportBtn}</span>
+          <span className="hidden xl:inline text-[11px] font-bold">{t.reportBtn}</span>
         </button>
 
         {/* Game Guide Button */}
@@ -358,28 +372,8 @@ export const HeaderHUD: React.FC<HeaderHUDProps> = ({
           className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-mono bg-cyan-950/80 hover:bg-cyan-900/80 border border-cyan-500/50 text-cyan-300 transition-all shrink-0 whitespace-nowrap"
         >
           <HelpCircle className="w-3.5 h-3.5 text-cyan-400" />
-          <span className="hidden xl:inline">{t.guideBtn}</span>
+          <span className="hidden xl:inline text-[11px] font-bold">{t.guideBtn}</span>
         </button>
-
-        {/* Return to Portal Hub */}
-        <Link
-          href="/"
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700/70 text-slate-200 hover:text-cyan-300 font-mono text-xs transition shrink-0"
-          title={lang === 'zh' ? '返回 AI Agent 遊戲教育大廳' : 'Return to Game Portal'}
-        >
-          <span>🏠</span>
-          <span className="hidden md:inline">{lang === 'zh' ? '遊戲大廳' : 'Arcade Hub'}</span>
-        </Link>
-
-        {/* Switch to Sushi Restaurant Multi-Agent Game */}
-        <Link
-          href="/sushi"
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500/20 to-rose-500/20 hover:from-amber-500/30 hover:to-rose-500/30 border border-amber-500/50 text-amber-300 font-bold text-xs transition shrink-0 shadow-sm shadow-amber-950"
-          title="切換至 壽司物語 AI 多Agent餐廳模擬遊戲"
-        >
-          <span>🍣</span>
-          <span className="hidden sm:inline">壽司物語 AI</span>
-        </Link>
       </div>
     </header>
   );

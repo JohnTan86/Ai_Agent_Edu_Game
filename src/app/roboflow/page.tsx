@@ -149,7 +149,7 @@ export default function RoboFlowApp() {
         levelProgression={state.levelProgression}
         balance={state.financials.balance}
         cityCoveragePct={cityCoveragePct}
-        onOpenGuide={() => setIsGuideOpen(false)}
+        onOpenGuide={() => setIsGuideOpen(true)}
         onOpenReport={openReport}
         onOpenShop={openShop}
         onSpawnOrder={spawnTestOrder}
