@@ -16,9 +16,9 @@ try {
     fs.renameSync(apiDir, stashDir);
   }
 
-  execSync('npx next build', {
+  execSync('node ./node_modules/next/dist/bin/next build', {
     stdio: 'inherit',
-    env: { ...process.env, CPANEL_EXPORT: 'true' }
+    env: { ...process.env, CPANEL_EXPORT: 'true', CI: '1', NEXT_TELEMETRY_DISABLED: '1' }
   });
 } finally {
   // Always restore src/app/api for local dev

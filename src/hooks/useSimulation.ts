@@ -167,6 +167,40 @@ export function useSimulation(initialScenario: GameScenario = DEFAULT_SCENARIOS[
     enabledTools: SYSTEM_TOOLS.filter(t => t.enabled).map(t => t.name)
   });
 
+  // Sync API Key from Global Portal Hub if available
+  useEffect(() => {
+    try {
+      const savedKey = localStorage.getItem('eduagent_gemini_key') || localStorage.getItem('eduagent_api_key');
+      const savedProvider = (localStorage.getItem('eduagent_provider') as any) || (savedKey ? 'gemini' : null);
+      if (savedKey) {
+        setAgentConfig(prev => {
+          if (prev.apiKey) return prev;
+          return {
+            ...prev,
+            apiKey: savedKey,
+            provider: (savedProvider === 'openai' || savedProvider === 'deepseek' || savedProvider === 'gemini') ? savedProvider : 'gemini',
+            model: prev.model === 'local-mock-heuristic' ? 'gemini-2.5-flash' : prev.model
+          };
+        });
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // Save updated API Key back to Global Portal Hub
+  useEffect(() => {
+    try {
+      if (agentConfig.apiKey) {
+        localStorage.setItem('eduagent_gemini_key', agentConfig.apiKey);
+        localStorage.setItem('eduagent_api_key', agentConfig.apiKey);
+        localStorage.setItem('eduagent_provider', agentConfig.provider);
+      }
+    } catch {
+      // ignore
+    }
+  }, [agentConfig.apiKey, agentConfig.provider]);
+
   const [isAgentExecuting, setIsAgentExecuting] = useState(false);
 
   // 5. Playback Loop Timer & Mutable State Synchronization Refs

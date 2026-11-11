@@ -3,8 +3,8 @@ import "leaflet/dist/leaflet.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "RoboFlow 2028 // AI Agent Architect Learning Game",
-  description: "Autonomous Fleet Dispatch and Multi-Agent Orchestration Simulator (Year 2028)",
+  title: "EduAgent.AI // AI 智能體遊戲化教育大廳",
+  description: "專為學生與教師打造的提示工程 (Prompt Engineering) 與自主多智能體 (Multi-Agent Swarm) 遊戲化實戰學習平台",
 };
 
 export default function RootLayout({
@@ -30,7 +30,7 @@ export default function RootLayout({
       </head>
       <body
         suppressHydrationWarning
-        className="h-full w-full overflow-hidden bg-slate-950 text-slate-100 flex flex-col"
+        className="min-h-full w-full bg-slate-950 text-slate-100 flex flex-col"
       >
         {children}
       </body>

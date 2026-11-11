@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "build:cpanel": "node scripts/build-cpanel.mjs",
+    "serve": "node scripts/serve.mjs",
     "deploy:cpanel": "bash scripts/deploy-cpanel.sh",
     "ship": "node scripts/ship.mjs",
     "start": "next start",

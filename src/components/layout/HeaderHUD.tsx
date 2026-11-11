@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import {
   Play,
   Pause,
@@ -359,6 +360,26 @@ export const HeaderHUD: React.FC<HeaderHUDProps> = ({
           <HelpCircle className="w-3.5 h-3.5 text-cyan-400" />
           <span className="hidden xl:inline">{t.guideBtn}</span>
         </button>
+
+        {/* Return to Portal Hub */}
+        <Link
+          href="/"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700/70 text-slate-200 hover:text-cyan-300 font-mono text-xs transition shrink-0"
+          title={lang === 'zh' ? '返回 AI Agent 遊戲教育大廳' : 'Return to Game Portal'}
+        >
+          <span>🏠</span>
+          <span className="hidden md:inline">{lang === 'zh' ? '遊戲大廳' : 'Arcade Hub'}</span>
+        </Link>
+
+        {/* Switch to Sushi Restaurant Multi-Agent Game */}
+        <Link
+          href="/sushi"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500/20 to-rose-500/20 hover:from-amber-500/30 hover:to-rose-500/30 border border-amber-500/50 text-amber-300 font-bold text-xs transition shrink-0 shadow-sm shadow-amber-950"
+          title="切換至 壽司物語 AI 多Agent餐廳模擬遊戲"
+        >
+          <span>🍣</span>
+          <span className="hidden sm:inline">壽司物語 AI</span>
+        </Link>
       </div>
     </header>
   );
