@@ -94,7 +94,7 @@ export const MultiAgentTelemetry: React.FC<MultiAgentTelemetryProps> = ({
   return (
     <div className="w-80 md:w-96 h-full flex flex-col bg-slate-900 border-l border-slate-800 select-none z-10 shrink-0">
       {/* 1. Header Tabs */}
-      <div className="flex border-b border-slate-800 text-xs font-medium bg-slate-950/70">
+      <div className="flex border-b border-slate-800 text-sm font-semibold bg-slate-950/80">
         <button
           onClick={() => setActiveTab('comms')}
           className={`flex-1 py-3 text-center transition border-b-2 flex items-center justify-center gap-1.5 ${
@@ -104,7 +104,7 @@ export const MultiAgentTelemetry: React.FC<MultiAgentTelemetryProps> = ({
           }`}
           title="Agent 之間的跨角色即時對話"
         >
-          <MessageSquare className="w-3.5 h-3.5" />
+          <MessageSquare className="w-4 h-4" />
           <span>協同通訊</span>
         </button>
 
@@ -117,7 +117,7 @@ export const MultiAgentTelemetry: React.FC<MultiAgentTelemetryProps> = ({
           }`}
           title="單一 Agent 的思考推理日誌"
         >
-          <Activity className="w-3.5 h-3.5" />
+          <Activity className="w-4 h-4" />
           <span>思維鏈</span>
         </button>
 
@@ -130,7 +130,7 @@ export const MultiAgentTelemetry: React.FC<MultiAgentTelemetryProps> = ({
           }`}
           title="收支與滿意度營運數據"
         >
-          <TrendingUp className="w-3.5 h-3.5" />
+          <TrendingUp className="w-4 h-4" />
           <span>經營數據</span>
         </button>
 
@@ -141,9 +141,9 @@ export const MultiAgentTelemetry: React.FC<MultiAgentTelemetryProps> = ({
               ? 'border-amber-400 text-amber-300 font-bold bg-slate-850'
               : 'border-transparent text-slate-400 hover:text-slate-200'
           }`}
-          title="後廚與外場工單佇列"
+          title="當前廚房排程工單"
         >
-          <Receipt className="w-3.5 h-3.5" />
+          <Receipt className="w-4 h-4" />
           <span>工單 ({activeTickets.length})</span>
         </button>
       </div>
@@ -168,9 +168,9 @@ export const MultiAgentTelemetry: React.FC<MultiAgentTelemetryProps> = ({
                 <span className="text-[10px] text-slate-500 mt-1">開始運行後 Agent 將自動交流</span>
               </div>
             ) : (
-              messages.map(msg => (
+              messages.map((msg, idx) => (
                 <div
-                  key={msg.id}
+                  key={`${msg.id}_${idx}`}
                   className="p-2.5 rounded-xl bg-slate-800/80 border border-slate-700/60 shadow-sm flex flex-col gap-1.5"
                 >
                   <div className="flex items-center justify-between">
@@ -229,13 +229,13 @@ export const MultiAgentTelemetry: React.FC<MultiAgentTelemetryProps> = ({
                 <span>暫無思維鏈紀錄</span>
               </div>
             ) : (
-              filteredThoughts.map(t => {
+              filteredThoughts.map((t, idx) => {
                 const isTool = t.type === 'tool_call';
                 const isObserve = t.type === 'observe';
 
                 return (
                   <div
-                    key={t.id}
+                    key={`${t.id}_${idx}`}
                     className={`p-2.5 rounded-xl border text-xs leading-relaxed flex flex-col gap-1 ${
                       isTool
                         ? 'bg-amber-950/20 border-amber-500/40'
@@ -384,13 +384,13 @@ export const MultiAgentTelemetry: React.FC<MultiAgentTelemetryProps> = ({
                 <span>後廚佇列目前已清空 🎉</span>
               </div>
             ) : (
-              activeTickets.map(ticket => {
+              activeTickets.map((ticket, idx) => {
                 const isPrep = ticket.status === 'in_prep';
                 const isReady = ticket.status === 'ready_to_serve';
 
                 return (
                   <div
-                    key={ticket.id}
+                    key={`${ticket.id}_${idx}`}
                     className={`p-2.5 rounded-xl border flex flex-col gap-1.5 ${
                       isReady
                         ? 'bg-emerald-950/30 border-emerald-500/50'

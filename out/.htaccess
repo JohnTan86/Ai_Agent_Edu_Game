@@ -7,6 +7,9 @@ DirectoryIndex index.html index.php
   # Route POST /api/dispatch directly to /api/dispatch/index.php without 301 redirect
   RewriteRule ^api/dispatch/?$ api/dispatch/index.php [L,QSA]
 
+  # Route POST /api/sushi-dispatch directly to /api/sushi-dispatch/index.php without 301 redirect
+  RewriteRule ^api/sushi-dispatch/?$ api/sushi-dispatch/index.php [L,QSA]
+
   # Route /api/git-sync directly to /api/git-sync/index.php
   RewriteRule ^api/git-sync/?$ api/git-sync/index.php [L,QSA]
 

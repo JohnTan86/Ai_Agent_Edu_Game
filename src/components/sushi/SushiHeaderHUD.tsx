@@ -76,10 +76,10 @@ export const SushiHeaderHUD: React.FC<SushiHeaderHUDProps> = ({
           <select
             value={currentScenario.id}
             onChange={e => onSelectScenario(e.target.value)}
-            className="bg-slate-800/90 hover:bg-slate-750 text-xs text-amber-200 border border-amber-800/50 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-amber-400 font-medium cursor-pointer"
+            className="bg-slate-800/90 hover:bg-slate-750 text-sm text-amber-200 border border-amber-800/60 rounded-xl px-3.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-amber-400 font-semibold cursor-pointer shadow-sm"
           >
             {SUSHI_SCENARIOS.map(sc => (
-              <option key={sc.id} value={sc.id} className="bg-slate-900 text-white">
+              <option key={sc.id} value={sc.id} className="bg-slate-900 text-white font-medium">
                 [{sc.difficulty}] {sc.title}
               </option>
             ))}
@@ -90,12 +90,12 @@ export const SushiHeaderHUD: React.FC<SushiHeaderHUDProps> = ({
       {/* 2. Central Live KPI Badges */}
       <div className="hidden md:flex items-center gap-3">
         {/* Cash Balance */}
-        <div className="flex items-center gap-2 bg-slate-800/80 border border-slate-700/60 rounded-lg px-3 py-1.5 shadow-sm">
+        <div className="flex items-center gap-2.5 bg-slate-800/90 border border-slate-700/80 rounded-xl px-3.5 py-1.5 shadow-sm">
           <Coins className="w-4 h-4 text-amber-400" />
           <div className="flex flex-col">
-            <span className="text-[10px] text-slate-400 leading-none">結餘現金</span>
+            <span className="text-xs text-slate-400 leading-none">結餘現金</span>
             <span
-              className={`text-xs font-mono font-bold leading-tight ${
+              className={`text-sm font-mono font-bold leading-tight ${
                 state.financials.balance >= 0 ? 'text-emerald-400' : 'text-rose-400'
               }`}
             >
@@ -105,22 +105,22 @@ export const SushiHeaderHUD: React.FC<SushiHeaderHUDProps> = ({
         </div>
 
         {/* Revenue */}
-        <div className="flex items-center gap-2 bg-slate-800/80 border border-slate-700/60 rounded-lg px-3 py-1.5 shadow-sm">
-          <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+        <div className="flex items-center gap-2.5 bg-slate-800/90 border border-slate-700/80 rounded-xl px-3.5 py-1.5 shadow-sm">
+          <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
           <div className="flex flex-col">
-            <span className="text-[10px] text-slate-400 leading-none">累積營業額</span>
-            <span className="text-xs font-mono font-bold text-white leading-tight">
+            <span className="text-xs text-slate-400 leading-none">累積營業額</span>
+            <span className="text-sm font-mono font-bold text-white leading-tight">
               ${state.financials.totalRevenue.toFixed(0)}
             </span>
           </div>
         </div>
 
         {/* CSAT Stars */}
-        <div className="flex items-center gap-2 bg-slate-800/80 border border-slate-700/60 rounded-lg px-3 py-1.5 shadow-sm">
+        <div className="flex items-center gap-2.5 bg-slate-800/90 border border-slate-700/80 rounded-xl px-3.5 py-1.5 shadow-sm">
           <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
           <div className="flex flex-col">
-            <span className="text-[10px] text-slate-400 leading-none">滿意度</span>
-            <span className="text-xs font-mono font-bold text-amber-300 leading-tight">
+            <span className="text-xs text-slate-400 leading-none">滿意度</span>
+            <span className="text-sm font-mono font-bold text-amber-300 leading-tight">
               {state.metrics.customersServed > 0
                 ? (
                     (5 * state.metrics.customersServed - state.metrics.customersWalkout * 2) /
@@ -133,11 +133,11 @@ export const SushiHeaderHUD: React.FC<SushiHeaderHUDProps> = ({
         </div>
 
         {/* Customers Served */}
-        <div className="flex items-center gap-2 bg-slate-800/80 border border-slate-700/60 rounded-lg px-3 py-1.5 shadow-sm">
+        <div className="flex items-center gap-2.5 bg-slate-800/90 border border-slate-700/80 rounded-xl px-3.5 py-1.5 shadow-sm">
           <Users className="w-4 h-4 text-sky-400" />
           <div className="flex flex-col">
-            <span className="text-[10px] text-slate-400 leading-none">已接待 / 目標</span>
-            <span className="text-xs font-mono font-bold text-sky-300 leading-tight">
+            <span className="text-xs text-slate-400 leading-none">已接待 / 目標</span>
+            <span className="text-sm font-mono font-bold text-sky-300 leading-tight">
               {state.metrics.customersServed}{' '}
               <span className="text-slate-500 font-normal">
                 {currentScenario.difficulty === 'Sandbox' ? '' : `/ ${currentScenario.targetServed}`}
@@ -147,9 +147,9 @@ export const SushiHeaderHUD: React.FC<SushiHeaderHUDProps> = ({
         </div>
 
         {/* Clock / Tick */}
-        <div className="flex items-center gap-2 bg-slate-800/80 border border-slate-700/60 rounded-lg px-3 py-1.5 shadow-sm font-mono text-xs">
+        <div className="flex items-center gap-2.5 bg-slate-800/90 border border-slate-700/80 rounded-xl px-3.5 py-1.5 shadow-sm font-mono text-sm">
           <Clock className="w-4 h-4 text-purple-400" />
-          <span className="text-slate-300 font-semibold">
+          <span className="text-slate-300 font-bold">
             {state.tick}{' '}
             <span className="text-slate-500 font-normal">
               {currentScenario.difficulty === 'Sandbox' ? 'T' : `/ ${currentScenario.maxTicks}T`}

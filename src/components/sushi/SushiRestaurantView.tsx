@@ -7,7 +7,7 @@ import {
   SushiSimulationState
 } from '../../lib/sushi/types';
 import { SUSHI_RECIPES } from '../../lib/sushi/recipes';
-import { SushiCartoonScene } from './SushiCartoonScene';
+import { SushiOvercookedStage } from './SushiOvercookedStage';
 import {
   Utensils,
   Clock,
@@ -119,7 +119,7 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
       {/* Main Content: Either Animated Cartoon Scene or Classic Data Grid */}
       {viewMode === 'cartoon' ? (
         <div className="flex-1 flex flex-col min-h-0">
-          <SushiCartoonScene
+          <SushiOvercookedStage
             state={state}
             onSelectCustomer={onSelectCustomer}
             onSelectTable={onSelectTable}

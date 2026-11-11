@@ -111,60 +111,60 @@ export const MultiAgentWorkspace: React.FC<MultiAgentWorkspaceProps> = ({
       </div>
 
       {/* 2. Active Agent Banner Card */}
-      <div className="p-3 border-b border-slate-800 flex items-center justify-between bg-slate-900/40">
+      <div className="p-3 border-b border-slate-800 flex items-center justify-between bg-slate-900/60">
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-xl">
+          <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-2xl shadow-sm">
             {agent.avatar}
           </div>
           <div className="flex flex-col">
-            <span className="text-xs font-bold text-white">{agent.name}</span>
-            <span className="text-[10px] text-slate-400 truncate max-w-[180px]">{agent.title}</span>
+            <span className="text-sm font-bold text-white">{agent.name}</span>
+            <span className="text-xs text-slate-400 truncate max-w-[200px]">{agent.title}</span>
           </div>
         </div>
 
         {/* Status Pill */}
-        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-800 flex items-center gap-1">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+        <span className="text-xs font-mono px-2.5 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-800 flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
           ONLINE
         </span>
       </div>
 
       {/* 3. Sub Tabs: Prompt / Tools / Model */}
-      <div className="flex border-b border-slate-800 text-xs font-medium bg-slate-950/40">
+      <div className="flex border-b border-slate-800 text-xs font-semibold bg-slate-950/60">
         <button
           onClick={() => setActiveTab('prompt')}
-          className={`flex-1 py-2 text-center transition border-b-2 flex items-center justify-center gap-1.5 ${
+          className={`flex-1 py-2.5 text-center transition border-b-2 flex items-center justify-center gap-1.5 ${
             activeTab === 'prompt'
               ? 'border-amber-400 text-amber-300 font-bold bg-slate-850'
               : 'border-transparent text-slate-400 hover:text-slate-200'
           }`}
         >
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>System Prompt</span>
+          <Sparkles className="w-4 h-4" />
+          <span className="text-xs sm:text-sm">System Prompt</span>
         </button>
 
         <button
           onClick={() => setActiveTab('tools')}
-          className={`flex-1 py-2 text-center transition border-b-2 flex items-center justify-center gap-1.5 ${
+          className={`flex-1 py-2.5 text-center transition border-b-2 flex items-center justify-center gap-1.5 ${
             activeTab === 'tools'
               ? 'border-amber-400 text-amber-300 font-bold bg-slate-850'
               : 'border-transparent text-slate-400 hover:text-slate-200'
           }`}
         >
-          <Wrench className="w-3.5 h-3.5" />
-          <span>工具清單 ({agent.enabledTools?.length || 0})</span>
+          <Wrench className="w-4 h-4" />
+          <span className="text-xs sm:text-sm">工具清單 ({agent.enabledTools?.length || 0})</span>
         </button>
 
         <button
           onClick={() => setActiveTab('model')}
-          className={`flex-1 py-2 text-center transition border-b-2 flex items-center justify-center gap-1.5 ${
+          className={`flex-1 py-2.5 text-center transition border-b-2 flex items-center justify-center gap-1.5 ${
             activeTab === 'model'
               ? 'border-amber-400 text-amber-300 font-bold bg-slate-850'
               : 'border-transparent text-slate-400 hover:text-slate-200'
           }`}
         >
-          <Sliders className="w-3.5 h-3.5" />
-          <span>模型與參數</span>
+          <Sliders className="w-4 h-4" />
+          <span className="text-xs sm:text-sm">模型與參數</span>
         </button>
       </div>
 
@@ -174,8 +174,8 @@ export const MultiAgentWorkspace: React.FC<MultiAgentWorkspaceProps> = ({
           <div className="flex-1 flex flex-col gap-3">
             {/* Quick Presets Dropdown */}
             {availablePresets.length > 0 && (
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] text-slate-400 font-mono">快速策略預設 (Quick Strategy)</span>
+              <div className="flex flex-col gap-1.5">
+                <span className="text-xs text-slate-400 font-mono">快速策略預設 (Quick Strategy)</span>
                 <select
                   onChange={e => {
                     const preset = availablePresets.find(p => p.id === e.target.value);
@@ -184,7 +184,7 @@ export const MultiAgentWorkspace: React.FC<MultiAgentWorkspaceProps> = ({
                     }
                   }}
                   defaultValue=""
-                  className="bg-slate-800 text-xs text-amber-200 border border-slate-700 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-amber-400"
+                  className="bg-slate-800 text-sm text-amber-200 border border-slate-700 rounded-xl px-3 py-2 focus:outline-none focus:ring-1 focus:ring-amber-400 font-medium cursor-pointer"
                 >
                   <option value="" disabled>
                     選擇 Prompt 調校預設...
@@ -200,21 +200,21 @@ export const MultiAgentWorkspace: React.FC<MultiAgentWorkspaceProps> = ({
 
             {/* Prompt Textarea */}
             <div className="flex-1 flex flex-col min-h-[220px]">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] text-slate-400 font-mono">角色提示詞 (System Prompt)</span>
-                <span className="text-[10px] text-slate-500 font-mono">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs text-slate-400 font-mono">角色提示詞 (System Prompt)</span>
+                <span className="text-xs text-slate-400 font-mono">
                   {agent.systemPrompt.length} 字
                 </span>
               </div>
               <textarea
                 value={agent.systemPrompt}
                 onChange={e => onUpdateAgentConfig(selectedRole, { systemPrompt: e.target.value })}
-                className="flex-1 w-full bg-slate-950/80 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-200 font-mono focus:outline-none focus:ring-1 focus:ring-amber-400 leading-relaxed resize-none shadow-inner"
+                className="flex-1 w-full bg-slate-950/80 border border-slate-800 rounded-xl p-3 text-sm text-slate-200 font-mono focus:outline-none focus:ring-1 focus:ring-amber-400 leading-relaxed resize-none shadow-inner"
                 placeholder="在此輸入或調整此 Agent 的行為準則與職責守則..."
               />
             </div>
 
-            <p className="text-[10px] text-slate-500 italic">
+            <p className="text-xs text-slate-400 italic">
               💡 提示：在提示詞中加入特殊規則（例如「不要芥末」、「鮭魚低於6份採購」或「優先照顧VIP」），Agent
               將在模擬中實時遵循！
             </p>
@@ -224,8 +224,8 @@ export const MultiAgentWorkspace: React.FC<MultiAgentWorkspaceProps> = ({
         {activeTab === 'tools' && (
           <div className="flex-1 flex flex-col gap-2.5">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-slate-400 font-mono">賦予此 Agent 的行動能力 (Tools)</span>
-              <span className="text-[10px] text-slate-500 font-mono">勾選啟用</span>
+              <span className="text-xs text-slate-400 font-mono">賦予此 Agent 的行動能力 (Tools)</span>
+              <span className="text-xs text-slate-400 font-mono">勾選啟用</span>
             </div>
 
             <div className="flex flex-col gap-2">
@@ -236,7 +236,7 @@ export const MultiAgentWorkspace: React.FC<MultiAgentWorkspaceProps> = ({
                   <div
                     key={tool.id}
                     onClick={() => handleToggleTool(tool.id)}
-                    className={`p-2.5 rounded-xl border transition cursor-pointer flex items-start gap-2.5 ${
+                    className={`p-3 rounded-xl border transition cursor-pointer flex items-start gap-3 ${
                       isEnabled
                         ? 'bg-slate-800/80 border-amber-500/50 text-white'
                         : 'bg-slate-950/50 border-slate-800 text-slate-500'
@@ -246,14 +246,14 @@ export const MultiAgentWorkspace: React.FC<MultiAgentWorkspaceProps> = ({
                       type="checkbox"
                       checked={isEnabled}
                       onChange={() => {}}
-                      className="mt-0.5 rounded border-slate-700 text-amber-500 focus:ring-0 cursor-pointer"
+                      className="mt-1 rounded border-slate-700 text-amber-500 focus:ring-0 cursor-pointer w-4 h-4"
                     />
                     <div className="flex flex-col">
-                      <span className="text-xs font-semibold">{tool.name}</span>
-                      <span className="text-[10px] text-slate-400 mt-0.5 leading-snug">
+                      <span className="text-sm font-bold">{tool.name}</span>
+                      <span className="text-xs text-slate-300 mt-0.5 leading-snug">
                         {tool.description}
                       </span>
-                      <span className="text-[9px] font-mono text-slate-500 mt-1">
+                      <span className="text-xs font-mono text-slate-400 mt-1">
                         參數: {tool.parametersDescription}
                       </span>
                     </div>
@@ -268,35 +268,32 @@ export const MultiAgentWorkspace: React.FC<MultiAgentWorkspaceProps> = ({
           <div className="flex-1 flex flex-col gap-4">
             {/* LLM Provider */}
             <div className="flex flex-col gap-1.5">
-              <span className="text-[10px] text-slate-400 font-mono">推論引擎提供商 (LLM Provider)</span>
+              <span className="text-xs text-slate-400 font-mono">推論引擎提供商 (LLM Provider)</span>
               <select
                 value={agent.provider}
-                onChange={e =>
-                  onUpdateAgentConfig(selectedRole, { provider: e.target.value as LLMProvider })
-                }
-                className="bg-slate-800 text-xs text-white border border-slate-700 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-amber-400"
+                onChange={e => {
+                  const newProvider = e.target.value as LLMProvider;
+                  let defaultModel = 'local-heuristic';
+                  if (newProvider === 'deepseek') defaultModel = 'deepseek-chat';
+                  else if (newProvider === 'gemini') defaultModel = 'gemini-2.5-flash';
+                  else if (newProvider === 'openai') defaultModel = 'gpt-4o-mini';
+                  onUpdateAgentConfig(selectedRole, {
+                    provider: newProvider,
+                    model: defaultModel
+                  });
+                }}
+                className="bg-slate-800 text-sm text-white border border-slate-700 rounded-xl px-3 py-2 focus:outline-none focus:ring-1 focus:ring-amber-400 font-medium"
               >
                 <option value="mock">⚡ 本地智能啟發式引擎 (Mock - 免 API Key，即時無延遲)</option>
-                <option value="gemini">Google Gemini 2.0 / 1.5</option>
+                <option value="deepseek">DeepSeek V3 / R1 (官方 API)</option>
+                <option value="gemini">Google Gemini 2.5 / 1.5</option>
                 <option value="openai">OpenAI GPT-4o / Mini</option>
-                <option value="deepseek">DeepSeek V3 / R1</option>
               </select>
-            </div>
-
-            {/* Model Name */}
-            <div className="flex flex-col gap-1.5">
-              <span className="text-[10px] text-slate-400 font-mono">模型名稱 (Model Identifier)</span>
-              <input
-                type="text"
-                value={agent.model}
-                onChange={e => onUpdateAgentConfig(selectedRole, { model: e.target.value })}
-                className="bg-slate-800 text-xs text-white border border-slate-700 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-amber-400 font-mono"
-              />
             </div>
 
             {/* Temperature Slider */}
             <div className="flex flex-col gap-1.5">
-              <div className="flex justify-between items-center text-[10px] text-slate-400 font-mono">
+              <div className="flex justify-between items-center text-xs text-slate-300 font-mono">
                 <span>思考創意度 (Temperature)</span>
                 <span className="text-amber-300 font-bold">{agent.temperature}</span>
               </div>
@@ -309,9 +306,9 @@ export const MultiAgentWorkspace: React.FC<MultiAgentWorkspaceProps> = ({
                 onChange={e =>
                   onUpdateAgentConfig(selectedRole, { temperature: parseFloat(e.target.value) })
                 }
-                className="w-full accent-amber-500 cursor-pointer"
+                className="w-full accent-amber-500 cursor-pointer h-2 bg-slate-800 rounded-lg"
               />
-              <div className="flex justify-between text-[9px] text-slate-500">
+              <div className="flex justify-between text-xs text-slate-400">
                 <span>精準守紀 (0.0)</span>
                 <span>靈活創新 (1.0)</span>
               </div>
@@ -320,16 +317,16 @@ export const MultiAgentWorkspace: React.FC<MultiAgentWorkspaceProps> = ({
             {/* API Key (Optional) */}
             {agent.provider !== 'mock' && (
               <div className="flex flex-col gap-1.5">
-                <span className="text-[10px] text-slate-400 font-mono flex items-center gap-1">
-                  <Key className="w-3 h-3 text-amber-400" />
-                  <span>API 金鑰 (自填或讀取 .env)</span>
+                <span className="text-xs text-slate-300 font-mono flex items-center gap-1.5">
+                  <Key className="w-3.5 h-3.5 text-amber-400" />
+                  <span>API 金鑰 (請輸入您的 {agent.provider.toUpperCase()} API Key)</span>
                 </span>
                 <input
                   type="password"
                   value={agent.apiKey || ''}
                   onChange={e => onUpdateAgentConfig(selectedRole, { apiKey: e.target.value })}
-                  placeholder="可選填入個人 API Key..."
-                  className="bg-slate-800 text-xs text-white border border-slate-700 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-amber-400 font-mono"
+                  placeholder="輸入 sk-... 金鑰以啟用真實大模型"
+                  className="bg-slate-800 text-sm text-white border border-slate-700 rounded-xl px-3 py-2 focus:outline-none focus:ring-1 focus:ring-amber-400 font-mono"
                 />
               </div>
             )}
@@ -338,13 +335,13 @@ export const MultiAgentWorkspace: React.FC<MultiAgentWorkspaceProps> = ({
       </div>
 
       {/* 5. Bottom Action Button: Run Manual Turn */}
-      <div className="p-3 border-t border-slate-800 bg-slate-950/60">
+      <div className="p-3.5 border-t border-slate-800 bg-slate-950/70">
         <button
           onClick={onRunManualTurn}
           disabled={isExecuting}
-          className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-rose-600 hover:from-amber-400 hover:to-rose-500 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-md transition disabled:opacity-50 cursor-pointer"
+          className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-rose-600 hover:from-amber-400 hover:to-rose-500 text-slate-950 font-bold text-sm flex items-center justify-center gap-2 shadow-lg transition disabled:opacity-50 cursor-pointer"
         >
-          <Play className="w-3.5 h-3.5 fill-current" />
+          <Play className="w-4 h-4 fill-current" />
           <span>{isExecuting ? 'Agent 協同決策中...' : '單步驅動多 Agent 思考 (Run Turn)'}</span>
         </button>
       </div>

@@ -153,8 +153,25 @@ Output strict JSON with format:
       provider === 'deepseek'
         ? 'https://api.deepseek.com/chat/completions'
         : 'https://api.openai.com/v1/chat/completions';
-    const targetModel =
-      model || (provider === 'deepseek' ? 'deepseek-chat' : 'gpt-4o-mini');
+
+    let targetModel = model;
+    if (!targetModel || targetModel === 'local-heuristic') {
+      targetModel = provider === 'deepseek' ? 'deepseek-chat' : 'gpt-4o-mini';
+    }
+
+    const requestPayload: any = {
+      model: targetModel,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: promptText }
+      ],
+      temperature: 0.3
+    };
+
+    // DeepSeek-reasoner (R1) does not support response_format: { type: 'json_object' }
+    if (targetModel !== 'deepseek-reasoner') {
+      requestPayload.response_format = { type: 'json_object' };
+    }
 
     const res = await fetch(apiUrl, {
       method: 'POST',
@@ -162,20 +179,20 @@ Output strict JSON with format:
         'Content-Type': 'application/json',
         Authorization: `Bearer ${apiKey}`
       },
-      body: JSON.stringify({
-        model: targetModel,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: promptText }
-        ],
-        temperature: 0.3,
-        response_format: { type: 'json_object' }
-      })
+      body: JSON.stringify(requestPayload)
     });
 
     if (!res.ok) {
       const errText = await res.text();
-      return NextResponse.json({ error: `${provider} API Error: ${errText}` }, { status: res.status });
+      let userFriendlyMsg = `${provider} API 呼叫失敗 (HTTP ${res.status}): ${errText}`;
+      if (res.status === 401) {
+        userFriendlyMsg = `DeepSeek API Key 認證失敗 (401)：請檢查您輸入的金鑰是否正確（應為 sk- 開頭且無多餘空白）。`;
+      } else if (res.status === 402) {
+        userFriendlyMsg = `DeepSeek 帳戶餘額不足 (402)：您的 DeepSeek API 帳戶已無可用額度，請前往 platform.deepseek.com 檢查儲值餘額。`;
+      } else if (res.status === 404) {
+        userFriendlyMsg = `DeepSeek 模型名稱未找到 (404)：找不到模型 "${targetModel}"，請改用 "deepseek-chat" 或 "deepseek-reasoner"。`;
+      }
+      return NextResponse.json({ error: userFriendlyMsg, raw: errText }, { status: res.status });
     }
 
     const data = await res.json();

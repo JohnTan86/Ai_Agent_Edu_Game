@@ -60,6 +60,12 @@ export function parseSushiPrompt(prompt: string): AgentPromptDirectives {
   };
 }
 
+let _uniqueSeq = 0;
+export function genSushiId(prefix: string): string {
+  _uniqueSeq = (_uniqueSeq + 1) % 10000000;
+  return `${prefix}_${Date.now()}_${_uniqueSeq}_${Math.random().toString(36).slice(2, 7)}`;
+}
+
 /**
  * Runs a single collaborative cycle across all enabled AI Agents
  */
@@ -109,7 +115,7 @@ export async function executeMultiAgentCycle(
       seatedCustomers.push(nextCustomer);
 
       thoughtSteps.push({
-        id: `th_host_${Date.now()}_1`,
+        id: genSushiId('th_host_greet'),
         agentRole: 'host',
         agentName: agents.host.name,
         tick: currentTick,
@@ -119,7 +125,7 @@ export async function executeMultiAgentCycle(
       });
 
       thoughtSteps.push({
-        id: `th_host_${Date.now()}_2`,
+        id: genSushiId('th_host_seat'),
         agentRole: 'host',
         agentName: agents.host.name,
         tick: currentTick,
@@ -162,7 +168,7 @@ export async function executeMultiAgentCycle(
           metrics.activeOrdersCount = activeTickets.length;
 
           thoughtSteps.push({
-            id: `th_host_${Date.now()}_${ticketId}`,
+            id: genSushiId(`th_host_order_${ticketId}`),
             agentRole: 'host',
             agentName: agents.host.name,
             tick: currentTick,
@@ -172,7 +178,7 @@ export async function executeMultiAgentCycle(
           });
 
           newMessages.push({
-            id: `msg_host_${Date.now()}_${ticketId}`,
+            id: genSushiId(`msg_host_order_${ticketId}`),
             tick: currentTick,
             timestamp,
             fromRole: 'host',
@@ -205,7 +211,7 @@ export async function executeMultiAgentCycle(
           cust.eatingTicksRemaining = 6; // Eats for 6 ticks
 
           thoughtSteps.push({
-            id: `th_host_serve_${Date.now()}`,
+            id: genSushiId(`th_host_serve_${ticket.id}`),
             agentRole: 'host',
             agentName: agents.host.name,
             tick: currentTick,
@@ -215,7 +221,7 @@ export async function executeMultiAgentCycle(
           });
 
           newMessages.push({
-            id: `msg_host_serve_${Date.now()}`,
+            id: genSushiId(`msg_host_serve_${ticket.id}`),
             tick: currentTick,
             timestamp,
             fromRole: 'host',
@@ -264,7 +270,7 @@ export async function executeMultiAgentCycle(
         }
 
         thoughtSteps.push({
-          id: `th_host_pay_${Date.now()}`,
+          id: genSushiId(`th_host_pay_${cust.id}`),
           agentRole: 'host',
           agentName: agents.host.name,
           tick: currentTick,
@@ -304,7 +310,7 @@ export async function executeMultiAgentCycle(
             ticket.status = 'ready_to_serve';
 
             thoughtSteps.push({
-              id: `th_chef_plate_${Date.now()}`,
+              id: genSushiId(`th_chef_plate_${station.id}_${ticket.id}`),
               agentRole: 'chef',
               agentName: agents.chef.name,
               tick: currentTick,
@@ -314,7 +320,7 @@ export async function executeMultiAgentCycle(
             });
 
             newMessages.push({
-              id: `msg_chef_ready_${Date.now()}`,
+              id: genSushiId(`msg_chef_ready_${station.id}_${ticket.id}`),
               tick: currentTick,
               timestamp,
               fromRole: 'chef',
@@ -349,7 +355,7 @@ export async function executeMultiAgentCycle(
             metrics.stockoutIncidentsCount += 1;
 
             thoughtSteps.push({
-              id: `th_chef_alert_${Date.now()}`,
+              id: genSushiId(`th_chef_alert_${ticket.id}`),
               agentRole: 'chef',
               agentName: agents.chef.name,
               tick: currentTick,
@@ -359,7 +365,7 @@ export async function executeMultiAgentCycle(
             });
 
             newMessages.push({
-              id: `msg_chef_alert_${Date.now()}`,
+              id: genSushiId(`msg_chef_alert_${ticket.id}`),
               tick: currentTick,
               timestamp,
               fromRole: 'chef',
@@ -398,7 +404,7 @@ export async function executeMultiAgentCycle(
           ticket.kitchenStationId = station.id;
 
           thoughtSteps.push({
-            id: `th_chef_craft_${Date.now()}`,
+            id: genSushiId(`th_chef_craft_${station.id}_${ticket.id}`),
             agentRole: 'chef',
             agentName: agents.chef.name,
             tick: currentTick,
@@ -437,7 +443,7 @@ export async function executeMultiAgentCycle(
           item.currentStock += item.reorderPackSize;
 
           thoughtSteps.push({
-            id: `th_inv_restock_${Date.now()}_${key}`,
+            id: genSushiId(`th_inv_restock_${key}`),
             agentRole: 'inventory',
             agentName: agents.inventory.name,
             tick: currentTick,
@@ -447,7 +453,7 @@ export async function executeMultiAgentCycle(
           });
 
           newMessages.push({
-            id: `msg_inv_restock_${Date.now()}_${key}`,
+            id: genSushiId(`msg_inv_restock_${key}`),
             tick: currentTick,
             timestamp,
             fromRole: 'inventory',
@@ -459,7 +465,7 @@ export async function executeMultiAgentCycle(
           sushiAudio.playDeliveryArrival();
         } else {
           thoughtSteps.push({
-            id: `th_inv_broke_${Date.now()}_${key}`,
+            id: genSushiId(`th_inv_broke_${key}`),
             agentRole: 'inventory',
             agentName: agents.inventory.name,
             tick: currentTick,
@@ -488,7 +494,7 @@ export async function executeMultiAgentCycle(
           cust.patienceRemaining = Math.min(cust.patienceMax, cust.patienceRemaining + restored);
 
           thoughtSteps.push({
-            id: `th_mgr_remedy_${Date.now()}`,
+            id: genSushiId(`th_mgr_remedy_${cust.id}`),
             agentRole: 'manager',
             agentName: agents.manager.name,
             tick: currentTick,
@@ -498,7 +504,7 @@ export async function executeMultiAgentCycle(
           });
 
           newMessages.push({
-            id: `msg_mgr_remedy_${Date.now()}`,
+            id: genSushiId(`msg_mgr_remedy_${cust.id}`),
             tick: currentTick,
             timestamp,
             fromRole: 'manager',
@@ -514,7 +520,7 @@ export async function executeMultiAgentCycle(
     // 4B. Periodic KPI audit
     if (currentTick % 10 === 0) {
       thoughtSteps.push({
-        id: `th_mgr_audit_${Date.now()}`,
+        id: genSushiId('th_mgr_audit'),
         agentRole: 'manager',
         agentName: agents.manager.name,
         tick: currentTick,
@@ -543,4 +549,191 @@ export async function executeMultiAgentCycle(
     updatedActiveTickets: activeTickets,
     updatedCompletedTickets: completedTickets
   };
+}
+
+/**
+ * Direct client-side LLM dispatch fallback when server API route is unreachable on static hosting
+ */
+export async function executeDirectSushiDispatch(body: {
+  role: string;
+  provider: 'gemini' | 'openai' | 'deepseek';
+  model?: string;
+  apiKey?: string;
+  systemPrompt: string;
+  currentTick: number;
+  tables: any[];
+  customersInQueue: any[];
+  seatedCustomers: any[];
+  kitchenStations: any[];
+  activeTickets: any[];
+  inventory: any;
+  financials: any;
+  enabledTools: string[];
+}): Promise<{ success: boolean; result: any }> {
+  const {
+    role,
+    provider,
+    model,
+    apiKey,
+    systemPrompt,
+    currentTick,
+    inventory,
+    financials,
+    activeTickets,
+    customersInQueue,
+    seatedCustomers,
+    enabledTools
+  } = body;
+
+  if (!apiKey) {
+    throw new Error(`缺少 ${provider} API Key，請在 Multi-Agent 視窗中填入金鑰。`);
+  }
+
+  const contextPayload = {
+    tick: currentTick,
+    role,
+    cashBalance: financials?.balance ?? 500,
+    inventoryLevels: Object.fromEntries(
+      Object.entries(inventory || {}).map(([k, v]: [string, any]) => [k, v.currentStock])
+    ),
+    queueCount: customersInQueue?.length || 0,
+    seatedCount: seatedCustomers?.length || 0,
+    activeTickets: (activeTickets || []).map((t: any) => ({
+      id: t.id,
+      recipe: t.recipeName,
+      status: t.status,
+      note: t.customNote
+    })),
+    enabledTools
+  };
+
+  const promptText = `
+${systemPrompt}
+
+CURRENT RESTAURANT STATE (TICK ${currentTick}):
+${JSON.stringify(contextPayload, null, 2)}
+
+INSTRUCTIONS:
+You are role-playing as the AI Agent "${role}".
+Based on your role and rules, determine your next action, observation, reasoning, and any tool you want to invoke.
+Output strict JSON with format:
+{
+  "thought": "Your internal chain-of-thought reasoning",
+  "toolCall": {
+    "name": "one of enabledTools",
+    "params": {}
+  },
+  "messageToTeam": "Optional message to post to other agents"
+}
+`;
+
+  let rawResponseText = '';
+
+  if (provider === 'gemini') {
+    let targetModel = model || 'gemini-2.5-flash';
+    if (targetModel === 'gemini-2.0-flash' || targetModel === 'gemini-2.0-flash-exp') {
+      targetModel = 'gemini-2.5-flash';
+    }
+    const candidateModels = Array.from(new Set([targetModel, 'gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-2.5-pro']));
+    let lastErrText = '';
+    let success = false;
+
+    for (const cand of candidateModels) {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${cand}:generateContent?key=${apiKey}`;
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: promptText }] }],
+            generationConfig: {
+              temperature: 0.3,
+              responseMimeType: 'application/json'
+            }
+          })
+        });
+        if (res.ok) {
+          const gemData = await res.json();
+          rawResponseText = gemData.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+          success = true;
+          break;
+        } else {
+          lastErrText = await res.text();
+          if (res.status === 404) continue;
+          break;
+        }
+      } catch (e: any) {
+        lastErrText = e.message;
+      }
+    }
+    if (!success) {
+      throw new Error(`Gemini API 呼叫失敗: ${lastErrText}`);
+    }
+  } else {
+    // OpenAI or DeepSeek
+    const apiUrl =
+      provider === 'deepseek'
+        ? 'https://api.deepseek.com/chat/completions'
+        : 'https://api.openai.com/v1/chat/completions';
+
+    let targetModel = model;
+    if (!targetModel || targetModel === 'local-heuristic') {
+      targetModel = provider === 'deepseek' ? 'deepseek-chat' : 'gpt-4o-mini';
+    }
+
+    const payload: any = {
+      model: targetModel,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: promptText }
+      ],
+      temperature: 0.3
+    };
+    if (targetModel !== 'deepseek-reasoner') {
+      payload.response_format = { type: 'json_object' };
+    }
+
+    const res = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      let userFriendlyMsg = `${provider} API 呼叫失敗 (HTTP ${res.status}): ${errText}`;
+      if (res.status === 401) {
+        userFriendlyMsg = `API Key 認證失敗 (401)：請檢查您輸入的金鑰是否正確。`;
+      } else if (res.status === 402) {
+        userFriendlyMsg = `帳戶餘額不足 (402)：您的 ${provider} 帳戶已無可用額度，請檢查儲值餘額。`;
+      } else if (res.status === 404) {
+        userFriendlyMsg = `找不到指定模型 (404)："${targetModel}"。`;
+      }
+      throw new Error(userFriendlyMsg);
+    }
+
+    const data = await res.json();
+    rawResponseText = data.choices?.[0]?.message?.content || '{}';
+  }
+
+  let cleaned = rawResponseText.trim();
+  if (cleaned.startsWith('```')) {
+    cleaned = cleaned.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+  }
+  let parsed = {};
+  try {
+    parsed = JSON.parse(cleaned);
+  } catch {
+    const match = rawResponseText.match(/\{[\s\S]*\}/);
+    if (match) {
+      parsed = JSON.parse(match[0]);
+    } else {
+      parsed = { rawText: rawResponseText };
+    }
+  }
+
+  return { success: true, result: parsed };
 }

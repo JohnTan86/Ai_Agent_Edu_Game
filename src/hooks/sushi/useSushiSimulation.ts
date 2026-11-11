@@ -14,7 +14,7 @@ import {
 import { INITIAL_INGREDIENTS, SUSHI_RECIPES } from '../../lib/sushi/recipes';
 import { DEFAULT_SUSHI_AGENTS } from '../../lib/sushi/defaultAgents';
 import { SUSHI_SCENARIOS } from '../../lib/sushi/defaultScenarios';
-import { executeMultiAgentCycle } from '../../lib/sushi/agentEngine';
+import { executeMultiAgentCycle, executeDirectSushiDispatch } from '../../lib/sushi/agentEngine';
 import { sushiAudio } from '../../lib/sushi/audio';
 
 const INITIAL_TABLES: DiningTable[] = [
@@ -244,7 +244,7 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
       if (c.patienceRemaining <= 0) {
         walkoutsThisTick += 1;
         s.thoughtSteps.push({
-          id: `walkout_queue_${Date.now()}`,
+          id: `walkout_queue_${c.id}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
           agentRole: 'host',
           agentName: agentsRef.current.host.name,
           tick: nextTick,
@@ -269,7 +269,7 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
             tbl.assignedCustomerId = undefined;
           }
           s.thoughtSteps.push({
-            id: `walkout_seat_${Date.now()}`,
+            id: `walkout_seat_${c.id}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
             agentRole: 'host',
             agentName: agentsRef.current.host.name,
             tick: nextTick,
@@ -425,6 +425,139 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
 
   const runManualAgentTurn = async () => {
     setIsAgentExecuting(true);
+    const selectedRole = state.selectedAgentRole;
+    const currentAgent = agentsRef.current[selectedRole];
+
+    if (currentAgent && currentAgent.provider !== 'mock') {
+      const requestPayload = {
+        role: selectedRole,
+        provider: currentAgent.provider,
+        model: currentAgent.model,
+        apiKey: currentAgent.apiKey,
+        systemPrompt: currentAgent.systemPrompt,
+        currentTick: state.tick,
+        tables: state.tables,
+        customersInQueue: state.customersInQueue,
+        seatedCustomers: state.seatedCustomers,
+        kitchenStations: state.kitchenStations,
+        activeTickets: state.activeTickets,
+        inventory: state.inventory,
+        financials: state.financials,
+        enabledTools: currentAgent.enabledTools
+      };
+
+      try {
+        let data: any = null;
+        try {
+          const res = await fetch('/api/sushi-dispatch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestPayload)
+          });
+          const contentType = res.headers.get('content-type') || '';
+          if (contentType.includes('application/json')) {
+            data = await res.json();
+            if (!res.ok || data.error) {
+              throw new Error(data.error || `HTTP error ${res.status}`);
+            }
+          } else {
+            // Static hosting fallback to direct client LLM call
+            data = await executeDirectSushiDispatch(requestPayload);
+          }
+        } catch (fetchErr: any) {
+          if (data && data.error) {
+            throw fetchErr;
+          }
+          data = await executeDirectSushiDispatch(requestPayload);
+        }
+
+        const timestamp = new Date().toLocaleTimeString('zh-TW', { hour12: false });
+
+        if (data.error) {
+          const errText = data.error;
+          setState(prev => ({
+            ...prev,
+            thoughtSteps: [
+              {
+                id: `th_err_${Date.now()}`,
+                agentRole: selectedRole,
+                agentName: `${currentAgent.name} [${currentAgent.provider.toUpperCase()}]`,
+                tick: prev.tick,
+                timestamp,
+                type: 'thought',
+                content: `❌【${currentAgent.provider.toUpperCase()} 呼叫異常】${errText}`
+              },
+              ...prev.thoughtSteps
+            ]
+          }));
+          sushiAudio.playAlert();
+        } else {
+          const llmResult = data.result || {};
+          const thoughtContent = llmResult.thought || llmResult.rawText || '已完成即時分析';
+          const newThoughtSteps: AgentThoughtStep[] = [
+            {
+              id: `th_llm_${Date.now()}_1`,
+              agentRole: selectedRole,
+              agentName: `${currentAgent.name} [${currentAgent.provider.toUpperCase()}]`,
+              tick: state.tick,
+              timestamp,
+              type: 'thought',
+              content: `🧠【${currentAgent.provider.toUpperCase()} 原生推理】${thoughtContent}`
+            }
+          ];
+
+          if (llmResult.toolCall?.name) {
+            newThoughtSteps.push({
+              id: `th_llm_${Date.now()}_2`,
+              agentRole: selectedRole,
+              agentName: `${currentAgent.name} [${currentAgent.provider.toUpperCase()}]`,
+              tick: state.tick,
+              timestamp,
+              type: 'tool_call',
+              content: `執行工具 ${llmResult.toolCall.name}(${JSON.stringify(llmResult.toolCall.params || {})})`
+            });
+          }
+
+          const newMessages: InterAgentMessage[] = [];
+          if (llmResult.messageToTeam) {
+            newMessages.push({
+              id: `msg_llm_${Date.now()}`,
+              tick: state.tick,
+              timestamp,
+              fromRole: selectedRole,
+              toRole: 'all',
+              channel: 'strategy_sync',
+              content: `【${currentAgent.provider.toUpperCase()} 廣播】${llmResult.messageToTeam}`
+            });
+          }
+
+          setState(prev => ({
+            ...prev,
+            thoughtSteps: [...newThoughtSteps, ...prev.thoughtSteps],
+            agentMessages: [...newMessages, ...prev.agentMessages]
+          }));
+
+          sushiAudio.playOrderTaken();
+        }
+      } catch (e: any) {
+        setState(prev => ({
+          ...prev,
+          thoughtSteps: [
+            {
+              id: `th_err_${Date.now()}`,
+              agentRole: selectedRole,
+              agentName: `${currentAgent.name} [${currentAgent.provider.toUpperCase()}]`,
+              tick: prev.tick,
+              timestamp: new Date().toLocaleTimeString('zh-TW', { hour12: false }),
+              type: 'thought',
+              content: `❌【網路連線異常】無法發送請求至 /api/sushi-dispatch: ${e?.message || e}`
+            },
+            ...prev.thoughtSteps
+          ]
+        }));
+      }
+    }
+
     await stepSimulation();
     setIsAgentExecuting(false);
   };
