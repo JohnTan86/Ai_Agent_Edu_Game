@@ -8,6 +8,10 @@
   # Route /api/git-sync directly to /api/git-sync/index.php
   RewriteRule ^api/git-sync/?$ api/git-sync/index.php [L,QSA]
 
+  # Serve clean URLs (e.g. /roboflow -> roboflow.html, /sushi -> sushi.html)
+  RewriteCond %{REQUEST_FILENAME}.html -f
+  RewriteRule ^(.*)/?$ $1.html [L]
+
   # Serve existing files and directories directly
   RewriteCond %{REQUEST_FILENAME} -f [OR]
   RewriteCond %{REQUEST_FILENAME} -d

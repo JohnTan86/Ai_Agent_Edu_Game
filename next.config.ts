@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
   ...(isCpanelExport
     ? {
         output: "export",
+        trailingSlash: true,
         images: { unoptimized: true },
         typescript: { ignoreBuildErrors: true },
       }
