@@ -34,6 +34,8 @@ interface SushiRestaurantViewProps {
   onAddTable?: () => void;
   onReset?: () => void;
   onOpenStaffModal?: () => void;
+  onOpenBranchMapModal?: () => void;
+  onSelectBranch?: (branchId: string) => void;
 }
 
 export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
@@ -43,7 +45,9 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
   onSelectStation,
   onAddTable,
   onReset,
-  onOpenStaffModal
+  onOpenStaffModal,
+  onOpenBranchMapModal,
+  onSelectBranch
 }) => {
   const [hoveredCustomer, setHoveredCustomer] = useState<Customer | null>(null);
   const [viewMode, setViewMode] = useState<'cartoon' | 'classic'>('cartoon');
@@ -64,7 +68,7 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
           <span className="text-xl">🏮</span>
           <div>
             <h2 className="text-xs font-bold text-amber-200 tracking-wider flex items-center gap-2">
-              江戶前・壽司物語 AI 旗艦店
+              {state.branches?.find(b => b.id === state.activeBranchId)?.name || '江戶前・壽司物語 AI 旗艦店'}
               {state.rushHourActive && (
                 <span className="text-[10px] bg-rose-600 text-white font-mono px-2 py-0.5 rounded-full animate-bounce">
                   ⚡ 尖峰客流湧入中
@@ -77,8 +81,38 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
           </div>
         </div>
 
-        {/* View Mode Switcher + Staff + Counters */}
+        {/* View Mode Switcher + Branch + Staff + Counters */}
         <div className="flex items-center gap-3">
+          {/* Multi-Branch Switcher */}
+          {state.branches && state.branches.length > 1 && (
+            <select
+              value={state.activeBranchId}
+              onChange={e => onSelectBranch?.(e.target.value)}
+              className="bg-amber-950/80 hover:bg-amber-900 text-amber-200 border border-amber-500/50 rounded-xl px-2.5 py-1 text-xs font-bold cursor-pointer"
+              title="切換不同分店實景"
+            >
+              {state.branches.map(b => (
+                <option key={b.id} value={b.id} className="bg-slate-900 text-white">
+                  🏢 {b.name} ({b.tables?.length || 6}/16)
+                </option>
+              ))}
+            </select>
+          )}
+
+          {/* Open Branch Map Button */}
+          {onOpenBranchMapModal && (state.tables.length >= 16 || state.hasReachedMaxTables) && (
+            <button
+              onClick={onOpenBranchMapModal}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-gradient-to-r from-amber-500 via-rose-500 to-amber-500 text-slate-950 text-xs font-black shadow-md transition active:scale-95 animate-bounce border border-amber-300"
+              title="席位已達 16 桌上限！點擊進入 Google Map 開設新分店"
+            >
+              <span>🗺️ 開設新分店</span>
+              <span className="bg-slate-950/80 text-amber-300 px-1 py-0.5 rounded text-[10px] font-mono">
+                MAX 16席
+              </span>
+            </button>
+          )}
+
           {onOpenStaffModal && (
             <button
               onClick={onOpenStaffModal}
@@ -125,7 +159,7 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
             <div className="flex items-center gap-1 text-slate-400">
               <span className="w-2 h-2 rounded-full bg-emerald-400" />
               <span>就座:</span>
-              <span className="text-white font-bold">{state.seatedCustomers.length}/6</span>
+              <span className="text-white font-bold">{state.seatedCustomers.length}/{state.tables.length}</span>
             </div>
             <div className="flex items-center gap-1 text-slate-400">
               <span className="w-2 h-2 rounded-full bg-amber-400" />
@@ -145,6 +179,7 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
             onSelectTable={onSelectTable}
             onSelectStation={onSelectStation}
             onAddTable={onAddTable}
+            onOpenBranchMapModal={onOpenBranchMapModal}
           />
         </div>
       ) : (
@@ -423,8 +458,8 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
             <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
               <div className="flex items-center gap-2">
                 <Utensils className="w-4 h-4 text-sky-400" />
-                <span className="text-xs font-bold text-white">客席用餐區 ({state.tables.length} 席)</span>
-                {onAddTable && state.tables.length < 10 && (
+                <span className="text-xs font-bold text-white">客席用餐區 ({state.tables.length}/16 席)</span>
+                {onAddTable && state.tables.length < 16 && (
                   <button
                     onClick={onAddTable}
                     className="ml-2 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/50 flex items-center gap-1.5 transition active:scale-95 shadow-sm"
@@ -432,6 +467,15 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
                   >
                     <PlusCircle className="w-3.5 h-3.5 text-amber-400" />
                     <span>增設餐桌 ($150)</span>
+                  </button>
+                )}
+                {onOpenBranchMapModal && (state.tables.length >= 16 || state.hasReachedMaxTables) && (
+                  <button
+                    onClick={onOpenBranchMapModal}
+                    className="ml-2 px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/50 flex items-center gap-1.5 transition active:scale-95 shadow-sm animate-pulse"
+                    title="席位已滿 16 桌！進入 Google Map 開設新分店"
+                  >
+                    <span>🗺️ 開設新分店</span>
                   </button>
                 )}
               </div>
@@ -547,15 +591,27 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
                 );
               })}
 
-              {/* Expansion Card if tables < 10 */}
-              {onAddTable && state.tables.length < 10 && (
+              {/* Expansion Card if tables < 16 */}
+              {onAddTable && state.tables.length < 16 && (
                 <button
                   onClick={onAddTable}
                   className="p-3 rounded-2xl border-2 border-dashed border-amber-500/40 hover:border-amber-400/80 bg-amber-500/5 hover:bg-amber-500/15 transition flex flex-col items-center justify-center min-h-[130px] cursor-pointer text-amber-300 group shadow-sm active:scale-95"
                 >
                   <PlusCircle className="w-8 h-8 text-amber-400 mb-1.5 group-hover:scale-110 transition-transform" />
                   <span className="text-xs font-bold">點擊添置新席位</span>
-                  <span className="text-[10px] font-mono text-amber-400/80 mt-1">花費 $150 (剩餘 {10 - state.tables.length} 席)</span>
+                  <span className="text-[10px] font-mono text-amber-400/80 mt-1">花費 $150 (剩餘 {16 - state.tables.length} 席)</span>
+                </button>
+              )}
+
+              {/* Branch Expansion Card if tables >= 16 */}
+              {onOpenBranchMapModal && (state.tables.length >= 16 || state.hasReachedMaxTables) && (
+                <button
+                  onClick={onOpenBranchMapModal}
+                  className="p-3 rounded-2xl border-2 border-rose-500/60 hover:border-rose-400 bg-gradient-to-br from-rose-950/40 via-amber-950/30 to-rose-950/40 transition flex flex-col items-center justify-center min-h-[130px] cursor-pointer text-amber-300 group shadow-lg active:scale-95 animate-pulse"
+                >
+                  <span className="text-2xl mb-1 group-hover:scale-110 transition-transform">🗺️</span>
+                  <span className="text-xs font-bold text-amber-200">席位已滿 16 桌上限！</span>
+                  <span className="text-[10px] font-bold text-rose-300 mt-1">點擊進入 Google Map 開設新分店 ➔</span>
                 </button>
               )}
             </div>

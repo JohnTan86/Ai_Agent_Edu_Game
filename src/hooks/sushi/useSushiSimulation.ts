@@ -10,6 +10,7 @@ import {
   SushiAgentRole,
   SushiScenario,
   SushiSimulationState,
+  SushiBranch,
   AgentThoughtStep,
   InterAgentMessage
 } from '../../lib/sushi/types';
@@ -20,6 +21,7 @@ import { executeMultiAgentCycle, executeDirectSushiDispatch } from '../../lib/su
 import { sushiAudio } from '../../lib/sushi/audio';
 import { AVAILABLE_STAFF_CANDIDATES, DAILY_MARKET_CONDITIONS, MarketCondition, StaffCandidate } from '../../lib/sushi/staffConfig';
 import { getSushiClockInfo, TICKS_PER_DAY } from '../../lib/sushi/timeConstants';
+import { BranchLocationCandidate } from '../../lib/sushi/branchConfig';
 
 const INITIAL_TABLES: DiningTable[] = [
   { id: 'T1', name: '吧台 1 號席', type: 'counter', capacity: 1, status: 'empty', cleanliness: 100 },
@@ -89,6 +91,24 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
       }
     }
 
+    const initialTables = JSON.parse(JSON.stringify(INITIAL_TABLES));
+    const initialBranch: SushiBranch = {
+      id: 'branch_ginza',
+      name: '江戶前・銀座旗艦總店',
+      districtName: '東京都 中央區 銀座',
+      lat: 35.6719,
+      lng: 139.7648,
+      emoji: '⛩️',
+      establishedAtDay: 1,
+      tables: initialTables,
+      metrics: {
+        customersServed: 0,
+        customersWalkout: 0,
+        revenue: 0,
+        satisfaction: 5.0
+      }
+    };
+
     return {
       scenario,
       status: 'idle',
@@ -122,12 +142,15 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
         efficiencyScore: 100
       },
       inventory: inv,
-      tables: JSON.parse(JSON.stringify(INITIAL_TABLES)),
+      tables: initialTables,
       customersInQueue: [],
       seatedCustomers: [],
       kitchenStations: JSON.parse(JSON.stringify(INITIAL_STATIONS)),
       activeTickets: [],
       completedTickets: [],
+      branches: [initialBranch],
+      activeBranchId: 'branch_ginza',
+      hasReachedMaxTables: false,
       agentMessages: [
         {
           id: 'welcome_msg',
@@ -641,14 +664,17 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
 
   /**
    * Expand restaurant capacity by adding a new dining table ($150)
+   * Maximum capacity: 16 tables per branch.
+   * Upon reaching 16 tables, unlocks opening new branches on Google Map!
    */
   const addTable = useCallback((customType?: 'counter' | 'booth'): boolean => {
     const s = stateRef.current;
     const cost = 150;
 
-    if (s.tables.length >= 10) {
+    if (s.tables.length >= 16) {
       setState(prev => ({
         ...prev,
+        hasReachedMaxTables: true,
         thoughtSteps: [
           {
             id: `th_max_tables_${Date.now()}`,
@@ -657,7 +683,7 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
             tick: prev.tick,
             timestamp: new Date().toLocaleTimeString('zh-TW', { hour12: false }),
             type: 'thought',
-            content: `⚠️【席位已達上限】本店空間已擴展至最大容量（10 席），無法再增設更多餐桌！`
+            content: `⚠️【席位已達上限】本店空間已擴展至最高容量 16 席！已解鎖「🗺️ 開設新分店」功能！請點擊頂部或地圖按鈕，選擇新的商圈開設全新分店！`
           },
           ...prev.thoughtSteps
         ]
@@ -686,14 +712,20 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
     }
 
     const existingIds = new Set(s.tables.map(t => t.id));
-    const candidateOrder = ['T7', 'T8', 'T9', 'T10'];
+    const candidateOrder = ['T7', 'T8', 'T9', 'T10', 'T11', 'T12', 'T13', 'T14', 'T15', 'T16'];
     const nextId = candidateOrder.find(id => !existingIds.has(id)) || `T${s.tables.length + 1}`;
 
     const tableDefs: Record<string, { name: string; type: 'counter' | 'booth'; capacity: number }> = {
       T7: { name: '吧台 7 號席', type: 'counter', capacity: 1 },
       T8: { name: '楓葉 8 號桌', type: 'booth', capacity: 2 },
       T9: { name: '特等 9 號席', type: 'counter', capacity: 1 },
-      T10: { name: '富士 10 號桌', type: 'booth', capacity: 4 }
+      T10: { name: '富士 10 號桌', type: 'booth', capacity: 4 },
+      T11: { name: '板前 11 號席', type: 'counter', capacity: 1 },
+      T12: { name: '竹林 12 號桌', type: 'booth', capacity: 2 },
+      T13: { name: '茶室 13 號桌', type: 'booth', capacity: 2 },
+      T14: { name: '枯山 14 號桌', type: 'booth', capacity: 2 },
+      T15: { name: '鶴羽 15 號桌', type: 'booth', capacity: 4 },
+      T16: { name: '御所 16 號桌', type: 'booth', capacity: 4 }
     };
 
     const def = tableDefs[nextId] || {
@@ -713,6 +745,117 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
 
     sushiAudio.playPayment();
 
+    setState(prev => {
+      const nextTables = [...prev.tables, newTable];
+      const reachedMax = nextTables.length >= 16;
+      const updatedBranches = (prev.branches || []).map(b => {
+        if (b.id === prev.activeBranchId) {
+          return {
+            ...b,
+            tables: nextTables
+          };
+        }
+        return b;
+      });
+
+      return {
+        ...prev,
+        financials: {
+          ...prev.financials,
+          balance: prev.financials.balance - cost,
+          totalExpenses: prev.financials.totalExpenses + cost,
+          facilityRent: prev.financials.facilityRent + cost
+        },
+        branches: updatedBranches,
+        tables: nextTables,
+        hasReachedMaxTables: reachedMax,
+        thoughtSteps: [
+          {
+            id: `th_add_table_${Date.now()}`,
+            agentRole: 'manager',
+            agentName: agentsRef.current.manager.name,
+            tick: prev.tick,
+            timestamp: new Date().toLocaleTimeString('zh-TW', { hour12: false }),
+            type: 'observe',
+            content: reachedMax
+              ? `🎊【席位達最高上限 (16席)！】投資 $${cost} 成功添置【${newTable.name}】！本店席位已達到最高 16 席滿座容量，正式解鎖「🗺️ 開設新分店」連鎖特許經營模式！可隨時點擊 Google Map 開設下一個商圈分店！`
+              : `🎉【店面擴建】投資 $${cost} 成功添置【${newTable.name}】（${newTable.type === 'counter' ? '吧台單人席' : `${newTable.capacity}人雅座`}）！目前總席位擴增至 ${nextTables.length}/16 席！`
+          },
+          ...prev.thoughtSteps
+        ]
+      };
+    });
+
+    return true;
+  }, []);
+
+  /**
+   * Open a new branch location on the Google Map
+   */
+  const openNewBranch = useCallback((candidate: BranchLocationCandidate): boolean => {
+    const s = stateRef.current;
+    const cost = candidate.openingCost;
+
+    if (s.financials.balance < cost) {
+      sushiAudio.playAlert();
+      setState(prev => ({
+        ...prev,
+        thoughtSteps: [
+          {
+            id: `th_err_branch_funds_${Date.now()}`,
+            agentRole: 'manager',
+            agentName: agentsRef.current.manager.name,
+            tick: prev.tick,
+            timestamp: new Date().toLocaleTimeString('zh-TW', { hour12: false }),
+            type: 'thought',
+            content: `❌【開設分店失敗】資金不足！開設【${candidate.name}】需要開辦金 $${cost}，目前結餘僅有 $${prev.financials.balance.toFixed(0)}。`
+          },
+          ...prev.thoughtSteps
+        ]
+      }));
+      return false;
+    }
+
+    const newBranchId = `branch_${Date.now()}`;
+    const initialTablesForBranch: DiningTable[] = JSON.parse(JSON.stringify(INITIAL_TABLES));
+
+    const newBranch: SushiBranch = {
+      id: newBranchId,
+      name: candidate.name,
+      districtName: candidate.districtName || '日本 (Japan)',
+      lat: candidate.lat,
+      lng: candidate.lng,
+      emoji: candidate.emoji || '🍣',
+      establishedAtDay: s.day,
+      tables: initialTablesForBranch,
+      metrics: {
+        customersServed: 0,
+        customersWalkout: 0,
+        revenue: 0,
+        satisfaction: 5.0
+      }
+    };
+
+    // Also sync the current branch's tables before switching
+    const updatedBranches = (s.branches || []).map(b => {
+      if (b.id === s.activeBranchId) {
+        return {
+          ...b,
+          tables: s.tables,
+          metrics: {
+            customersServed: s.metrics.customersServed,
+            customersWalkout: s.metrics.customersWalkout,
+            revenue: s.financials.totalRevenue,
+            satisfaction: s.metrics.averageSatisfactionStars
+          }
+        };
+      }
+      return b;
+    });
+    updatedBranches.push(newBranch);
+
+    sushiAudio.playFanfare();
+
     setState(prev => ({
       ...prev,
       financials: {
@@ -721,22 +864,77 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
         totalExpenses: prev.financials.totalExpenses + cost,
         facilityRent: prev.financials.facilityRent + cost
       },
-      tables: [...prev.tables, newTable],
+      branches: updatedBranches,
+      activeBranchId: newBranchId,
+      tables: initialTablesForBranch,
+      hasReachedMaxTables: initialTablesForBranch.length >= 16,
       thoughtSteps: [
         {
-          id: `th_add_table_${Date.now()}`,
+          id: `th_branch_opened_${Date.now()}`,
           agentRole: 'manager',
           agentName: agentsRef.current.manager.name,
           tick: prev.tick,
           timestamp: new Date().toLocaleTimeString('zh-TW', { hour12: false }),
           type: 'observe',
-          content: `🎉【店面擴建】投資 $${cost} 成功添置【${newTable.name}】（${newTable.type === 'counter' ? '吧台單人席' : `${newTable.capacity}人雅座`}）！目前總席位擴增至 ${prev.tables.length + 1} 席！`
+          content: `🏢🎉【全新分店正式開幕！】壽司物語【${newBranch.name}】（${candidate.districtName}）盛大開業！初始配置 6 張精緻餐桌，實景動畫已切換至新分行，期待在此打造米其林傳奇！`
         },
         ...prev.thoughtSteps
       ]
     }));
 
     return true;
+  }, []);
+
+  /**
+   * Switch the active branch view and simulation tables
+   */
+  const selectBranch = useCallback((branchId: string) => {
+    setState(prev => {
+      if (prev.activeBranchId === branchId) return prev;
+      const targetBranch = (prev.branches || []).find(b => b.id === branchId);
+      if (!targetBranch) return prev;
+
+      // Update currently active branch with current tables
+      const updatedBranches = (prev.branches || []).map(b => {
+        if (b.id === prev.activeBranchId) {
+          return {
+            ...b,
+            tables: prev.tables,
+            metrics: {
+              customersServed: prev.metrics.customersServed,
+              customersWalkout: prev.metrics.customersWalkout,
+              revenue: prev.financials.totalRevenue,
+              satisfaction: prev.metrics.averageSatisfactionStars
+            }
+          };
+        }
+        return b;
+      });
+
+      sushiAudio.playOrderTaken();
+
+      return {
+        ...prev,
+        branches: updatedBranches,
+        activeBranchId: branchId,
+        tables: targetBranch.tables && targetBranch.tables.length > 0
+          ? targetBranch.tables
+          : JSON.parse(JSON.stringify(INITIAL_TABLES)),
+        hasReachedMaxTables: (targetBranch.tables?.length ?? 6) >= 16,
+        thoughtSteps: [
+          {
+            id: `th_branch_switch_${Date.now()}`,
+            agentRole: 'manager',
+            agentName: agentsRef.current.manager.name,
+            tick: prev.tick,
+            timestamp: new Date().toLocaleTimeString('zh-TW', { hour12: false }),
+            type: 'observe',
+            content: `🔀【分行視角切換】切換監控分行至【${targetBranch.name}】。實景動畫與餐桌席位已更新！`
+          },
+          ...prev.thoughtSteps
+        ]
+      };
+    });
   }, []);
 
   const updateAgentConfig = (role: SushiAgentRole, updates: Partial<SushiAgentConfig>) => {
@@ -913,6 +1111,8 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
     selectAgent,
     runManualAgentTurn,
     addTable,
+    openNewBranch,
+    selectBranch,
     hireStaff,
     fireStaff,
     startNextDay

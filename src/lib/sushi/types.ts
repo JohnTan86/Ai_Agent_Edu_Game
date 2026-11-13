@@ -230,6 +230,28 @@ export type SimulationSpeed = 1 | 2 | 5;
 
 import { StaffCandidate, MarketCondition } from './staffConfig';
 
+export interface SushiBranch {
+  id: string;
+  name: string;
+  districtName: string;
+  lat: number;
+  lng: number;
+  emoji: string;
+  establishedAtDay: number;
+  tables: DiningTable[];
+  customersInQueue?: Customer[];
+  seatedCustomers?: Customer[];
+  kitchenStations?: KitchenStation[];
+  activeTickets?: OrderTicket[];
+  completedTickets?: OrderTicket[];
+  metrics?: {
+    customersServed: number;
+    customersWalkout: number;
+    revenue: number;
+    satisfaction: number;
+  };
+}
+
 export interface DailySettlementRecord {
   day: number;
   revenue: number;
@@ -272,4 +294,7 @@ export interface SushiSimulationState {
   isShiftEnded: boolean;
   marketCondition: MarketCondition;
   dailySettlements?: DailySettlementRecord[];
+  branches: SushiBranch[];
+  activeBranchId: string;
+  hasReachedMaxTables: boolean;
 }

@@ -39,6 +39,8 @@ interface SushiHeaderHUDProps {
   onAddTable?: () => void;
   onOpenStaffModal?: () => void;
   onStartNextDay?: () => void;
+  onOpenBranchMapModal?: () => void;
+  onSelectBranch?: (branchId: string) => void;
 }
 
 export const SushiHeaderHUD: React.FC<SushiHeaderHUDProps> = ({
@@ -56,7 +58,9 @@ export const SushiHeaderHUD: React.FC<SushiHeaderHUDProps> = ({
   onOpenReport,
   onAddTable,
   onOpenStaffModal,
-  onStartNextDay
+  onStartNextDay,
+  onOpenBranchMapModal,
+  onSelectBranch
 }) => {
   const isRunning = state.status === 'running';
   const clockInfo = getSushiClockInfo(state.tick, state.day, state.isShiftEnded);
@@ -324,16 +328,59 @@ export const SushiHeaderHUD: React.FC<SushiHeaderHUDProps> = ({
         {onAddTable && (
           <button
             onClick={onAddTable}
-            disabled={state.tables.length >= 10}
+            disabled={state.tables.length >= 16}
             className="px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/40 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm active:scale-95"
-            title={state.tables.length >= 10 ? '席位已達上限（10席）' : '添置新餐桌（花費 $150）'}
+            title={state.tables.length >= 16 ? '席位已達上限（16席）！已可開設新分店' : '添置新餐桌（花費 $150）'}
           >
             <PlusCircle className="w-3.5 h-3.5 text-amber-400" />
             <span className="hidden lg:inline">增設餐桌</span>
             <span className="text-[10px] text-amber-400 font-mono">($150)</span>
             <span className="text-[10px] bg-amber-950/90 px-1 py-0.5 rounded text-amber-200 border border-amber-800/80 font-mono">
-              {state.tables.length}/10
+              {state.tables.length}/16
             </span>
+          </button>
+        )}
+
+        {/* Multi-Branch Switcher Dropdown (when > 1 branch) */}
+        {state.branches && state.branches.length > 1 && (
+          <select
+            value={state.activeBranchId}
+            onChange={e => onSelectBranch?.(e.target.value)}
+            className="hidden sm:inline-block bg-amber-950/80 hover:bg-amber-900 text-amber-200 border border-amber-500/50 rounded-lg px-2 py-1 text-xs font-bold cursor-pointer"
+            title="切換不同分店實景"
+          >
+            {state.branches.map(b => (
+              <option key={b.id} value={b.id} className="bg-slate-900 text-white">
+                🏢 {b.name} ({b.tables?.length || 6}/16)
+              </option>
+            ))}
+          </select>
+        )}
+
+        {/* Google Map Branch Expansion Button */}
+        {onOpenBranchMapModal && (
+          <button
+            onClick={onOpenBranchMapModal}
+            className={`px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm active:scale-95 ${
+              state.tables.length >= 16 || state.hasReachedMaxTables
+                ? 'bg-gradient-to-r from-amber-500 via-rose-500 to-amber-500 text-slate-950 border border-amber-300 animate-pulse shadow-rose-950'
+                : 'bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-700/60'
+            }`}
+            title={
+              state.tables.length >= 16 || state.hasReachedMaxTables
+                ? '席位已滿 16 桌！進入 Google Map 選擇商圈開設新分店'
+                : '檢視 Google Map 連鎖分店地圖'
+            }
+          >
+            <span>🗺️</span>
+            <span className="hidden xl:inline">
+              {state.tables.length >= 16 || state.hasReachedMaxTables ? '開設新分店' : '連鎖地圖'}
+            </span>
+            {state.branches && (
+              <span className="text-[10px] bg-slate-950/80 text-amber-300 px-1 py-0.5 rounded font-mono font-bold">
+                {state.branches.length} 店
+              </span>
+            )}
           </button>
         )}
 

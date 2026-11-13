@@ -9,6 +9,7 @@ import { MultiAgentTelemetry } from '../../components/sushi/MultiAgentTelemetry'
 import { SushiHelpGuideModal } from '../../components/sushi/SushiHelpGuideModal';
 import { SushiReportModal } from '../../components/sushi/SushiReportModal';
 import { SushiStaffModal } from '../../components/sushi/SushiStaffModal';
+import { SushiBranchMapModal } from '../../components/sushi/SushiBranchMapModal';
 
 export default function SushiApp() {
   const {
@@ -32,12 +33,15 @@ export default function SushiApp() {
     selectAgent,
     runManualAgentTurn,
     addTable,
+    openNewBranch,
+    selectBranch,
     hireStaff,
     fireStaff,
     startNextDay
   } = useSushiSimulation();
 
   const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
+  const [isBranchMapModalOpen, setIsBranchMapModalOpen] = useState(false);
 
   // Keyboard shortcut listener
   useEffect(() => {
@@ -81,6 +85,8 @@ export default function SushiApp() {
         onAddTable={addTable}
         onOpenStaffModal={() => setIsStaffModalOpen(true)}
         onStartNextDay={startNextDay}
+        onOpenBranchMapModal={() => setIsBranchMapModalOpen(true)}
+        onSelectBranch={selectBranch}
       />
 
       {/* 2. Main 3-Column Layout */}
@@ -103,6 +109,8 @@ export default function SushiApp() {
             onAddTable={addTable}
             onReset={() => reset()}
             onOpenStaffModal={() => setIsStaffModalOpen(true)}
+            onOpenBranchMapModal={() => setIsBranchMapModalOpen(true)}
+            onSelectBranch={selectBranch}
           />
         </div>
 
@@ -140,6 +148,18 @@ export default function SushiApp() {
         onHireStaff={hireStaff}
         onFireStaff={fireStaff}
         financials={state.financials}
+      />
+
+      {/* 6. Google Map Branch Expansion & Multi-Branch Management Modal */}
+      <SushiBranchMapModal
+        isOpen={isBranchMapModalOpen}
+        onClose={() => setIsBranchMapModalOpen(false)}
+        branches={state.branches || []}
+        activeBranchId={state.activeBranchId}
+        hasReachedMaxTables={state.hasReachedMaxTables || state.tables.length >= 16}
+        financials={state.financials}
+        onSelectBranch={selectBranch}
+        onOpenNewBranch={openNewBranch}
       />
     </div>
   );

@@ -27,6 +27,7 @@ interface SushiOvercookedStageProps {
   onSelectStation?: (station: KitchenStation) => void;
   onSelectIngredient?: (key: IngredientKey) => void;
   onAddTable?: () => void;
+  onOpenBranchMapModal?: () => void;
 }
 
 interface Particle {
@@ -66,7 +67,8 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
   onSelectTable,
   onSelectStation,
   onSelectIngredient,
-  onAddTable
+  onAddTable,
+  onOpenBranchMapModal
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -138,18 +140,29 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
   const stateRef = useRef(state);
   stateRef.current = state;
 
-  // Table Coordinates in Virtual Space (1000 x 660) - Supports Up to 10 Tables
+  // Table Coordinates in Virtual Space (1000 x 660) - Supports Up to 16 Tables (3 Rows)
   const TABLE_COORDS: Record<string, { x: number; y: number; type: 'counter' | 'booth'; name: string }> = {
-    T1: { x: 330, y: 250, type: 'counter', name: '吧台 1' },
-    T2: { x: 470, y: 250, type: 'counter', name: '吧台 2' },
-    T3: { x: 610, y: 250, type: 'counter', name: '吧台 3' },
-    T7: { x: 750, y: 250, type: 'counter', name: '吧台 7' },
-    T9: { x: 890, y: 250, type: 'counter', name: '特等 9' },
-    T4: { x: 330, y: 400, type: 'booth', name: '庭園 4' },
-    T5: { x: 470, y: 400, type: 'booth', name: '櫻花 5' },
-    T6: { x: 610, y: 400, type: 'booth', name: '松木 6' },
-    T8: { x: 750, y: 400, type: 'booth', name: '楓葉 8' },
-    T10: { x: 890, y: 400, type: 'booth', name: '富士 10' }
+    // Row 1: Hinoki Counter Bar (y: 235)
+    T1: { x: 320, y: 235, type: 'counter', name: '吧台 1' },
+    T2: { x: 440, y: 235, type: 'counter', name: '吧台 2' },
+    T3: { x: 560, y: 235, type: 'counter', name: '吧台 3' },
+    T7: { x: 680, y: 235, type: 'counter', name: '吧台 7' },
+    T9: { x: 800, y: 235, type: 'counter', name: '特等 9' },
+    T11: { x: 920, y: 235, type: 'counter', name: '板前 11' },
+
+    // Row 2: Dining Hall Booths (y: 340)
+    T4: { x: 320, y: 340, type: 'booth', name: '庭園 4' },
+    T5: { x: 440, y: 340, type: 'booth', name: '櫻花 5' },
+    T6: { x: 560, y: 340, type: 'booth', name: '松木 6' },
+    T8: { x: 680, y: 340, type: 'booth', name: '楓葉 8' },
+    T10: { x: 800, y: 340, type: 'booth', name: '富士 10' },
+    T12: { x: 920, y: 340, type: 'booth', name: '竹林 12' },
+
+    // Row 3: Garden & VIP Tatami (y: 445)
+    T13: { x: 320, y: 445, type: 'booth', name: '茶室 13' },
+    T14: { x: 440, y: 445, type: 'booth', name: '枯山 14' },
+    T15: { x: 560, y: 445, type: 'booth', name: '鶴羽 15' },
+    T16: { x: 680, y: 445, type: 'booth', name: '御所 16' }
   };
 
   // Kitchen Station Coordinates
@@ -636,10 +649,11 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
         }
       });
 
-      // Draw dashed blueprint expansion slot for next expandable table
+      // Draw dashed blueprint expansion slot for next expandable table (up to 16)
+      const CANDIDATE_TABLE_IDS = ['T7', 'T8', 'T9', 'T10', 'T11', 'T12', 'T13', 'T14', 'T15', 'T16'];
       const existingTableIds = new Set(stateRef.current.tables.map(t => t.id));
-      const nextCandidateId = ['T7', 'T8', 'T9', 'T10'].find(id => !existingTableIds.has(id));
-      if (nextCandidateId && TABLE_COORDS[nextCandidateId] && stateRef.current.tables.length < 10) {
+      const nextCandidateId = CANDIDATE_TABLE_IDS.find(id => !existingTableIds.has(id));
+      if (nextCandidateId && TABLE_COORDS[nextCandidateId] && stateRef.current.tables.length < 16) {
         const slotPos = TABLE_COORDS[nextCandidateId];
         ctx.save();
         ctx.strokeStyle = '#d97706';
@@ -657,7 +671,24 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
         ctx.fillText('➕ 點擊擴建席位', slotPos.x, slotPos.y - 4);
         ctx.font = 'bold 10px monospace';
         ctx.fillStyle = '#fde68a';
-        ctx.fillText('$150 添置', slotPos.x, slotPos.y + 12);
+        ctx.fillText(`$150 (${stateRef.current.tables.length}/16)`, slotPos.x, slotPos.y + 12);
+        ctx.restore();
+      } else if (stateRef.current.tables.length >= 16) {
+        // Draw Max Tables Celebration Banner
+        ctx.save();
+        ctx.fillStyle = 'rgba(225, 29, 72, 0.15)';
+        ctx.fillRect(800, 425, 175, 45);
+        ctx.strokeStyle = '#f43f5e';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(800, 425, 175, 45);
+
+        ctx.font = 'bold 11px sans-serif';
+        ctx.fillStyle = '#fecdd3';
+        ctx.textAlign = 'center';
+        ctx.fillText('🎊 席位達 16 桌上限！', 887, 442);
+        ctx.font = 'bold 10px sans-serif';
+        ctx.fillStyle = '#fbbf24';
+        ctx.fillText('🗺️ 請點擊開設新分店', 887, 458);
         ctx.restore();
       }
 
@@ -910,9 +941,10 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
     const clickY = (e.clientY - rect.top) * scaleY;
 
     // Check if clicked the candidate expansion table slot
+    const CANDIDATE_TABLE_IDS = ['T7', 'T8', 'T9', 'T10', 'T11', 'T12', 'T13', 'T14', 'T15', 'T16'];
     const existingTableIds = new Set(state.tables.map(t => t.id));
-    const nextCandidateId = ['T7', 'T8', 'T9', 'T10'].find(id => !existingTableIds.has(id));
-    if (nextCandidateId && TABLE_COORDS[nextCandidateId] && state.tables.length < 10) {
+    const nextCandidateId = CANDIDATE_TABLE_IDS.find(id => !existingTableIds.has(id));
+    if (nextCandidateId && TABLE_COORDS[nextCandidateId] && state.tables.length < 16) {
       const slot = TABLE_COORDS[nextCandidateId];
       if (
         clickX >= slot.x - 45 &&
@@ -921,6 +953,14 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
         clickY <= slot.y + 22
       ) {
         onAddTable?.();
+        return;
+      }
+    }
+
+    // Check if clicked the Max Tables branch banner
+    if (state.tables.length >= 16 && onOpenBranchMapModal) {
+      if (clickX >= 800 && clickX <= 975 && clickY >= 425 && clickY <= 470) {
+        onOpenBranchMapModal();
         return;
       }
     }
@@ -950,13 +990,14 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
       {/* Top Ambience Bar with Large High-Contrast Font */}
       {(() => {
         const clockInfo = getSushiClockInfo(state.tick, state.day, state.isShiftEnded);
+        const activeBranch = state.branches?.find(b => b.id === state.activeBranchId);
         return (
           <div className="bg-gradient-to-r from-red-950 via-stone-900 to-red-950 px-4 py-2 border-b border-amber-800/60 flex items-center justify-between shadow-md z-10 flex-shrink-0">
             <div className="flex items-center gap-3">
               <span className="text-xl animate-lantern inline-block">🏮</span>
               <div className="flex items-center gap-2">
                 <span className="font-extrabold text-amber-200 tracking-wide text-xs sm:text-sm">
-                  ⛩️ 江戶前・壽司物語 2D 動畫實景
+                  ⛩️ {activeBranch ? activeBranch.name : '江戶前・壽司物語'} 2D 動畫實景
                 </span>
                 <span className="text-xs bg-amber-950/80 text-amber-300 font-mono px-2 py-0.5 rounded-full border border-amber-700/60 font-bold">
                   第 {clockInfo.day} 天 • {clockInfo.time12} [{clockInfo.shiftPhaseEmoji} {clockInfo.shiftPhaseLabel}]
@@ -985,13 +1026,25 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
               {onAddTable && (
                 <button
                   onClick={onAddTable}
-                  disabled={state.tables.length >= 10}
+                  disabled={state.tables.length >= 16}
                   className="bg-amber-500 hover:bg-amber-400 disabled:opacity-40 disabled:cursor-not-allowed text-stone-950 font-black px-2.5 py-1 rounded-xl shadow-md flex items-center gap-1 transition text-xs active:scale-95"
-                  title={state.tables.length >= 10 ? '席位已達上限（10席）' : '增設新餐桌（花費 $150）'}
+                  title={state.tables.length >= 16 ? '席位已達上限（16席）！可開設新分店' : '增設新餐桌（花費 $150）'}
                 >
                   <span>➕ 餐桌</span>
                   <span className="bg-amber-950/70 text-amber-200 px-1 py-0.5 rounded text-[10px]">
-                    {state.tables.length}/10
+                    {state.tables.length}/16
+                  </span>
+                </button>
+              )}
+              {onOpenBranchMapModal && (state.tables.length >= 16 || state.hasReachedMaxTables) && (
+                <button
+                  onClick={onOpenBranchMapModal}
+                  className="bg-gradient-to-r from-amber-500 via-rose-500 to-amber-500 hover:brightness-110 text-stone-950 font-black px-2.5 py-1 rounded-xl shadow-lg flex items-center gap-1.5 transition text-xs animate-bounce active:scale-95 border border-amber-300"
+                  title="席位已達 16 桌上限！點擊進入 Google Map 開設新分店"
+                >
+                  <span>🗺️ 開設新分店</span>
+                  <span className="bg-stone-950/70 text-amber-300 px-1 py-0.5 rounded text-[10px] font-mono">
+                    16席滿
                   </span>
                 </button>
               )}
