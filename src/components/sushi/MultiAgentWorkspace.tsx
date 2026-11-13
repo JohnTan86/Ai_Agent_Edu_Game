@@ -6,6 +6,7 @@ import {
   SushiAgentRole
 } from '../../lib/sushi/types';
 import { ALL_SUSHI_TOOLS, SUSHI_PROMPT_PRESETS } from '../../lib/sushi/defaultAgents';
+import { parseSushiPrompt } from '../../lib/sushi/agentEngine';
 import {
   Bot,
   Sliders,
@@ -16,7 +17,8 @@ import {
   Key,
   ShieldAlert,
   HelpCircle,
-  Cpu
+  Cpu,
+  CheckCircle2
 } from 'lucide-react';
 
 interface MultiAgentWorkspaceProps {
@@ -214,8 +216,141 @@ export const MultiAgentWorkspace: React.FC<MultiAgentWorkspaceProps> = ({
               />
             </div>
 
+            {/* Live Prompt Strategy Quality Checklist */}
+            {(() => {
+              const directives = parseSushiPrompt(agent.systemPrompt);
+              const getRoleChecklist = () => {
+                switch (selectedRole) {
+                  case 'host':
+                    return [
+                      {
+                        title: '忌口備忘提取',
+                        hint: '含「忌口/不要芥末/素食/備註」',
+                        isActive: directives.recordDietaryNotes
+                      },
+                      {
+                        title: 'VIP 優先接待',
+                        hint: '含「VIP/貴賓/優先/米其林」',
+                        isActive: directives.isVipFocused
+                      },
+                      {
+                        title: '翻台效率推進',
+                        hint: '含「效率/速/快速/翻台」',
+                        isActive: directives.isAggressiveSpeed
+                      }
+                    ];
+                  case 'chef':
+                    return [
+                      {
+                        title: '嚴守工單忌口',
+                        hint: '含「遵守/不要芥末/嚴格/忌口」',
+                        isActive: directives.honorDietaryStrictly
+                      },
+                      {
+                        title: 'VIP 工單插單',
+                        hint: '含「VIP/貴賓/加急/優先」',
+                        isActive: directives.isVipFocused
+                      },
+                      {
+                        title: '批次合併製作',
+                        hint: '含「批次/合併/相同/集中」',
+                        isActive: directives.batchCrafting
+                      }
+                    ];
+                  case 'inventory':
+                    return [
+                      {
+                        title: '安全庫存門檻',
+                        hint: `低於 ${directives.safetyStockThreshold} 份時補貨`,
+                        isActive: directives.safetyStockThreshold > 0
+                      },
+                      {
+                        title: '預算防破產',
+                        hint: '含「預算/防破產/節儉/結餘」',
+                        isActive: directives.budgetAwareProcurement
+                      },
+                      {
+                        title: '供需敏捷響應',
+                        hint: '含「盤點/補貨/需求/報警」',
+                        isActive:
+                          agent.systemPrompt.includes('盤點') ||
+                          agent.systemPrompt.includes('補貨') ||
+                          agent.systemPrompt.includes('需求') ||
+                          agent.systemPrompt.includes('報警')
+                      }
+                    ];
+                  case 'manager':
+                    return [
+                      {
+                        title: '主動客訴挽救',
+                        hint: '含「安撫/抹茶/甜品/客訴」',
+                        isActive: directives.autoRemedyComplaints
+                      },
+                      {
+                        title: '滿意度防禦',
+                        hint: '含「滿意度/3顆星/口碑/星級」',
+                        isActive:
+                          agent.systemPrompt.includes('滿意度') ||
+                          agent.systemPrompt.includes('3') ||
+                          agent.systemPrompt.includes('口碑') ||
+                          agent.systemPrompt.includes('星級')
+                      },
+                      {
+                        title: '跨部門協調',
+                        hint: '含「方針/協調/督促/全隊」',
+                        isActive:
+                          agent.systemPrompt.includes('方針') ||
+                          agent.systemPrompt.includes('協調') ||
+                          agent.systemPrompt.includes('督促') ||
+                          agent.systemPrompt.includes('全隊')
+                      }
+                    ];
+                }
+              };
+
+              const items = getRoleChecklist();
+              const activeCount = items.filter(i => i.isActive).length;
+
+              return (
+                <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 shadow-md flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                      <span className="text-xs font-bold text-amber-300">
+                        提示詞策略檢核 (Live Strategy Checklist)
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-slate-400 font-mono">
+                      已生效: {activeCount} / {items.length}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    {items.map((item, idx) => (
+                      <div
+                        key={idx}
+                        className={`px-2.5 py-1.5 rounded-lg border text-xs flex flex-col gap-0.5 transition-all ${
+                          item.isActive
+                            ? 'bg-emerald-950/70 border-emerald-500/50 text-emerald-300 shadow-sm'
+                            : 'bg-slate-950/60 border-slate-800 text-slate-500'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-[11px]">{item.title}</span>
+                          <span className="text-[10px] font-mono">
+                            {item.isActive ? '✓ 已生效' : '○ 未啟動'}
+                          </span>
+                        </div>
+                        <span className="text-[10px] opacity-80 leading-tight">{item.hint}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
             <p className="text-xs text-slate-400 italic">
-              💡 提示：在提示詞中加入特殊規則（例如「不要芥末」、「鮭魚低於6份採購」或「優先照顧VIP」），Agent
+              💡 提示：在提示詞中加入關鍵策略詞（例如「忌口/不要芥末」、「預算/防破產」、「VIP優先」、「安撫/抹茶」），Agent
               將在模擬中實時遵循！
             </p>
           </div>

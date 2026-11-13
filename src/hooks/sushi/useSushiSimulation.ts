@@ -207,7 +207,8 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
     }
 
     const billAmount = orders.reduce((acc, o) => acc + (SUSHI_RECIPES[o.recipeId]?.price || 15) * o.quantity, 0);
-    const patienceMax = isVip ? 70 : (specialPreference === 'rush_hurry' ? 45 : 80);
+    // Tightened customer patience: VIPs and rush customers are demanding; slow service causes walkouts
+    const patienceMax = isVip ? 34 : (specialPreference === 'rush_hurry' ? 24 : 44);
 
     return {
       id: custId,
@@ -300,10 +301,30 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
     const totalReviews = 5 + s.metrics.customersServed + newWalkouts;
     const computedSatisfaction = Math.max(1.0, Math.min(5.0, Number((newCumulativeStars / totalReviews).toFixed(1))));
 
+    // Deduct periodic facility rent and utility overhead
+    const currentFinancials = { ...s.financials };
+    const currentThoughts = [...s.thoughtSteps];
+    if (nextTick > 0 && nextTick % 10 === 0 && s.scenario.difficulty !== 'Sandbox') {
+      const rentAmount = 8;
+      currentFinancials.balance -= rentAmount;
+      currentFinancials.totalExpenses += rentAmount;
+      currentThoughts.push({
+        id: `rent_deduct_${nextTick}_${Date.now()}`,
+        agentRole: 'manager',
+        agentName: agentsRef.current.manager?.name || '櫻 (Sakura)',
+        tick: nextTick,
+        timestamp: new Date().toLocaleTimeString(),
+        type: 'observe',
+        content: `【定期店租與水電耗損】結算固定營運開銷 -$${rentAmount}（當前可用結餘: $${currentFinancials.balance.toFixed(0)}）。`
+      });
+    }
+
     // Multi-Agent Decision Loop
     const draftState: SushiSimulationState = {
       ...s,
       tick: nextTick,
+      financials: currentFinancials,
+      thoughtSteps: currentThoughts,
       customersInQueue: updatedQueue,
       seatedCustomers: updatedSeated,
       metrics: {

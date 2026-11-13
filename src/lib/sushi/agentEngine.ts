@@ -39,6 +39,9 @@ export interface AgentPromptDirectives {
   safetyStockThreshold: number;
   autoRemedyComplaints: boolean;
   batchCrafting: boolean;
+  budgetAwareProcurement: boolean;
+  recordDietaryNotes: boolean;
+  honorDietaryStrictly: boolean;
 }
 
 export function parseSushiPrompt(prompt: string): AgentPromptDirectives {
@@ -51,12 +54,23 @@ export function parseSushiPrompt(prompt: string): AgentPromptDirectives {
   }
 
   return {
-    isAggressiveSpeed: p.includes('速') || p.includes('翻台') || p.includes('fast') || p.includes('quick'),
-    isStrictArtisan: p.includes('匠') || p.includes('品质') || p.includes('品質') || p.includes('artisan'),
-    isVipFocused: p.includes('vip') || p.includes('米其林') || p.includes('贵宾') || p.includes('貴賓'),
+    isAggressiveSpeed:
+      p.includes('速') || p.includes('翻台') || p.includes('fast') || p.includes('quick') || p.includes('效率'),
+    isStrictArtisan:
+      p.includes('匠') || p.includes('品质') || p.includes('品質') || p.includes('artisan'),
+    isVipFocused:
+      p.includes('vip') || p.includes('米其林') || p.includes('贵宾') || p.includes('貴賓') || p.includes('优先接待') || p.includes('優先接待') || p.includes('加急'),
     safetyStockThreshold: Math.max(2, Math.min(25, threshold)),
-    autoRemedyComplaints: p.includes('安抚') || p.includes('安撫') || p.includes('甜点') || p.includes('remedy') || p.includes('茶'),
-    batchCrafting: p.includes('批次') || p.includes('合并') || p.includes('合併') || p.includes('batch')
+    autoRemedyComplaints:
+      p.includes('安抚') || p.includes('安撫') || p.includes('甜点') || p.includes('甜品') || p.includes('remedy') || p.includes('茶') || p.includes('客诉') || p.includes('客訴') || p.includes('抹茶'),
+    batchCrafting:
+      p.includes('批次') || p.includes('合并') || p.includes('合併') || p.includes('batch') || p.includes('相同') || p.includes('集中'),
+    budgetAwareProcurement:
+      p.includes('预算') || p.includes('預算') || p.includes('破产') || p.includes('破產') || p.includes('节俭') || p.includes('節儉') || p.includes('控制成本') || p.includes('結餘') || p.includes('结余') || p.includes('防破產') || p.includes('防破产') || p.includes('暫停') || p.includes('暫緩') || p.includes('昂贵') || p.includes('昂貴'),
+    recordDietaryNotes:
+      p.includes('忌口') || p.includes('备忘') || p.includes('備忘') || p.includes('备注') || p.includes('備註') || p.includes('过敏') || p.includes('過敏') || p.includes('芥末') || p.includes('素食') || p.includes('dietary') || p.includes('allergy') || p.includes('偏好') || p.includes('不要'),
+    honorDietaryStrictly:
+      p.includes('遵守') || p.includes('不要芥末') || p.includes('不要放') || p.includes('不放') || p.includes('素食') || p.includes('检查工单') || p.includes('檢查工單') || p.includes('忌口') || p.includes('严格') || p.includes('嚴格')
   };
 }
 
@@ -146,7 +160,23 @@ export async function executeMultiAgentCycle(
           const recipe = SUSHI_RECIPES[item.recipeId];
           if (!recipe) continue;
 
-          const isDietary = cust.specialPreference !== 'none';
+          // Check if Host prompt directed to record special dietary notes
+          const willRecordNotes = hostDirectives.recordDietaryNotes;
+          const noteToPass = willRecordNotes ? cust.specialNote : '';
+          const isDietary = willRecordNotes && cust.specialPreference !== 'none';
+
+          if (cust.specialPreference !== 'none' && !willRecordNotes) {
+            thoughtSteps.push({
+              id: genSushiId('th_host_miss_note'),
+              agentRole: 'host',
+              agentName: agents.host.name,
+              tick: currentTick,
+              timestamp,
+              type: 'observe',
+              content: `⚠️【忌口備註疏漏】阿葵提示詞未指示記錄特殊忌口，忽略了顧客【${cust.name}】的要求（${cust.specialNote}）！`
+            });
+          }
+
           const ticketId = `TK-${Math.floor(1000 + Math.random() * 9000)}`;
 
           const newTicket: OrderTicket = {
@@ -160,7 +190,7 @@ export async function executeMultiAgentCycle(
             price: recipe.price,
             status: 'pending',
             createdAtTick: currentTick,
-            customNote: cust.specialNote,
+            customNote: noteToPass,
             isSpecialDietary: isDietary
           };
 
@@ -248,6 +278,26 @@ export async function executeMultiAgentCycle(
         const bill = cust.billAmount;
         let satisfaction = Math.max(1, Math.min(5, Math.round((cust.patienceRemaining / cust.patienceMax) * 5)));
         if (cust.isVip && satisfaction < 4) satisfaction = 3;
+
+        // Check if customer had a dietary restriction that was violated
+        const chefRules = agents.chef ? parseSushiPrompt(agents.chef.systemPrompt) : null;
+        const hadDietaryViolation =
+          cust.specialPreference !== 'none' &&
+          (!hostDirectives.recordDietaryNotes || !(chefRules ? chefRules.honorDietaryStrictly : true));
+
+        if (hadDietaryViolation) {
+          satisfaction = 1; // Major complaint: 1 star!
+          thoughtSteps.push({
+            id: genSushiId(`th_dietary_complaint_${cust.id}`),
+            agentRole: 'host',
+            agentName: agents.host.name,
+            tick: currentTick,
+            timestamp,
+            type: 'observe',
+            content: `❌【重大客訴】顧客【${cust.name}】極度憤怒：『我交代了忌口（${cust.specialNote}），餐廳竟然未按要求出餐！』留下 1 顆星極差負評！`
+          });
+          sushiAudio.playAlert();
+        }
 
         let tip = 0;
         if (satisfaction >= 4) {
@@ -347,15 +397,25 @@ export async function executeMultiAgentCycle(
     const pendingTickets = activeTickets.filter(t => t.status === 'pending');
 
     if (idleStations.length > 0 && pendingTickets.length > 0) {
+      // Prioritize VIP tickets if prompt directives focus on VIP
+      if (chefDirectives.isVipFocused) {
+        pendingTickets.sort((a, b) => {
+          const custA = seatedCustomers.find(c => c.id === a.customerId);
+          const custB = seatedCustomers.find(c => c.id === b.customerId);
+          return (custB?.isVip ? 1 : 0) - (custA?.isVip ? 1 : 0);
+        });
+      }
+
       for (const station of idleStations) {
         if (pendingTickets.length === 0) break;
 
-        // If batching is preferred in prompt, try to pick tickets with same recipe
         const ticket = pendingTickets.shift()!;
         const recipe = SUSHI_RECIPES[ticket.recipeId];
 
         if (recipe) {
-          const { canCraft, missing } = canCraftRecipe(recipe, inventory, ticket.customNote);
+          // If chef prompt instructs strict dietary compliance, honor customNote
+          const effectiveNote = chefDirectives.honorDietaryStrictly ? ticket.customNote : '';
+          const { canCraft, missing } = canCraftRecipe(recipe, inventory, effectiveNote);
 
           if (!canCraft) {
             // Out of ingredients!
@@ -389,7 +449,7 @@ export async function executeMultiAgentCycle(
 
           // Consume ingredients
           for (const req of recipe.ingredients) {
-            if (req.ingredient === 'wasabi' && ticket.customNote?.includes('不要芥末')) {
+            if (req.ingredient === 'wasabi' && effectiveNote?.includes('不要芥末')) {
               continue;
             }
             if (inventory[req.ingredient]) {
@@ -397,12 +457,17 @@ export async function executeMultiAgentCycle(
             }
           }
 
+          // Speed up if batch crafting enabled
+          const prepTime = chefDirectives.batchCrafting
+            ? Math.max(2, Math.round(recipe.prepTicks * 0.6))
+            : recipe.prepTicks;
+
           // Setup station
           station.status = 'prepping';
           station.currentTicketId = ticket.id;
           station.currentRecipeId = recipe.id;
-          station.totalPrepTicks = recipe.prepTicks;
-          station.remainingPrepTicks = recipe.prepTicks;
+          station.totalPrepTicks = prepTime;
+          station.remainingPrepTicks = prepTime;
           station.prepProgress = 10;
           station.assignedChef = agents.chef.name;
 
@@ -444,6 +509,21 @@ export async function executeMultiAgentCycle(
 
         // Check if balance allows
         if (financials.balance >= orderCost) {
+          // Budget awareness: if student prompt specified budget control, postpone luxury purchases when balance is tight
+          const isLuxury = key === 'wagyu' || key === 'uni';
+          if (invDirectives.budgetAwareProcurement && isLuxury && financials.balance < 140) {
+            thoughtSteps.push({
+              id: genSushiId(`th_inv_budget_skip_${key}`),
+              agentRole: 'inventory',
+              agentName: agents.inventory.name,
+              tick: currentTick,
+              timestamp,
+              type: 'thought',
+              content: `🛡️【預算控管策略生效】提示詞指示節流防破產！當前結餘 $${financials.balance.toFixed(0)} < $140，暫緩高價食材【${item.name}】採購（單次花費 $${orderCost}），優先維持越光米與鮭魚等基本盤！`
+            });
+            continue;
+          }
+
           financials.balance -= orderCost;
           financials.totalExpenses += orderCost;
           financials.procurementCosts += orderCost;
@@ -495,31 +575,45 @@ export async function executeMultiAgentCycle(
     for (const cust of seatedCustomers) {
       if (cust.status === 'waiting_food') {
         const patiencePct = cust.patienceRemaining / cust.patienceMax;
-        if (patiencePct < 0.45 && mgrDirectives.autoRemedyComplaints) {
-          // Restore 30% patience
-          const restored = Math.round(cust.patienceMax * 0.3);
-          cust.patienceRemaining = Math.min(cust.patienceMax, cust.patienceRemaining + restored);
+        if (patiencePct < 0.45) {
+          if (mgrDirectives.autoRemedyComplaints) {
+            // Restore 35% patience
+            const restored = Math.round(cust.patienceMax * 0.35);
+            cust.patienceRemaining = Math.min(cust.patienceMax, cust.patienceRemaining + restored);
 
-          thoughtSteps.push({
-            id: genSushiId(`th_mgr_remedy_${cust.id}`),
-            agentRole: 'manager',
-            agentName: agents.manager.name,
-            tick: currentTick,
-            timestamp,
-            type: 'tool_call',
-            content: `發現顧客【${cust.name}】等待時間過長（耐心值僅剩 ${(patiencePct * 100).toFixed(0)}%），店長授權 complaint_remedy 贈送高級宇治抹茶甜品，恢復耐心值 +30%！`
-          });
+            thoughtSteps.push({
+              id: genSushiId(`th_mgr_remedy_${cust.id}`),
+              agentRole: 'manager',
+              agentName: agents.manager.name,
+              tick: currentTick,
+              timestamp,
+              type: 'tool_call',
+              content: `🍵【店長客訴挽救生效】提示詞指示主動安撫！發現顧客【${cust.name}】等待時間過長（耐心值僅剩 ${(patiencePct * 100).toFixed(0)}%），店長授權 complaint_remedy 贈送高級宇治抹茶甜品，恢復耐心值 +35%！`
+            });
 
-          newMessages.push({
-            id: genSushiId(`msg_mgr_remedy_${cust.id}`),
-            tick: currentTick,
-            timestamp,
-            fromRole: 'manager',
-            toRole: 'all',
-            channel: 'customer_feedback',
-            content: `【店長關懷】已向桌號 ${cust.tableId}【${cust.name}】贈送御抹茶點心，有效撫平客訴風險。`
-          });
-          break; // One remedy per cycle
+            newMessages.push({
+              id: genSushiId(`msg_mgr_remedy_${cust.id}`),
+              tick: currentTick,
+              timestamp,
+              fromRole: 'manager',
+              toRole: 'all',
+              channel: 'customer_feedback',
+              content: `【店長關懷】已向桌號 ${cust.tableId}【${cust.name}】贈送御抹茶點心，有效撫平客訴風險。`
+            });
+            break; // One remedy per cycle
+          } else {
+            if (currentTick % 5 === 0) {
+              thoughtSteps.push({
+                id: genSushiId(`th_mgr_no_remedy_${cust.id}`),
+                agentRole: 'manager',
+                agentName: agents.manager.name,
+                tick: currentTick,
+                timestamp,
+                type: 'observe',
+                content: `⚠️【客訴危機警示】顧客【${cust.name}】耐心值告急（剩 ${(patiencePct * 100).toFixed(0)}%）！但櫻的提示詞中未指示【客訴安撫/抹茶甜品】，未能及時挽留客人！`
+              });
+            }
+          }
         }
       }
     }
