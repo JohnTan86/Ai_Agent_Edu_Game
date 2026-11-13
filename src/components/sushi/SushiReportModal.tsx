@@ -22,13 +22,17 @@ export const SushiReportModal: React.FC<SushiReportModalProps> = ({
 
   const { financials, metrics, scenario, endReason, status } = state;
 
+  const isBankruptcy = financials.balance < 0;
+  const isReputationCollapse = metrics.averageSatisfactionStars <= 3.0;
+  const isFailed = status === 'failed' || isBankruptcy || isReputationCollapse;
+
   // Compute Grade S, A, B, C, F
   let grade = 'B';
   let gradeColor = 'text-amber-400 border-amber-500/50 bg-amber-500/10';
 
-  if (status === 'failed' || financials.balance < 0) {
+  if (isFailed) {
     grade = 'F';
-    gradeColor = 'text-rose-500 border-rose-500/50 bg-rose-500/10';
+    gradeColor = 'text-rose-500 border-rose-500/80 bg-rose-500/20 shadow-lg shadow-rose-950/60 animate-pulse';
   } else if (metrics.customersServed >= scenario.targetServed && metrics.customersWalkout === 0) {
     grade = 'S';
     gradeColor = 'text-yellow-300 border-yellow-400/80 bg-yellow-500/20 shadow-lg shadow-yellow-500/20';
@@ -50,14 +54,20 @@ export const SushiReportModal: React.FC<SushiReportModalProps> = ({
     : null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm select-none animate-in fade-in duration-200">
-      <div className="bg-slate-900 border border-amber-900/40 rounded-3xl w-full max-w-2xl flex flex-col shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md select-none animate-in fade-in duration-200">
+      <div className={`bg-slate-900 border ${isFailed ? 'border-rose-500/60 shadow-rose-950/80' : 'border-amber-900/40'} rounded-3xl w-full max-w-2xl flex flex-col shadow-2xl overflow-hidden`}>
         {/* Header */}
-        <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/80">
+        <div className={`p-5 border-b border-slate-800 flex items-center justify-between ${isFailed ? 'bg-rose-950/60' : 'bg-slate-950/80'}`}>
           <div className="flex items-center gap-2.5">
-            <Award className="w-5 h-5 text-amber-400" />
+            {isFailed ? (
+              <span className="text-2xl animate-bounce">💀</span>
+            ) : (
+              <Award className="w-5 h-5 text-amber-400" />
+            )}
             <div>
-              <h2 className="text-sm font-bold text-white">壽司物語 AI 營運總結報告 (Performance Review)</h2>
+              <h2 className="text-sm font-bold text-white">
+                {isFailed ? '壽司物語 AI 經營失敗報告 (GAME OVER)' : '壽司物語 AI 營運總結報告 (Performance Review)'}
+              </h2>
               <p className="text-[11px] text-slate-400">{scenario.title}</p>
             </div>
           </div>
@@ -72,22 +82,26 @@ export const SushiReportModal: React.FC<SushiReportModalProps> = ({
         {/* Content Body */}
         <div className="p-6 flex flex-col gap-6 overflow-y-auto max-h-[70vh]">
           {/* Top Grade Banner */}
-          <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-800/60 border border-slate-700/60">
-            <div className="flex flex-col gap-1">
+          <div className={`flex items-center justify-between p-4 rounded-2xl border ${isFailed ? 'bg-rose-950/40 border-rose-500/60' : 'bg-slate-800/60 border-slate-700/60'}`}>
+            <div className="flex flex-col gap-1 pr-4">
               <span className="text-xs text-slate-400 font-mono">綜合經營評等 (Overall Grade)</span>
-              <span className="text-sm font-bold text-white">
+              <span className={`text-base font-black ${isFailed ? 'text-rose-400' : 'text-white'}`}>
                 {status === 'victory'
                   ? '🎉 順利達成關卡營運目標！'
-                  : status === 'failed'
-                  ? '💔 餐廳陷入經營危機破產'
+                  : isBankruptcy
+                  ? '💸 資金斷裂・宣告破產 (GAME OVER)'
+                  : isReputationCollapse
+                  ? '💔 顧客滿意度崩盤・停業整頓 (GAME OVER)'
+                  : isFailed
+                  ? '💀 經營失敗 (GAME OVER)'
                   : '本日營業已打烊核算'}
               </span>
-              {endReason && <p className="text-xs text-amber-300/90 mt-1">{endReason}</p>}
+              {endReason && <p className={`text-xs mt-1 ${isFailed ? 'text-rose-200' : 'text-amber-300/90'}`}>{endReason}</p>}
             </div>
 
             {/* Big Grade Badge */}
             <div
-              className={`w-20 h-20 rounded-2xl border-2 flex items-center justify-center text-4xl font-black font-mono ${gradeColor}`}
+              className={`w-20 h-20 rounded-2xl border-2 flex items-center justify-center text-4xl font-black font-mono shrink-0 ${gradeColor}`}
             >
               {grade}
             </div>
@@ -112,7 +126,7 @@ export const SushiReportModal: React.FC<SushiReportModalProps> = ({
               </span>
             </div>
 
-            <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 flex flex-col">
+            <div className={`p-3 rounded-xl border flex flex-col ${isBankruptcy ? 'bg-rose-950/50 border-rose-500/80' : 'bg-slate-800/80 border-slate-700/60'}`}>
               <span className="text-[10px] text-slate-400 font-mono">淨結餘資金</span>
               <span
                 className={`text-base font-bold font-mono mt-1 ${
@@ -123,22 +137,11 @@ export const SushiReportModal: React.FC<SushiReportModalProps> = ({
               </span>
             </div>
 
-            <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 flex flex-col">
+            <div className={`p-3 rounded-xl border flex flex-col ${isReputationCollapse ? 'bg-rose-950/50 border-rose-500/80' : 'bg-slate-800/80 border-slate-700/60'}`}>
               <span className="text-[10px] text-slate-400 font-mono">平均滿意度</span>
-              <span className="text-base font-bold text-amber-300 font-mono mt-1 flex items-center justify-center gap-1">
+              <span className={`text-base font-bold font-mono mt-1 flex items-center justify-center gap-1 ${isReputationCollapse ? 'text-rose-400' : 'text-amber-300'}`}>
                 <Star className="w-3.5 h-3.5 fill-current" />
-                <span>
-                  {metrics.customersServed > 0
-                    ? Math.max(
-                        1,
-                        Math.min(
-                          5,
-                          (5 * metrics.customersServed - metrics.customersWalkout * 2) /
-                            metrics.customersServed
-                        )
-                      ).toFixed(1)
-                    : '5.0'}
-                </span>
+                <span>{metrics.averageSatisfactionStars.toFixed(1)}</span>
               </span>
             </div>
           </div>

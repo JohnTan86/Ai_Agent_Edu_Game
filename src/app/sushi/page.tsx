@@ -29,7 +29,8 @@ export default function SushiApp() {
     toggleSound,
     updateAgentConfig,
     selectAgent,
-    runManualAgentTurn
+    runManualAgentTurn,
+    addTable
   } = useSushiSimulation();
 
   // Keyboard shortcut listener
@@ -71,6 +72,7 @@ export default function SushiApp() {
         onToggleSound={toggleSound}
         onOpenGuide={() => setIsHelpOpen(true)}
         onOpenReport={() => setIsReportOpen(true)}
+        onAddTable={addTable}
       />
 
       {/* 2. Main 3-Column Layout */}
@@ -88,7 +90,11 @@ export default function SushiApp() {
 
         {/* Center Column: Interactive 2D Sushi Restaurant Simulation */}
         <div className="flex-1 flex flex-col min-w-0 bg-slate-950/80 relative h-full">
-          <SushiRestaurantView state={state} />
+          <SushiRestaurantView
+            state={state}
+            onAddTable={addTable}
+            onReset={() => reset()}
+          />
         </div>
 
         {/* Right Column: Multi-Agent Telemetry, Comms Stream, Thought Trace */}

@@ -262,6 +262,13 @@ export async function executeMultiAgentCycle(
         metrics.customersServed += 1;
         if (cust.isVip) metrics.vipCustomersServed += 1;
 
+        // Update cumulative satisfaction stars and average score
+        const prevCumStars = metrics.cumulativeSatisfactionStars ?? 25;
+        const updatedCumStars = prevCumStars + satisfaction;
+        metrics.cumulativeSatisfactionStars = updatedCumStars;
+        const totalReviews = 5 + metrics.customersServed + metrics.customersWalkout;
+        metrics.averageSatisfactionStars = Math.max(1.0, Math.min(5.0, Number((updatedCumStars / totalReviews).toFixed(1))));
+
         // Update table to dirty then empty
         const tbl = tables.find(t => t.id === cust.tableId);
         if (tbl) {

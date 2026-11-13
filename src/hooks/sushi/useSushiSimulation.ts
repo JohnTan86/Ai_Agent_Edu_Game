@@ -9,7 +9,9 @@ import {
   SushiAgentConfig,
   SushiAgentRole,
   SushiScenario,
-  SushiSimulationState
+  SushiSimulationState,
+  AgentThoughtStep,
+  InterAgentMessage
 } from '../../lib/sushi/types';
 import { INITIAL_INGREDIENTS, SUSHI_RECIPES } from '../../lib/sushi/recipes';
 import { DEFAULT_SUSHI_AGENTS } from '../../lib/sushi/defaultAgents';
@@ -107,6 +109,7 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
         customersServed: 0,
         customersWalkout: 0,
         averageSatisfactionStars: 5.0,
+        cumulativeSatisfactionStars: 25,
         averageWaitTicks: 0,
         dishesPreparedCount: 0,
         spoilageWasteUnits: 0,
@@ -290,7 +293,14 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
       updatedQueue.push(newCust);
     }
 
-    // 3. Multi-Agent Decision Loop
+    // 3. Update walkout metrics and satisfaction score
+    const currentStars = s.metrics.cumulativeSatisfactionStars ?? 25;
+    const newCumulativeStars = currentStars + (walkoutsThisTick * 1.0); // each walkout counts as 1 star
+    const newWalkouts = s.metrics.customersWalkout + walkoutsThisTick;
+    const totalReviews = 5 + s.metrics.customersServed + newWalkouts;
+    const computedSatisfaction = Math.max(1.0, Math.min(5.0, Number((newCumulativeStars / totalReviews).toFixed(1))));
+
+    // Multi-Agent Decision Loop
     const draftState: SushiSimulationState = {
       ...s,
       tick: nextTick,
@@ -298,29 +308,36 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
       seatedCustomers: updatedSeated,
       metrics: {
         ...s.metrics,
-        customersWalkout: s.metrics.customersWalkout + walkoutsThisTick
+        customersWalkout: newWalkouts,
+        cumulativeSatisfactionStars: newCumulativeStars,
+        averageSatisfactionStars: computedSatisfaction
       }
     };
 
     const result = await executeMultiAgentCycle(draftState, agentsRef.current);
 
-    // 4. Check Scenario End Conditions
+    // 4. Check Scenario End Conditions (Bankruptcy < 0, Satisfaction <= 3.0, Victory, MaxTicks)
     let newStatus: SushiSimulationState['status'] = s.status;
     let endReason: string | undefined = undefined;
 
-    if (result.updatedMetrics.customersServed >= s.scenario.targetServed && s.scenario.difficulty !== 'Sandbox') {
+    if (result.updatedFinancials.balance < 0) {
+      newStatus = 'failed';
+      endReason = `【餐廳破產 Game Over】資金赤字已達 $${result.updatedFinancials.balance.toFixed(0)}（小於 $0），現金流斷裂無法繼續營運！請優化食材採購與開銷。`;
+      sushiAudio.playAlert();
+      setIsReportOpen(true);
+    } else if (result.updatedMetrics.averageSatisfactionStars <= 3.0) {
+      newStatus = 'failed';
+      endReason = `【口碑崩盤 Game Over】顧客平均滿意度已跌至 ${result.updatedMetrics.averageSatisfactionStars.toFixed(1)} 顆星（下滑至 3.0 顆星門檻），食客紛紛留下負評抵制，餐廳被迫歇業！`;
+      sushiAudio.playAlert();
+      setIsReportOpen(true);
+    } else if (result.updatedMetrics.customersServed >= s.scenario.targetServed && s.scenario.difficulty !== 'Sandbox') {
       newStatus = 'victory';
-      endReason = `恭喜達成營運目標！共成功接待 ${result.updatedMetrics.customersServed} 位客人，總營收 $${result.updatedFinancials.totalRevenue.toFixed(0)}！`;
+      endReason = `🎉 恭喜達成營運目標！共成功接待 ${result.updatedMetrics.customersServed} 位客人，總營收 $${result.updatedFinancials.totalRevenue.toFixed(0)}！`;
       sushiAudio.playFanfare();
       setIsReportOpen(true);
     } else if (nextTick >= s.scenario.maxTicks && s.scenario.difficulty !== 'Sandbox') {
       newStatus = 'day_ended';
       endReason = `本日營業時間已結束（已達 ${s.scenario.maxTicks} 刻度）。`;
-      setIsReportOpen(true);
-    } else if (result.updatedFinancials.balance < -100) {
-      newStatus = 'failed';
-      endReason = '現金流枯竭破產！請優化採購與支出策略。';
-      sushiAudio.playAlert();
       setIsReportOpen(true);
     }
 
@@ -408,6 +425,106 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
     sushiAudio.setEnabled(nextVal);
     setState(prev => ({ ...prev, soundEnabled: nextVal }));
   };
+
+  /**
+   * Expand restaurant capacity by adding a new dining table ($150)
+   */
+  const addTable = useCallback((customType?: 'counter' | 'booth'): boolean => {
+    const s = stateRef.current;
+    const cost = 150;
+
+    if (s.tables.length >= 10) {
+      setState(prev => ({
+        ...prev,
+        thoughtSteps: [
+          {
+            id: `th_max_tables_${Date.now()}`,
+            agentRole: 'manager',
+            agentName: agentsRef.current.manager.name,
+            tick: prev.tick,
+            timestamp: new Date().toLocaleTimeString('zh-TW', { hour12: false }),
+            type: 'thought',
+            content: `⚠️【席位已達上限】本店空間已擴展至最大容量（10 席），無法再增設更多餐桌！`
+          },
+          ...prev.thoughtSteps
+        ]
+      }));
+      return false;
+    }
+
+    if (s.financials.balance < cost) {
+      sushiAudio.playAlert();
+      setState(prev => ({
+        ...prev,
+        thoughtSteps: [
+          {
+            id: `th_err_funds_${Date.now()}`,
+            agentRole: 'manager',
+            agentName: agentsRef.current.manager.name,
+            tick: prev.tick,
+            timestamp: new Date().toLocaleTimeString('zh-TW', { hour12: false }),
+            type: 'thought',
+            content: `❌【擴建失敗】資金不足！增設一張餐桌需要 $${cost}，目前結餘僅有 $${prev.financials.balance.toFixed(0)}。`
+          },
+          ...prev.thoughtSteps
+        ]
+      }));
+      return false;
+    }
+
+    const existingIds = new Set(s.tables.map(t => t.id));
+    const candidateOrder = ['T7', 'T8', 'T9', 'T10'];
+    const nextId = candidateOrder.find(id => !existingIds.has(id)) || `T${s.tables.length + 1}`;
+
+    const tableDefs: Record<string, { name: string; type: 'counter' | 'booth'; capacity: number }> = {
+      T7: { name: '吧台 7 號席', type: 'counter', capacity: 1 },
+      T8: { name: '楓葉 8 號桌', type: 'booth', capacity: 2 },
+      T9: { name: '特等 9 號席', type: 'counter', capacity: 1 },
+      T10: { name: '富士 10 號桌', type: 'booth', capacity: 4 }
+    };
+
+    const def = tableDefs[nextId] || {
+      name: `雅座 ${nextId}`,
+      type: customType || 'counter',
+      capacity: (customType || 'counter') === 'counter' ? 1 : 2
+    };
+
+    const newTable: DiningTable = {
+      id: nextId,
+      name: def.name,
+      type: def.type,
+      capacity: def.capacity,
+      status: 'empty',
+      cleanliness: 100
+    };
+
+    sushiAudio.playPayment();
+
+    setState(prev => ({
+      ...prev,
+      financials: {
+        ...prev.financials,
+        balance: prev.financials.balance - cost,
+        totalExpenses: prev.financials.totalExpenses + cost,
+        facilityRent: prev.financials.facilityRent + cost
+      },
+      tables: [...prev.tables, newTable],
+      thoughtSteps: [
+        {
+          id: `th_add_table_${Date.now()}`,
+          agentRole: 'manager',
+          agentName: agentsRef.current.manager.name,
+          tick: prev.tick,
+          timestamp: new Date().toLocaleTimeString('zh-TW', { hour12: false }),
+          type: 'observe',
+          content: `🎉【店面擴建】投資 $${cost} 成功添置【${newTable.name}】（${newTable.type === 'counter' ? '吧台單人席' : `${newTable.capacity}人雅座`}）！目前總席位擴增至 ${prev.tables.length + 1} 席！`
+        },
+        ...prev.thoughtSteps
+      ]
+    }));
+
+    return true;
+  }, []);
 
   const updateAgentConfig = (role: SushiAgentRole, updates: Partial<SushiAgentConfig>) => {
     setAgents(prev => ({
@@ -581,6 +698,7 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
     toggleSound,
     updateAgentConfig,
     selectAgent,
-    runManualAgentTurn
+    runManualAgentTurn,
+    addTable
   };
 }

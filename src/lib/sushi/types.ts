@@ -195,6 +195,7 @@ export interface RestaurantMetrics {
   customersServed: number;
   customersWalkout: number;
   averageSatisfactionStars: number;
+  cumulativeSatisfactionStars?: number;
   averageWaitTicks: number;
   dishesPreparedCount: number;
   spoilageWasteUnits: number;

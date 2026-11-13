@@ -25,6 +25,7 @@ interface SushiOvercookedStageProps {
   onSelectTable?: (table: DiningTable) => void;
   onSelectStation?: (station: KitchenStation) => void;
   onSelectIngredient?: (key: IngredientKey) => void;
+  onAddTable?: () => void;
 }
 
 interface Particle {
@@ -63,7 +64,8 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
   onSelectCustomer,
   onSelectTable,
   onSelectStation,
-  onSelectIngredient
+  onSelectIngredient,
+  onAddTable
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -135,14 +137,18 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
   const stateRef = useRef(state);
   stateRef.current = state;
 
-  // Table Coordinates in Virtual Space (1000 x 660)
+  // Table Coordinates in Virtual Space (1000 x 660) - Supports Up to 10 Tables
   const TABLE_COORDS: Record<string, { x: number; y: number; type: 'counter' | 'booth'; name: string }> = {
-    T1: { x: 360, y: 250, type: 'counter', name: '吧台 1' },
-    T2: { x: 520, y: 250, type: 'counter', name: '吧台 2' },
-    T3: { x: 680, y: 250, type: 'counter', name: '吧台 3' },
-    T4: { x: 360, y: 400, type: 'booth', name: '庭園 4' },
-    T5: { x: 520, y: 400, type: 'booth', name: '櫻花 5' },
-    T6: { x: 680, y: 400, type: 'booth', name: '松木 6' }
+    T1: { x: 330, y: 250, type: 'counter', name: '吧台 1' },
+    T2: { x: 470, y: 250, type: 'counter', name: '吧台 2' },
+    T3: { x: 610, y: 250, type: 'counter', name: '吧台 3' },
+    T7: { x: 750, y: 250, type: 'counter', name: '吧台 7' },
+    T9: { x: 890, y: 250, type: 'counter', name: '特等 9' },
+    T4: { x: 330, y: 400, type: 'booth', name: '庭園 4' },
+    T5: { x: 470, y: 400, type: 'booth', name: '櫻花 5' },
+    T6: { x: 610, y: 400, type: 'booth', name: '松木 6' },
+    T8: { x: 750, y: 400, type: 'booth', name: '楓葉 8' },
+    T10: { x: 890, y: 400, type: 'booth', name: '富士 10' }
   };
 
   // Kitchen Station Coordinates
@@ -579,9 +585,10 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
         ctx.fillText(`${item.currentStock} ${item.unit}`, boxX + 39, boxY + 50);
       });
 
-      // 7. Dining Tables & Counter Seats (Center Floor)
-      Object.entries(TABLE_COORDS).forEach(([tblId, pos]) => {
-        const customer = stateRef.current.seatedCustomers.find(c => c.tableId === tblId);
+      // 7. Dining Tables & Counter Seats (Center Floor) - Render Active Tables
+      stateRef.current.tables.forEach(table => {
+        const pos = TABLE_COORDS[table.id] || { x: 330, y: 250, type: table.type, name: table.name };
+        const customer = stateRef.current.seatedCustomers.find(c => c.tableId === table.id);
         const isEating = customer?.status === 'eating';
         const isPaying = customer?.status === 'paying';
         const isOccupied = !!customer;
@@ -603,7 +610,7 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
         ctx.fillStyle = '#fde68a';
         ctx.font = 'bold 10px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(pos.name, pos.x, pos.y - 6);
+        ctx.fillText(table.name || pos.name, pos.x, pos.y - 6);
 
         // Table Status
         if (customer) {
@@ -627,6 +634,31 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
           ctx.fillText('🪑 空席待客', pos.x, pos.y + 10);
         }
       });
+
+      // Draw dashed blueprint expansion slot for next expandable table
+      const existingTableIds = new Set(stateRef.current.tables.map(t => t.id));
+      const nextCandidateId = ['T7', 'T8', 'T9', 'T10'].find(id => !existingTableIds.has(id));
+      if (nextCandidateId && TABLE_COORDS[nextCandidateId] && stateRef.current.tables.length < 10) {
+        const slotPos = TABLE_COORDS[nextCandidateId];
+        ctx.save();
+        ctx.strokeStyle = '#d97706';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 4]);
+        ctx.strokeRect(slotPos.x - 45, slotPos.y - 20, 90, 42);
+        ctx.setLineDash([]);
+
+        ctx.fillStyle = 'rgba(217, 119, 6, 0.12)';
+        ctx.fillRect(slotPos.x - 45, slotPos.y - 20, 90, 42);
+
+        ctx.font = 'bold 11px sans-serif';
+        ctx.fillStyle = '#fbbf24';
+        ctx.textAlign = 'center';
+        ctx.fillText('➕ 點擊擴建席位', slotPos.x, slotPos.y - 4);
+        ctx.font = 'bold 10px monospace';
+        ctx.fillStyle = '#fde68a';
+        ctx.fillText('$150 添置', slotPos.x, slotPos.y + 12);
+        ctx.restore();
+      }
 
       // ==========================================
       // B. UPDATE & DRAW 2D ANIMATED ACTORS (OVERCOOKED STYLE)
@@ -867,6 +899,48 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
     return () => cancelAnimationFrame(animId);
   }, []);
 
+  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = 1000 / rect.width;
+    const scaleY = 660 / rect.height;
+    const clickX = (e.clientX - rect.left) * scaleX;
+    const clickY = (e.clientY - rect.top) * scaleY;
+
+    // Check if clicked the candidate expansion table slot
+    const existingTableIds = new Set(state.tables.map(t => t.id));
+    const nextCandidateId = ['T7', 'T8', 'T9', 'T10'].find(id => !existingTableIds.has(id));
+    if (nextCandidateId && TABLE_COORDS[nextCandidateId] && state.tables.length < 10) {
+      const slot = TABLE_COORDS[nextCandidateId];
+      if (
+        clickX >= slot.x - 45 &&
+        clickX <= slot.x + 45 &&
+        clickY >= slot.y - 20 &&
+        clickY <= slot.y + 22
+      ) {
+        onAddTable?.();
+        return;
+      }
+    }
+
+    // Check if clicked any existing table
+    for (const table of state.tables) {
+      const pos = TABLE_COORDS[table.id];
+      if (pos) {
+        if (
+          clickX >= pos.x - 45 &&
+          clickX <= pos.x + 45 &&
+          clickY >= pos.y - 20 &&
+          clickY <= pos.y + 22
+        ) {
+          onSelectTable?.(table);
+          return;
+        }
+      }
+    }
+  };
+
   return (
     <div
       ref={containerRef}
@@ -888,8 +962,22 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
           </div>
         </div>
 
-        {/* Live Status Indicators (Large Font) */}
+        {/* Live Status Indicators & Expand Table Button */}
         <div className="flex items-center gap-3 text-sm font-mono">
+          {onAddTable && (
+            <button
+              onClick={onAddTable}
+              disabled={state.tables.length >= 10}
+              className="bg-amber-500 hover:bg-amber-400 disabled:opacity-40 disabled:cursor-not-allowed text-stone-950 font-black px-3 py-1.5 rounded-xl shadow-md flex items-center gap-1.5 transition text-xs active:scale-95"
+              title={state.tables.length >= 10 ? '席位已達上限（10席）' : '增設新餐桌（花費 $150）'}
+            >
+              <span>➕ 擴建餐桌</span>
+              <span className="text-[10px] text-amber-950/80 font-bold">($150)</span>
+              <span className="bg-amber-950/70 text-amber-200 px-1.5 py-0.5 rounded text-[10px]">
+                {state.tables.length}/10 席
+              </span>
+            </button>
+          )}
           <span className="bg-stone-900/90 text-emerald-400 font-bold px-3 py-1 rounded-xl border border-stone-700 shadow-sm">
             💰 ${(state.financials?.balance ?? 0).toFixed(0)}
           </span>
@@ -906,7 +994,8 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
       <div className="flex-1 w-full h-full relative overflow-hidden bg-[#1c120a] flex items-center justify-center">
         <canvas
           ref={canvasRef}
-          className="w-full h-full block cursor-crosshair"
+          onClick={handleCanvasClick}
+          className="w-full h-full block cursor-pointer"
           style={{ imageRendering: 'pixelated' }}
         />
       </div>

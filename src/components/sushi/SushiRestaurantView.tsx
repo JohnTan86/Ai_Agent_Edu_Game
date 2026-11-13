@@ -20,7 +20,9 @@ import {
   ChefHat,
   HeartHandshake,
   Tv,
-  LayoutGrid
+  LayoutGrid,
+  PlusCircle,
+  RotateCcw
 } from 'lucide-react';
 
 interface SushiRestaurantViewProps {
@@ -28,13 +30,17 @@ interface SushiRestaurantViewProps {
   onSelectCustomer?: (customer: Customer) => void;
   onSelectTable?: (table: DiningTable) => void;
   onSelectStation?: (station: KitchenStation) => void;
+  onAddTable?: () => void;
+  onReset?: () => void;
 }
 
 export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
   state,
   onSelectCustomer,
   onSelectTable,
-  onSelectStation
+  onSelectStation,
+  onAddTable,
+  onReset
 }) => {
   const [hoveredCustomer, setHoveredCustomer] = useState<Customer | null>(null);
   const [viewMode, setViewMode] = useState<'cartoon' | 'classic'>('cartoon');
@@ -124,6 +130,7 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
             onSelectCustomer={onSelectCustomer}
             onSelectTable={onSelectTable}
             onSelectStation={onSelectStation}
+            onAddTable={onAddTable}
           />
         </div>
       ) : (
@@ -402,7 +409,17 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
             <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
               <div className="flex items-center gap-2">
                 <Utensils className="w-4 h-4 text-sky-400" />
-                <span className="text-xs font-bold text-white">客席用餐區 (Dining Tables & Counter Bar)</span>
+                <span className="text-xs font-bold text-white">客席用餐區 ({state.tables.length} 席)</span>
+                {onAddTable && state.tables.length < 10 && (
+                  <button
+                    onClick={onAddTable}
+                    className="ml-2 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/50 flex items-center gap-1.5 transition active:scale-95 shadow-sm"
+                    title="花費 $150 添置新餐桌"
+                  >
+                    <PlusCircle className="w-3.5 h-3.5 text-amber-400" />
+                    <span>增設餐桌 ($150)</span>
+                  </button>
+                )}
               </div>
               <div className="flex items-center gap-3 text-[10px] text-slate-400">
                 <span className="flex items-center gap-1">
@@ -515,10 +532,42 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
                   </div>
                 );
               })}
+
+              {/* Expansion Card if tables < 10 */}
+              {onAddTable && state.tables.length < 10 && (
+                <button
+                  onClick={onAddTable}
+                  className="p-3 rounded-2xl border-2 border-dashed border-amber-500/40 hover:border-amber-400/80 bg-amber-500/5 hover:bg-amber-500/15 transition flex flex-col items-center justify-center min-h-[130px] cursor-pointer text-amber-300 group shadow-sm active:scale-95"
+                >
+                  <PlusCircle className="w-8 h-8 text-amber-400 mb-1.5 group-hover:scale-110 transition-transform" />
+                  <span className="text-xs font-bold">點擊添置新席位</span>
+                  <span className="text-[10px] font-mono text-amber-400/80 mt-1">花費 $150 (剩餘 {10 - state.tables.length} 席)</span>
+                </button>
+              )}
             </div>
           </div>
         </div>
       </div>
+      )}
+
+      {/* Floating Game Over Overlay if simulation failed */}
+      {state.status === 'failed' && (
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 bg-rose-950/95 border-2 border-rose-500 text-white px-6 py-3.5 rounded-2xl shadow-2xl flex items-center gap-4 animate-in fade-in zoom-in duration-200">
+          <div className="text-3xl">💀</div>
+          <div>
+            <div className="text-sm font-black text-rose-300">GAME OVER - 餐廳經營失敗</div>
+            <div className="text-xs text-rose-200 mt-0.5">{state.endReason}</div>
+          </div>
+          {onReset && (
+            <button
+              onClick={onReset}
+              className="ml-2 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-md transition active:scale-95 flex items-center gap-1"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>重新挑戰</span>
+            </button>
+          )}
+        </div>
       )}
     </div>
   );

@@ -16,7 +16,8 @@ import {
   Users,
   Clock,
   ArrowRightLeft,
-  Truck
+  Truck,
+  PlusCircle
 } from 'lucide-react';
 import { SimulationSpeed, SushiScenario, SushiSimulationState } from '../../lib/sushi/types';
 import { SUSHI_SCENARIOS } from '../../lib/sushi/defaultScenarios';
@@ -34,6 +35,7 @@ interface SushiHeaderHUDProps {
   onToggleSound: () => void;
   onOpenGuide: () => void;
   onOpenReport: () => void;
+  onAddTable?: () => void;
 }
 
 export const SushiHeaderHUD: React.FC<SushiHeaderHUDProps> = ({
@@ -48,7 +50,8 @@ export const SushiHeaderHUD: React.FC<SushiHeaderHUDProps> = ({
   onToggleRushHour,
   onToggleSound,
   onOpenGuide,
-  onOpenReport
+  onOpenReport,
+  onAddTable
 }) => {
   const isRunning = state.status === 'running';
 
@@ -85,9 +88,15 @@ export const SushiHeaderHUD: React.FC<SushiHeaderHUDProps> = ({
           <div>
             <div className="flex items-center gap-1.5">
               <span className="font-bold text-sm sm:text-base tracking-wide text-white">壽司物語 AI</span>
-              <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                Multi-Agent
-              </span>
+              {state.status === 'failed' ? (
+                <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-rose-600 text-white font-black animate-pulse shadow-md shadow-rose-950">
+                  💀 GAME OVER
+                </span>
+              ) : (
+                <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  Multi-Agent
+                </span>
+              )}
             </div>
             <p className="hidden md:block text-[10px] text-slate-400 font-mono">SushiFlow Simulation</p>
           </div>
@@ -112,13 +121,30 @@ export const SushiHeaderHUD: React.FC<SushiHeaderHUDProps> = ({
       {/* 2. Central Live KPI Badges */}
       <div className="hidden md:flex items-center gap-3">
         {/* Cash Balance */}
-        <div className="flex items-center gap-2.5 bg-slate-800/90 border border-slate-700/80 rounded-xl px-3.5 py-1.5 shadow-sm">
-          <Coins className="w-4 h-4 text-amber-400" />
+        <div
+          className={`flex items-center gap-2.5 bg-slate-800/90 border rounded-xl px-3.5 py-1.5 shadow-sm transition-all ${
+            state.financials.balance < 50
+              ? 'border-rose-500/80 bg-rose-950/40 animate-pulse'
+              : 'border-slate-700/80'
+          }`}
+        >
+          <Coins className={`w-4 h-4 ${state.financials.balance < 50 ? 'text-rose-400' : 'text-amber-400'}`} />
           <div className="flex flex-col">
-            <span className="text-xs text-slate-400 leading-none">結餘現金</span>
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-slate-400 leading-none">結餘現金</span>
+              {state.financials.balance < 50 && (
+                <span className="text-[9px] text-rose-400 font-bold leading-none animate-pulse">
+                  {state.financials.balance < 0 ? '破產' : '告急'}
+                </span>
+              )}
+            </div>
             <span
               className={`text-sm font-mono font-bold leading-tight ${
-                state.financials.balance >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                state.financials.balance < 0
+                  ? 'text-rose-400'
+                  : state.financials.balance < 50
+                  ? 'text-amber-300'
+                  : 'text-emerald-400'
               }`}
             >
               ${state.financials.balance.toFixed(0)}
@@ -138,18 +164,35 @@ export const SushiHeaderHUD: React.FC<SushiHeaderHUDProps> = ({
         </div>
 
         {/* CSAT Stars */}
-        <div className="flex items-center gap-2.5 bg-slate-800/90 border border-slate-700/80 rounded-xl px-3.5 py-1.5 shadow-sm">
-          <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+        <div
+          className={`flex items-center gap-2.5 bg-slate-800/90 border rounded-xl px-3.5 py-1.5 shadow-sm transition-all ${
+            state.metrics.averageSatisfactionStars <= 3.5
+              ? 'border-rose-500/80 bg-rose-950/40 animate-pulse'
+              : 'border-slate-700/80'
+          }`}
+        >
+          <Star
+            className={`w-4 h-4 ${
+              state.metrics.averageSatisfactionStars <= 3.5
+                ? 'text-rose-400 fill-rose-400'
+                : 'text-amber-400 fill-amber-400'
+            }`}
+          />
           <div className="flex flex-col">
-            <span className="text-xs text-slate-400 leading-none">滿意度</span>
-            <span className="text-sm font-mono font-bold text-amber-300 leading-tight">
-              {state.metrics.customersServed > 0
-                ? (
-                    (5 * state.metrics.customersServed - state.metrics.customersWalkout * 2) /
-                    state.metrics.customersServed
-                  ).toFixed(1)
-                : '5.0'}{' '}
-              ★
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-slate-400 leading-none">滿意度</span>
+              {state.metrics.averageSatisfactionStars <= 3.5 && (
+                <span className="text-[9px] text-rose-400 font-bold leading-none animate-pulse">
+                  {state.metrics.averageSatisfactionStars <= 3.0 ? '崩盤' : '危險'}
+                </span>
+              )}
+            </div>
+            <span
+              className={`text-sm font-mono font-bold leading-tight ${
+                state.metrics.averageSatisfactionStars <= 3.5 ? 'text-rose-300' : 'text-amber-300'
+              }`}
+            >
+              {state.metrics.averageSatisfactionStars.toFixed(1)} ★
             </span>
           </div>
         </div>
@@ -214,6 +257,23 @@ export const SushiHeaderHUD: React.FC<SushiHeaderHUDProps> = ({
             +VIP
           </button>
         </div>
+
+        {/* Expand Restaurant Tables */}
+        {onAddTable && (
+          <button
+            onClick={onAddTable}
+            disabled={state.tables.length >= 10}
+            className="px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/40 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm active:scale-95"
+            title={state.tables.length >= 10 ? '席位已達上限（10席）' : '添置新餐桌（花費 $150）'}
+          >
+            <PlusCircle className="w-3.5 h-3.5 text-amber-400" />
+            <span className="hidden lg:inline">增設餐桌</span>
+            <span className="text-[10px] text-amber-400 font-mono">($150)</span>
+            <span className="text-[10px] bg-amber-950/90 px-1 py-0.5 rounded text-amber-200 border border-amber-800/80 font-mono">
+              {state.tables.length}/10
+            </span>
+          </button>
+        )}
 
         {/* Playback Controls (Play / Pause, Speed, Step) */}
         <div className="flex items-center bg-slate-800 border border-slate-700/60 rounded-lg p-0.5">
