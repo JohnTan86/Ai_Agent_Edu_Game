@@ -9,6 +9,7 @@ interface SushiReportModalProps {
   onClose: () => void;
   onRetry: () => void;
   onSelectScenario: (id: string) => void;
+  onStartNextDay?: () => void;
 }
 
 export const SushiReportModal: React.FC<SushiReportModalProps> = ({
@@ -16,7 +17,8 @@ export const SushiReportModal: React.FC<SushiReportModalProps> = ({
   isOpen,
   onClose,
   onRetry,
-  onSelectScenario
+  onSelectScenario,
+  onStartNextDay
 }) => {
   if (!isOpen) return null;
 
@@ -146,6 +148,35 @@ export const SushiReportModal: React.FC<SushiReportModalProps> = ({
             </div>
           </div>
 
+          {/* Daily P&L Settlement Breakdown */}
+          <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 flex flex-col gap-2.5">
+            <span className="text-xs font-bold text-slate-300">📊 營業損益結算清單 (Operating P&L Breakdown)：</span>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono">
+              <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex flex-col">
+                <span className="text-slate-400 text-[10px]">食材採購支出</span>
+                <span className="text-amber-400 font-bold mt-0.5">-${financials.procurementCosts.toFixed(0)}</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex flex-col">
+                <span className="text-slate-400 text-[10px]">員工薪資支出</span>
+                <span className="text-rose-400 font-bold mt-0.5">-${financials.staffWages.toFixed(0)}</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex flex-col">
+                <span className="text-slate-400 text-[10px]">店租水電耗損</span>
+                <span className="text-rose-400 font-bold mt-0.5">-${financials.facilityRent.toFixed(0)}</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex flex-col">
+                <span className="text-slate-400 text-[10px]">總獲利/淨虧損</span>
+                <span
+                  className={`font-bold mt-0.5 ${
+                    financials.totalRevenue - financials.totalExpenses >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                  }`}
+                >
+                  ${(financials.totalRevenue - financials.totalExpenses).toFixed(0)}
+                </span>
+              </div>
+            </div>
+          </div>
+
           {/* AI Collaborative Assessment */}
           <div className="p-4 rounded-2xl bg-slate-800/60 border border-slate-700/60 flex flex-col gap-2">
             <span className="text-xs font-bold text-slate-200">🤖 多 Agent 協同表現診斷：</span>
@@ -173,7 +204,7 @@ export const SushiReportModal: React.FC<SushiReportModalProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div className="p-4 border-t border-slate-800 bg-slate-950/80 flex items-center justify-between">
+        <div className="p-4 border-t border-slate-800 bg-slate-950/80 flex items-center justify-between gap-2">
           <button
             onClick={onRetry}
             className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition"
@@ -182,7 +213,21 @@ export const SushiReportModal: React.FC<SushiReportModalProps> = ({
             <span>重新挑戰本關</span>
           </button>
 
-          {nextScenario ? (
+          {/* Start Next Day Button */}
+          {state.isShiftEnded && onStartNextDay && !isFailed && (
+            <button
+              onClick={() => {
+                onStartNextDay();
+                onClose();
+              }}
+              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 via-rose-500 to-purple-600 hover:opacity-95 text-slate-950 text-xs font-black flex items-center gap-2 shadow-lg shadow-rose-950/80 animate-bounce transition"
+            >
+              <span>🌅 進入第 {state.day + 1} 天開工 (11:00 AM)</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          )}
+
+          {nextScenario && !state.isShiftEnded ? (
             <button
               onClick={() => {
                 onSelectScenario(nextScenario.id);

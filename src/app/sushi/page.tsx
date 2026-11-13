@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSushiSimulation } from '../../hooks/sushi/useSushiSimulation';
 import { SushiHeaderHUD } from '../../components/sushi/SushiHeaderHUD';
 import { SushiRestaurantView } from '../../components/sushi/SushiRestaurantView';
@@ -8,6 +8,7 @@ import { MultiAgentWorkspace } from '../../components/sushi/MultiAgentWorkspace'
 import { MultiAgentTelemetry } from '../../components/sushi/MultiAgentTelemetry';
 import { SushiHelpGuideModal } from '../../components/sushi/SushiHelpGuideModal';
 import { SushiReportModal } from '../../components/sushi/SushiReportModal';
+import { SushiStaffModal } from '../../components/sushi/SushiStaffModal';
 
 export default function SushiApp() {
   const {
@@ -30,8 +31,13 @@ export default function SushiApp() {
     updateAgentConfig,
     selectAgent,
     runManualAgentTurn,
-    addTable
+    addTable,
+    hireStaff,
+    fireStaff,
+    startNextDay
   } = useSushiSimulation();
+
+  const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
 
   // Keyboard shortcut listener
   useEffect(() => {
@@ -73,6 +79,8 @@ export default function SushiApp() {
         onOpenGuide={() => setIsHelpOpen(true)}
         onOpenReport={() => setIsReportOpen(true)}
         onAddTable={addTable}
+        onOpenStaffModal={() => setIsStaffModalOpen(true)}
+        onStartNextDay={startNextDay}
       />
 
       {/* 2. Main 3-Column Layout */}
@@ -94,6 +102,7 @@ export default function SushiApp() {
             state={state}
             onAddTable={addTable}
             onReset={() => reset()}
+            onOpenStaffModal={() => setIsStaffModalOpen(true)}
           />
         </div>
 
@@ -120,6 +129,17 @@ export default function SushiApp() {
         onClose={() => setIsReportOpen(false)}
         onRetry={() => reset()}
         onSelectScenario={selectScenario}
+        onStartNextDay={startNextDay}
+      />
+
+      {/* 5. Staff Recruitment & Payroll Modal */}
+      <SushiStaffModal
+        isOpen={isStaffModalOpen}
+        onClose={() => setIsStaffModalOpen(false)}
+        hiredStaff={state.hiredStaff || []}
+        onHireStaff={hireStaff}
+        onFireStaff={fireStaff}
+        financials={state.financials}
       />
     </div>
   );

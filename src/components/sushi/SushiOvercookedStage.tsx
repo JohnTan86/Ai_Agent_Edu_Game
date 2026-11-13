@@ -7,6 +7,7 @@ import {
   SushiSimulationState
 } from '../../lib/sushi/types';
 import { SUSHI_RECIPES } from '../../lib/sushi/recipes';
+import { getSushiClockInfo } from '../../lib/sushi/timeConstants';
 import {
   Play,
   Pause,
@@ -947,48 +948,66 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
       className="w-full h-full flex flex-col bg-stone-950 text-stone-100 select-none overflow-hidden rounded-2xl border-2 border-amber-900/50 shadow-2xl relative"
     >
       {/* Top Ambience Bar with Large High-Contrast Font */}
-      <div className="bg-gradient-to-r from-red-950 via-stone-900 to-red-950 px-4 py-2.5 border-b border-amber-800/60 flex items-center justify-between shadow-md z-10 flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <span className="text-2xl animate-lantern inline-block">🏮</span>
-          <div className="flex items-center gap-2">
-            <span className="font-extrabold text-amber-200 tracking-wide text-sm sm:text-base">
-              ⛩️ 江戶前・壽司物語 AI 2D 動畫實景 (Overcooked Engine)
-            </span>
-            {state.rushHourActive && (
-              <span className="text-xs bg-rose-600 text-white font-mono px-2.5 py-0.5 rounded-full animate-bounce font-bold shadow-sm">
-                ⚡ 爆單高峰期
-              </span>
-            )}
-          </div>
-        </div>
+      {(() => {
+        const clockInfo = getSushiClockInfo(state.tick, state.day, state.isShiftEnded);
+        return (
+          <div className="bg-gradient-to-r from-red-950 via-stone-900 to-red-950 px-4 py-2 border-b border-amber-800/60 flex items-center justify-between shadow-md z-10 flex-shrink-0">
+            <div className="flex items-center gap-3">
+              <span className="text-xl animate-lantern inline-block">🏮</span>
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-amber-200 tracking-wide text-xs sm:text-sm">
+                  ⛩️ 江戶前・壽司物語 2D 動畫實景
+                </span>
+                <span className="text-xs bg-amber-950/80 text-amber-300 font-mono px-2 py-0.5 rounded-full border border-amber-700/60 font-bold">
+                  第 {clockInfo.day} 天 • {clockInfo.time12} [{clockInfo.shiftPhaseEmoji} {clockInfo.shiftPhaseLabel}]
+                </span>
+                {state.marketCondition && (
+                  <span className="hidden xl:inline text-xs bg-stone-900 text-stone-300 px-2 py-0.5 rounded-full border border-stone-700">
+                    {state.marketCondition.emoji} {state.marketCondition.title}
+                  </span>
+                )}
+                {state.rushHourActive && (
+                  <span className="text-xs bg-rose-600 text-white font-mono px-2 py-0.5 rounded-full animate-bounce font-bold shadow-sm">
+                    ⚡ 爆單期
+                  </span>
+                )}
+              </div>
+            </div>
 
-        {/* Live Status Indicators & Expand Table Button */}
-        <div className="flex items-center gap-3 text-sm font-mono">
-          {onAddTable && (
-            <button
-              onClick={onAddTable}
-              disabled={state.tables.length >= 10}
-              className="bg-amber-500 hover:bg-amber-400 disabled:opacity-40 disabled:cursor-not-allowed text-stone-950 font-black px-3 py-1.5 rounded-xl shadow-md flex items-center gap-1.5 transition text-xs active:scale-95"
-              title={state.tables.length >= 10 ? '席位已達上限（10席）' : '增設新餐桌（花費 $150）'}
-            >
-              <span>➕ 擴建餐桌</span>
-              <span className="text-[10px] text-amber-950/80 font-bold">($150)</span>
-              <span className="bg-amber-950/70 text-amber-200 px-1.5 py-0.5 rounded text-[10px]">
-                {state.tables.length}/10 席
+            {/* Live Status Indicators & Expand Table Button */}
+            <div className="flex items-center gap-2 sm:gap-3 text-xs font-mono">
+              {state.hiredStaff && state.hiredStaff.length > 0 && (
+                <span className="bg-sky-950/70 text-sky-300 font-bold px-2.5 py-1 rounded-xl border border-sky-800 shadow-sm flex items-center gap-1">
+                  <span>👥 助手:</span>
+                  <span>{state.hiredStaff.map(s => s.name.split(' ')[0]).join(', ')}</span>
+                </span>
+              )}
+              {onAddTable && (
+                <button
+                  onClick={onAddTable}
+                  disabled={state.tables.length >= 10}
+                  className="bg-amber-500 hover:bg-amber-400 disabled:opacity-40 disabled:cursor-not-allowed text-stone-950 font-black px-2.5 py-1 rounded-xl shadow-md flex items-center gap-1 transition text-xs active:scale-95"
+                  title={state.tables.length >= 10 ? '席位已達上限（10席）' : '增設新餐桌（花費 $150）'}
+                >
+                  <span>➕ 餐桌</span>
+                  <span className="bg-amber-950/70 text-amber-200 px-1 py-0.5 rounded text-[10px]">
+                    {state.tables.length}/10
+                  </span>
+                </button>
+              )}
+              <span className="bg-stone-900/90 text-emerald-400 font-bold px-2.5 py-1 rounded-xl border border-stone-700 shadow-sm">
+                💰 ${(state.financials?.balance ?? 0).toFixed(0)}
               </span>
-            </button>
-          )}
-          <span className="bg-stone-900/90 text-emerald-400 font-bold px-3 py-1 rounded-xl border border-stone-700 shadow-sm">
-            💰 ${(state.financials?.balance ?? 0).toFixed(0)}
-          </span>
-          <span className="bg-stone-900/90 text-amber-300 font-bold px-3 py-1 rounded-xl border border-stone-700 shadow-sm">
-            ★ {(state.metrics?.averageSatisfactionStars ?? 5).toFixed(1)}
-          </span>
-          <span className="bg-stone-900/90 text-sky-300 font-bold px-3 py-1 rounded-xl border border-stone-700 shadow-sm">
-            已接待 {state.metrics?.customersServed ?? 0} 人
-          </span>
-        </div>
-      </div>
+              <span className="bg-stone-900/90 text-amber-300 font-bold px-2.5 py-1 rounded-xl border border-stone-700 shadow-sm">
+                ★ {(state.metrics?.averageSatisfactionStars ?? 5).toFixed(1)}
+              </span>
+              <span className="bg-stone-900/90 text-sky-300 font-bold px-2.5 py-1 rounded-xl border border-stone-700 shadow-sm hidden sm:inline">
+                已出餐 {state.metrics?.customersServed ?? 0} 人
+              </span>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* The 60 FPS HTML5 Canvas Interactive Stage */}
       <div className="flex-1 w-full h-full relative overflow-hidden bg-[#1c120a] flex items-center justify-center">

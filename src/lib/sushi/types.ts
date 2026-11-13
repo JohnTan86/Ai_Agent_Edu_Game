@@ -228,6 +228,20 @@ export interface SushiScenario {
 
 export type SimulationSpeed = 1 | 2 | 5;
 
+import { StaffCandidate, MarketCondition } from './staffConfig';
+
+export interface DailySettlementRecord {
+  day: number;
+  revenue: number;
+  expenses: number;
+  staffWages: number;
+  facilityRent: number;
+  netProfit: number;
+  customersServed: number;
+  customersWalkout: number;
+  satisfactionStars: number;
+}
+
 export interface SushiSimulationState {
   scenario: SushiScenario;
   status: 'idle' | 'running' | 'paused' | 'day_ended' | 'victory' | 'failed';
@@ -254,4 +268,8 @@ export interface SushiSimulationState {
   selectedStationId?: string;
   selectedIngredientKey?: IngredientKey;
   endReason?: string;
+  hiredStaff: StaffCandidate[];
+  isShiftEnded: boolean;
+  marketCondition: MarketCondition;
+  dailySettlements?: DailySettlementRecord[];
 }

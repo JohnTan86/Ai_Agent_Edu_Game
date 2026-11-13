@@ -22,7 +22,8 @@ import {
   Tv,
   LayoutGrid,
   PlusCircle,
-  RotateCcw
+  RotateCcw,
+  Users
 } from 'lucide-react';
 
 interface SushiRestaurantViewProps {
@@ -32,6 +33,7 @@ interface SushiRestaurantViewProps {
   onSelectStation?: (station: KitchenStation) => void;
   onAddTable?: () => void;
   onReset?: () => void;
+  onOpenStaffModal?: () => void;
 }
 
 export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
@@ -40,7 +42,8 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
   onSelectTable,
   onSelectStation,
   onAddTable,
-  onReset
+  onReset,
+  onOpenStaffModal
 }) => {
   const [hoveredCustomer, setHoveredCustomer] = useState<Customer | null>(null);
   const [viewMode, setViewMode] = useState<'cartoon' | 'classic'>('cartoon');
@@ -74,8 +77,19 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
           </div>
         </div>
 
-        {/* View Mode Switcher + Counters */}
-        <div className="flex items-center gap-4">
+        {/* View Mode Switcher + Staff + Counters */}
+        <div className="flex items-center gap-3">
+          {onOpenStaffModal && (
+            <button
+              onClick={onOpenStaffModal}
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-950/70 hover:bg-sky-900 border border-sky-600/50 text-sky-200 text-xs font-semibold shadow-sm transition active:scale-95"
+              title="招聘外場服務生或後廚助廚"
+            >
+              <Users className="w-3.5 h-3.5 text-sky-400" />
+              <span>招聘員工 ({state.hiredStaff?.length || 0})</span>
+            </button>
+          )}
+
           <div className="hidden md:flex items-center gap-1 bg-slate-900/90 border border-slate-700/60 p-0.5 rounded-xl text-xs font-medium shadow-inner">
             <button
               onClick={() => setViewMode('cartoon')}

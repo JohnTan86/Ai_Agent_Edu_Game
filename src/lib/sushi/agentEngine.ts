@@ -112,9 +112,12 @@ export async function executeMultiAgentCycle(
   if (unlocked.includes('host') && agents.host) {
     const hostDirectives = parseSushiPrompt(agents.host.systemPrompt);
 
-    // 1A. Greet & Seat waiting customers
-    const emptyTables = tables.filter(t => t.status === 'empty');
-    if (customersInQueue.length > 0 && emptyTables.length > 0) {
+    // 1A. Greet & Seat waiting customers (With waiter assistants, can seat in parallel!)
+    const waiterCount = 1 + (state.hiredStaff?.filter(s => s.role === 'waiter').length || 0);
+    for (let w = 0; w < waiterCount; w++) {
+      const emptyTables = tables.filter(t => t.status === 'empty');
+      if (customersInQueue.length === 0 || emptyTables.length === 0) break;
+
       // Prioritize VIPs if prompt directives focus on VIP
       if (hostDirectives.isVipFocused) {
         customersInQueue.sort((a, b) => (b.isVip ? 1 : 0) - (a.isVip ? 1 : 0));
@@ -128,20 +131,25 @@ export async function executeMultiAgentCycle(
       nextCustomer.status = 'seated_ordering';
       seatedCustomers.push(nextCustomer);
 
+      const staffName =
+        w === 0
+          ? agents.host.name
+          : state.hiredStaff?.filter(s => s.role === 'waiter')[w - 1]?.name || agents.host.name;
+
       thoughtSteps.push({
         id: genSushiId('th_host_greet'),
         agentRole: 'host',
-        agentName: agents.host.name,
+        agentName: staffName,
         tick: currentTick,
         timestamp,
         type: 'observe',
-        content: `看見顧客【${nextCustomer.name}】${nextCustomer.isVip ? '⭐VIP貴賓' : ''}在隊列中等待，帶位至【${chosenTable.name}】。`
+        content: `看見顧客【${nextCustomer.name}】${nextCustomer.isVip ? '⭐VIP貴賓' : ''}在隊列中等待，引導帶位至【${chosenTable.name}】。`
       });
 
       thoughtSteps.push({
         id: genSushiId('th_host_seat'),
         agentRole: 'host',
-        agentName: agents.host.name,
+        agentName: staffName,
         tick: currentTick,
         timestamp,
         type: 'tool_call',
@@ -457,10 +465,15 @@ export async function executeMultiAgentCycle(
             }
           }
 
-          // Speed up if batch crafting enabled
-          const prepTime = chefDirectives.batchCrafting
+          // Check assistant chef speed bonus
+          const chefStaff = state.hiredStaff?.filter(s => s.role === 'chef') || [];
+          const chefSpeedMult = chefStaff.length > 0 ? (chefStaff.length >= 2 ? 0.60 : 0.75) : 1.0;
+
+          // Speed up if batch crafting enabled or assistant chef present
+          let prepTime = chefDirectives.batchCrafting
             ? Math.max(2, Math.round(recipe.prepTicks * 0.6))
             : recipe.prepTicks;
+          prepTime = Math.max(2, Math.round(prepTime * chefSpeedMult));
 
           // Setup station
           station.status = 'prepping';
@@ -469,7 +482,7 @@ export async function executeMultiAgentCycle(
           station.totalPrepTicks = prepTime;
           station.remainingPrepTicks = prepTime;
           station.prepProgress = 10;
-          station.assignedChef = agents.chef.name;
+          station.assignedChef = chefStaff.length > 0 ? chefStaff[0].name : agents.chef.name;
 
           ticket.status = 'in_prep';
           ticket.startedAtTick = currentTick;
@@ -505,7 +518,9 @@ export async function executeMultiAgentCycle(
       if (!item) continue;
 
       if (item.currentStock <= safetyThreshold) {
-        const orderCost = item.costPerUnit * item.reorderPackSize;
+        const hasLogistics = state.hiredStaff?.some(s => s.role === 'logistics');
+        const discount = hasLogistics ? 0.90 : 1.0;
+        const orderCost = Math.round(item.costPerUnit * item.reorderPackSize * discount);
 
         // Check if balance allows
         if (financials.balance >= orderCost) {

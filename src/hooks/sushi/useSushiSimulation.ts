@@ -18,6 +18,8 @@ import { DEFAULT_SUSHI_AGENTS } from '../../lib/sushi/defaultAgents';
 import { SUSHI_SCENARIOS } from '../../lib/sushi/defaultScenarios';
 import { executeMultiAgentCycle, executeDirectSushiDispatch } from '../../lib/sushi/agentEngine';
 import { sushiAudio } from '../../lib/sushi/audio';
+import { AVAILABLE_STAFF_CANDIDATES, DAILY_MARKET_CONDITIONS, MarketCondition, StaffCandidate } from '../../lib/sushi/staffConfig';
+import { getSushiClockInfo, TICKS_PER_DAY } from '../../lib/sushi/timeConstants';
 
 const INITIAL_TABLES: DiningTable[] = [
   { id: 'T1', name: '吧台 1 號席', type: 'counter', capacity: 1, status: 'empty', cleanliness: 100 },
@@ -140,7 +142,11 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
       thoughtSteps: [],
       rushHourActive: false,
       soundEnabled: true,
-      selectedAgentRole: 'host'
+      selectedAgentRole: 'host',
+      hiredStaff: [],
+      isShiftEnded: false,
+      marketCondition: DAILY_MARKET_CONDITIONS[0],
+      dailySettlements: []
     };
   };
 
@@ -167,9 +173,12 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
     const specialChance = forceVip ? 1.0 : currentScenario.specialRequestsFrequency;
     const isSpecial = Math.random() < specialChance;
 
+    const currentMarket = stateRef.current.marketCondition || DAILY_MARKET_CONDITIONS[0];
+    const vipBonus = currentMarket.vipChanceBonus || 0;
+
     let specialPreference: SpecialDietaryTag = 'none';
     let specialNote = '';
-    let isVip = forceVip || Math.random() < 0.15;
+    let isVip = forceVip || Math.random() < (0.15 + vipBonus);
 
     if (isVip) {
       specialPreference = 'vip_critic';
@@ -287,11 +296,22 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
       return true;
     });
 
-    // 2. Customer spawning probability
-    const arrivalRate = s.rushHourActive ? s.scenario.customerArrivalRate * 2.2 : s.scenario.customerArrivalRate;
-    if (Math.random() < arrivalRate && updatedQueue.length < 8) {
-      const newCust = spawnCustomer(s.rushHourActive);
-      updatedQueue.push(newCust);
+    const currentDay = s.day || 1;
+    const clockInfo = getSushiClockInfo(nextTick, currentDay, s.isShiftEnded);
+
+    // 2. Customer spawning with irregular arrival rate & market trends
+    const baseArrivalRate = s.scenario.customerArrivalRate;
+    const clockMultiplier = clockInfo.arrivalMultiplier;
+    const marketMultiplier = s.marketCondition?.arrivalMultiplier || 1.0;
+    const rushMultiplier = s.rushHourActive ? 2.0 : 1.0;
+    const effectiveArrival = baseArrivalRate * clockMultiplier * marketMultiplier * rushMultiplier;
+
+    // During open business hours (before last call / closing), spawn customers
+    if (clockInfo.shiftPhase !== 'closed' && clockInfo.shiftPhase !== 'last_call') {
+      if (Math.random() < effectiveArrival && updatedQueue.length < 10) {
+        const newCust = spawnCustomer(s.rushHourActive);
+        updatedQueue.push(newCust);
+      }
     }
 
     // 3. Update walkout metrics and satisfaction score
@@ -301,21 +321,27 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
     const totalReviews = 5 + s.metrics.customersServed + newWalkouts;
     const computedSatisfaction = Math.max(1.0, Math.min(5.0, Number((newCumulativeStars / totalReviews).toFixed(1))));
 
-    // Deduct periodic facility rent and utility overhead
+    // Deduct periodic facility rent and staff payroll overhead every 10 ticks
     const currentFinancials = { ...s.financials };
     const currentThoughts = [...s.thoughtSteps];
     if (nextTick > 0 && nextTick % 10 === 0 && s.scenario.difficulty !== 'Sandbox') {
       const rentAmount = 8;
-      currentFinancials.balance -= rentAmount;
-      currentFinancials.totalExpenses += rentAmount;
+      const staffPayroll = (s.hiredStaff || []).reduce((acc, st) => acc + st.wagePer10Ticks, 0);
+      const totalPeriodicExpense = rentAmount + staffPayroll;
+
+      currentFinancials.balance -= totalPeriodicExpense;
+      currentFinancials.totalExpenses += totalPeriodicExpense;
+      currentFinancials.facilityRent += rentAmount;
+      currentFinancials.staffWages += staffPayroll;
+
       currentThoughts.push({
-        id: `rent_deduct_${nextTick}_${Date.now()}`,
+        id: `overhead_deduct_${nextTick}_${Date.now()}`,
         agentRole: 'manager',
         agentName: agentsRef.current.manager?.name || '櫻 (Sakura)',
         tick: nextTick,
-        timestamp: new Date().toLocaleTimeString(),
+        timestamp: new Date().toLocaleTimeString('zh-TW', { hour12: false }),
         type: 'observe',
-        content: `【定期店租與水電耗損】結算固定營運開銷 -$${rentAmount}（當前可用結餘: $${currentFinancials.balance.toFixed(0)}）。`
+        content: `【定期營運成本結算】店租水電 -$${rentAmount}，發放 ${(s.hiredStaff || []).length} 位員工工資 -$${staffPayroll}（總支出: -$${totalPeriodicExpense}，當前可用結餘: $${currentFinancials.balance.toFixed(0)}）。`
       });
     }
 
@@ -341,9 +367,27 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
     let newStatus: SushiSimulationState['status'] = s.status;
     let endReason: string | undefined = undefined;
 
+    // Check if shift reached 21:00 closing (100 ticks per day)
+    let isDayShiftEnded = s.isShiftEnded;
+    if (clockInfo.dayTick >= TICKS_PER_DAY && !isDayShiftEnded) {
+      isDayShiftEnded = true;
+      sushiAudio.playFanfare();
+      currentThoughts.push({
+        id: `shift_end_${currentDay}_${Date.now()}`,
+        agentRole: 'manager',
+        agentName: agentsRef.current.manager?.name || '櫻 (Sakura)',
+        tick: nextTick,
+        timestamp: '21:00:00',
+        type: 'observe',
+        content: `🌇【第 ${currentDay} 天 21:00 打烊收工】今日營業時段圓滿結束！請檢閱今日收支結算，並點擊「🌅 進入第 ${currentDay + 1} 天」準備明日開工！`
+      });
+      newStatus = 'paused';
+      setIsReportOpen(true);
+    }
+
     if (result.updatedFinancials.balance < 0) {
       newStatus = 'failed';
-      endReason = `【餐廳破產 Game Over】資金赤字已達 $${result.updatedFinancials.balance.toFixed(0)}（小於 $0），現金流斷裂無法繼續營運！請優化食材採購與開銷。`;
+      endReason = `【餐廳破產 Game Over】資金赤字已達 $${result.updatedFinancials.balance.toFixed(0)}（小於 $0），現金流斷裂無法繼續營運！請優化食材採購與員工薪資支出。`;
       sushiAudio.playAlert();
       setIsReportOpen(true);
     } else if (result.updatedMetrics.averageSatisfactionStars <= 3.0) {
@@ -358,7 +402,7 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
       setIsReportOpen(true);
     } else if (nextTick >= s.scenario.maxTicks && s.scenario.difficulty !== 'Sandbox') {
       newStatus = 'day_ended';
-      endReason = `本日營業時間已結束（已達 ${s.scenario.maxTicks} 刻度）。`;
+      endReason = `營業總週期已達上限（已達 ${s.scenario.maxTicks} 刻度）。`;
       setIsReportOpen(true);
     }
 
@@ -366,6 +410,7 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
       ...prev,
       tick: nextTick,
       status: newStatus,
+      isShiftEnded: isDayShiftEnded,
       endReason,
       inventory: result.updatedInventory,
       financials: result.updatedFinancials,
@@ -426,13 +471,160 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
     }
   };
 
-  const spawnCustomerManually = (forceVip: boolean = false) => {
-    const newCust = spawnCustomer(state.rushHourActive, forceVip);
-    setState(prev => ({
-      ...prev,
-      customersInQueue: [...prev.customersInQueue, newCust]
-    }));
+  const spawnCustomerManually = (forceVip: boolean = false, burstCount: number = 1) => {
+    const newCusts: Customer[] = [];
+    for (let i = 0; i < burstCount; i++) {
+      newCusts.push(spawnCustomer(state.rushHourActive, forceVip));
+    }
+
+    setState(prev => {
+      const updatedQueue = [...prev.customersInQueue, ...newCusts];
+      const isDanger = updatedQueue.length >= 6;
+      const newThoughts = [...prev.thoughtSteps];
+
+      if (isDanger) {
+        newThoughts.unshift({
+          id: `th_burst_warn_${Date.now()}`,
+          agentRole: 'host',
+          agentName: agentsRef.current.host.name,
+          tick: prev.tick,
+          timestamp: new Date().toLocaleTimeString('zh-TW', { hour12: false }),
+          type: 'observe',
+          content: `⚠️【排隊告急預警】手動攬客使候位隊列膨脹至 ${updatedQueue.length} 人！顧客耐心消耗極快，後廚出餐不及將引發大量客訴離店（滿意度跌破 3.0 即 Game Over）！`
+        });
+      } else {
+        newThoughts.unshift({
+          id: `th_burst_${Date.now()}`,
+          agentRole: 'host',
+          agentName: agentsRef.current.host.name,
+          tick: prev.tick,
+          timestamp: new Date().toLocaleTimeString('zh-TW', { hour12: false }),
+          type: 'tool_call',
+          content: forceVip
+            ? `👑【手動邀約 VIP】米其林神秘客進店！請阿葵優先接待、健次嚴守忌口！`
+            : burstCount > 1
+            ? `🎉【發動街頭吸客潮】吸引 ${burstCount} 位新顧客湧入！考驗產能與翻台平衡！`
+            : `📢【外場主動攬客】引導 1 位新顧客進入候位排隊。`
+        });
+      }
+
+      return {
+        ...prev,
+        customersInQueue: updatedQueue,
+        thoughtSteps: newThoughts
+      };
+    });
+
+    sushiAudio.playOrderTaken();
   };
+
+  /**
+   * Hire a staff assistant member
+   */
+  const hireStaff = useCallback((candidate: StaffCandidate): boolean => {
+    const s = stateRef.current;
+    if (s.hiredStaff?.some(st => st.id === candidate.id)) return false;
+    if (s.financials.balance < candidate.hireCost) {
+      alert(`資金不足！聘用【${candidate.name}】需要簽約金 $${candidate.hireCost}，當前結餘僅 $${s.financials.balance.toFixed(0)}。`);
+      return false;
+    }
+
+    setState(prev => {
+      const updatedBalance = prev.financials.balance - candidate.hireCost;
+      const updatedExpenses = prev.financials.totalExpenses + candidate.hireCost;
+      const updatedStaffWages = prev.financials.staffWages + candidate.hireCost;
+      const updatedHired = [...(prev.hiredStaff || []), candidate];
+
+      sushiAudio.playPayment();
+
+      return {
+        ...prev,
+        hiredStaff: updatedHired,
+        financials: {
+          ...prev.financials,
+          balance: updatedBalance,
+          totalExpenses: updatedExpenses,
+          staffWages: updatedStaffWages
+        },
+        thoughtSteps: [
+          {
+            id: `th_hire_${candidate.id}_${Date.now()}`,
+            agentRole: 'manager',
+            agentName: agentsRef.current.manager?.name || '櫻 (Sakura)',
+            tick: prev.tick,
+            timestamp: new Date().toLocaleTimeString('zh-TW', { hour12: false }),
+            type: 'tool_call',
+            content: `🤝【招聘新員工入職】成功聘用【${candidate.name}】擔任【${candidate.roleTitle}】！支付簽約金 $${candidate.hireCost}，每期工資 $${candidate.wagePer10Ticks}。特長：${candidate.perks}`
+          },
+          ...prev.thoughtSteps
+        ]
+      };
+    });
+    return true;
+  }, []);
+
+  /**
+   * Dismiss/fire a staff member to save ongoing operational payroll
+   */
+  const fireStaff = useCallback((staffId: string) => {
+    setState(prev => {
+      const target = prev.hiredStaff?.find(s => s.id === staffId);
+      if (!target) return prev;
+
+      return {
+        ...prev,
+        hiredStaff: (prev.hiredStaff || []).filter(s => s.id !== staffId),
+        thoughtSteps: [
+          {
+            id: `th_fire_${staffId}_${Date.now()}`,
+            agentRole: 'manager',
+            agentName: agentsRef.current.manager?.name || '櫻 (Sakura)',
+            tick: prev.tick,
+            timestamp: new Date().toLocaleTimeString('zh-TW', { hour12: false }),
+            type: 'tool_call',
+            content: `👋【員工解聘資遣】店長辦理解聘【${target.name}】（${target.roleTitle}），停止計發後續每期工資 $${target.wagePer10Ticks}，以降低固定營運成本。`
+          },
+          ...prev.thoughtSteps
+        ]
+      };
+    });
+  }, []);
+
+  /**
+   * Transition to next day shift (08:00/11:00 AM Open) like RoboFlow
+   */
+  const startNextDay = useCallback(() => {
+    setState(prev => {
+      const nextDay = (prev.day || 1) + 1;
+      const nextTick = (nextDay - 1) * TICKS_PER_DAY;
+      const nextMarket = DAILY_MARKET_CONDITIONS[(nextDay - 1) % DAILY_MARKET_CONDITIONS.length];
+
+      sushiAudio.playFanfare();
+
+      return {
+        ...prev,
+        day: nextDay,
+        tick: nextTick,
+        isShiftEnded: false,
+        status: 'idle',
+        marketCondition: nextMarket,
+        customersInQueue: [],
+        thoughtSteps: [
+          {
+            id: `th_day_start_${nextDay}_${Date.now()}`,
+            agentRole: 'manager',
+            agentName: agentsRef.current.manager?.name || '櫻 (Sakura)',
+            tick: nextTick,
+            timestamp: '11:00:00',
+            type: 'observe',
+            content: `🌅【第 ${nextDay} 天 開工營業 (11:00 AM)】今日市況：${nextMarket.emoji}【${nextMarket.title}】— ${nextMarket.description} 全體員工已就位！請點擊「開始運行」開門迎賓！`
+          },
+          ...prev.thoughtSteps
+        ]
+      };
+    });
+    setIsReportOpen(false);
+  }, []);
 
   const toggleRushHour = () => {
     setState(prev => ({
@@ -720,6 +912,9 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
     updateAgentConfig,
     selectAgent,
     runManualAgentTurn,
-    addTable
+    addTable,
+    hireStaff,
+    fireStaff,
+    startNextDay
   };
 }

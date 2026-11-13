@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { SimulationSpeed, SushiScenario, SushiSimulationState } from '../../lib/sushi/types';
 import { SUSHI_SCENARIOS } from '../../lib/sushi/defaultScenarios';
+import { getSushiClockInfo } from '../../lib/sushi/timeConstants';
 
 interface SushiHeaderHUDProps {
   state: SushiSimulationState;
@@ -30,12 +31,14 @@ interface SushiHeaderHUDProps {
   onSetSpeed: (speed: SimulationSpeed) => void;
   onStepForward: () => void;
   onReset: () => void;
-  onSpawnCustomer: (isVip?: boolean) => void;
+  onSpawnCustomer: (isVip?: boolean, burstCount?: number) => void;
   onToggleRushHour: () => void;
   onToggleSound: () => void;
   onOpenGuide: () => void;
   onOpenReport: () => void;
   onAddTable?: () => void;
+  onOpenStaffModal?: () => void;
+  onStartNextDay?: () => void;
 }
 
 export const SushiHeaderHUD: React.FC<SushiHeaderHUDProps> = ({
@@ -51,9 +54,12 @@ export const SushiHeaderHUD: React.FC<SushiHeaderHUDProps> = ({
   onToggleSound,
   onOpenGuide,
   onOpenReport,
-  onAddTable
+  onAddTable,
+  onOpenStaffModal,
+  onStartNextDay
 }) => {
   const isRunning = state.status === 'running';
+  const clockInfo = getSushiClockInfo(state.tick, state.day, state.isShiftEnded);
 
   return (
     <header className="h-16 bg-slate-900/95 border-b border-amber-900/40 px-3 sm:px-4 flex items-center justify-between select-none shadow-lg z-20 backdrop-blur-md overflow-hidden">
@@ -211,20 +217,68 @@ export const SushiHeaderHUD: React.FC<SushiHeaderHUDProps> = ({
           </div>
         </div>
 
-        {/* Clock / Tick */}
-        <div className="flex items-center gap-2.5 bg-slate-800/90 border border-slate-700/80 rounded-xl px-3.5 py-1.5 shadow-sm font-mono text-sm">
-          <Clock className="w-4 h-4 text-purple-400" />
-          <span className="text-slate-300 font-bold">
-            {state.tick}{' '}
-            <span className="text-slate-500 font-normal">
-              {currentScenario.difficulty === 'Sandbox' ? 'T' : `/ ${currentScenario.maxTicks}T`}
-            </span>
-          </span>
+        {/* Structured Day & Shift Clock HUD (11:00 AM - 21:00 PM) */}
+        <div className="flex items-center gap-2 bg-slate-800/90 border border-slate-700/80 rounded-xl px-3 py-1.5 shadow-sm">
+          <Clock className="w-4 h-4 text-purple-400 shrink-0" />
+          <div className="flex flex-col">
+            <div className="flex items-center justify-between gap-1.5 font-mono">
+              <span className="text-xs text-amber-300 font-bold leading-none">
+                第 {clockInfo.day} 天 • {clockInfo.time12}
+              </span>
+              <span className="text-[9px] px-1 py-0.2 rounded bg-amber-950/80 text-amber-200 border border-amber-800/50 leading-none">
+                {clockInfo.shiftPhaseEmoji} {clockInfo.shiftPhaseLabel}
+              </span>
+            </div>
+            <div className="w-28 sm:w-32 bg-slate-900 rounded-full h-1.5 overflow-hidden mt-1 border border-slate-700/50">
+              <div
+                className="bg-gradient-to-r from-amber-500 via-rose-500 to-purple-500 h-full rounded-full transition-all duration-300"
+                style={{ width: `${clockInfo.progressPct}%` }}
+              />
+            </div>
+          </div>
         </div>
+
+        {/* Market Condition Pill */}
+        {state.marketCondition && (
+          <div
+            className="hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/70 text-xs"
+            title={state.marketCondition.description}
+          >
+            <span>{state.marketCondition.emoji}</span>
+            <span className="font-semibold text-amber-200">{state.marketCondition.title}</span>
+          </div>
+        )}
       </div>
 
       {/* 3. Action & Simulation Controls */}
       <div className="flex items-center gap-2">
+        {/* Next Day Shift Transition Button */}
+        {state.isShiftEnded && onStartNextDay && (
+          <button
+            onClick={onStartNextDay}
+            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-gradient-to-r from-amber-500 to-rose-600 hover:from-amber-400 hover:to-rose-500 text-slate-950 flex items-center gap-1.5 shadow-lg shadow-rose-950 animate-bounce active:scale-95"
+            title="今日收工打烊！點擊開啟下一天營業"
+          >
+            <span>🌅</span>
+            <span className="font-black">開啟第 {state.day + 1} 天 (11:00 AM)</span>
+          </button>
+        )}
+
+        {/* Staff Management Button */}
+        {onOpenStaffModal && (
+          <button
+            onClick={onOpenStaffModal}
+            className="px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all bg-sky-950/70 hover:bg-sky-900 text-sky-200 border border-sky-600/50 shadow-sm active:scale-95"
+            title="招聘或管理員工（提升外場與後廚效率，每期支付工資）"
+          >
+            <Users className="w-3.5 h-3.5 text-sky-400" />
+            <span className="hidden sm:inline">員工</span>
+            <span className="text-[10px] bg-sky-900/90 px-1.5 py-0.5 rounded text-sky-200 border border-sky-700 font-mono font-bold">
+              {state.hiredStaff?.length || 0}
+            </span>
+          </button>
+        )}
+
         {/* Rush Hour Toggle */}
         <button
           onClick={onToggleRushHour}
@@ -239,22 +293,30 @@ export const SushiHeaderHUD: React.FC<SushiHeaderHUDProps> = ({
           <span className="hidden sm:inline">爆單潮</span>
         </button>
 
-        {/* Spawn Customer Manually */}
+        {/* Spawn Customer Manually with Burst */}
         <div className="flex items-center rounded-lg bg-slate-800 border border-slate-700/60 overflow-hidden">
           <button
-            onClick={() => onSpawnCustomer(false)}
+            onClick={() => onSpawnCustomer(false, 1)}
             className="px-2.5 py-1.5 text-xs text-slate-300 hover:text-white hover:bg-slate-700/50 flex items-center gap-1 transition"
-            title="召喚新顧客"
+            title="手動外場攬客：引導 1 位顧客進店排隊"
           >
             <UserPlus className="w-3.5 h-3.5 text-sky-400" />
             <span className="hidden sm:inline">+顧客</span>
           </button>
           <button
-            onClick={() => onSpawnCustomer(true)}
+            onClick={() => onSpawnCustomer(true, 1)}
             className="px-2 py-1.5 text-[11px] font-bold text-amber-400 hover:bg-amber-500/20 border-l border-slate-700/60 transition"
-            title="召喚米其林 VIP 貴賓"
+            title="手動邀約米其林 VIP 貴賓進店"
           >
             +VIP
+          </button>
+          <button
+            onClick={() => onSpawnCustomer(false, 3)}
+            className="px-2 py-1.5 text-[11px] font-bold text-rose-300 hover:bg-rose-500/20 border-l border-slate-700/60 transition flex items-center gap-0.5"
+            title="發動街頭吸客潮 (一次湧入 3 位顧客！考驗翻台速度，滿意度下滑有 Game Over 風險！)"
+          >
+            <span>🔥</span>
+            <span className="hidden md:inline">吸客潮</span>
           </button>
         </div>
 

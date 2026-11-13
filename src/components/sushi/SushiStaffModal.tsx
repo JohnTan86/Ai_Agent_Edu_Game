@@ -1,0 +1,171 @@
+import React from 'react';
+import { X, UserPlus, DollarSign, Users, Award, ShieldAlert, Check, Trash2 } from 'lucide-react';
+import { StaffCandidate, AVAILABLE_STAFF_CANDIDATES } from '../../lib/sushi/staffConfig';
+import { RestaurantFinancials } from '../../lib/sushi/types';
+
+interface SushiStaffModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  hiredStaff: StaffCandidate[];
+  onHireStaff: (candidate: StaffCandidate) => void;
+  onFireStaff: (staffId: string) => void;
+  financials: RestaurantFinancials;
+}
+
+export const SushiStaffModal: React.FC<SushiStaffModalProps> = ({
+  isOpen,
+  onClose,
+  hiredStaff,
+  onHireStaff,
+  onFireStaff,
+  financials
+}) => {
+  if (!isOpen) return null;
+
+  const currentWagesEvery10Ticks = hiredStaff.reduce((sum, s) => sum + s.wagePer10Ticks, 0);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-slate-900 border border-amber-600/40 rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl shadow-amber-950/50 overflow-hidden">
+        {/* Header */}
+        <div className="p-4 sm:p-5 border-b border-slate-800 bg-gradient-to-r from-amber-950/40 to-slate-900 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-xl shadow-inner">
+              👥
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base sm:text-lg font-bold text-white tracking-wide">
+                  壽司店人力資源中心 (Staff Roster)
+                </h2>
+                <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 font-semibold">
+                  已聘用 {hiredStaff.length} 人
+                </span>
+              </div>
+              <p className="text-xs text-slate-400">
+                招聘助手提升接待與出餐產能；聘用越多員工固定薪資支出越高，需謹慎平衡現金流！
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Current Payroll Summary Bar */}
+        <div className="px-4 py-2.5 bg-slate-950/70 border-b border-slate-800/80 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1.5 text-slate-300">
+              <span className="text-slate-500">可用資金:</span>
+              <span className={`font-mono font-bold ${financials.balance < 50 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                ${financials.balance.toFixed(0)}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 text-slate-300">
+              <span className="text-slate-500">當前薪資開銷:</span>
+              <span className="font-mono font-bold text-amber-300">
+                -${currentWagesEvery10Ticks} / 10刻度
+              </span>
+            </div>
+          </div>
+          <span className="text-[11px] text-slate-400 italic">
+            ⚠️ 提示：若營業額無法覆蓋員工薪水，資金赤字將引發【破產 Game Over】！
+          </span>
+        </div>
+
+        {/* Staff List */}
+        <div className="p-4 sm:p-5 overflow-y-auto flex-1 flex flex-col gap-3">
+          {AVAILABLE_STAFF_CANDIDATES.map(candidate => {
+            const isHired = hiredStaff.some(s => s.id === candidate.id);
+            const canAfford = financials.balance >= candidate.hireCost;
+
+            return (
+              <div
+                key={candidate.id}
+                className={`p-3.5 rounded-xl border transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${
+                  isHired
+                    ? 'bg-emerald-950/30 border-emerald-500/50 shadow-sm'
+                    : 'bg-slate-800/60 border-slate-700/60 hover:border-slate-600'
+                }`}
+              >
+                {/* Left: Avatar & Info */}
+                <div className="flex items-start gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-slate-900 border border-slate-700 flex items-center justify-center text-2xl shrink-0 shadow-inner">
+                    {candidate.avatar}
+                  </div>
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sm text-white">{candidate.name}</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-700/60 text-slate-300 font-mono">
+                        {candidate.roleTitle}
+                      </span>
+                      {isHired && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-semibold flex items-center gap-1">
+                          <Check className="w-3 h-3" /> 在崗在職
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-xs text-amber-300/90 font-medium mt-0.5">
+                      ✨ 特長：{candidate.perks}
+                    </span>
+                    <span className="text-[11px] text-slate-400 mt-0.5 leading-snug">
+                      {candidate.description}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Right: Cost & Hire / Fire Action */}
+                <div className="flex sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-2 shrink-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-750">
+                  <div className="flex flex-col sm:items-end text-xs font-mono">
+                    <span className="text-slate-400">
+                      簽約費: <strong className="text-white">${candidate.hireCost}</strong>
+                    </span>
+                    <span className="text-slate-400 text-[11px]">
+                      薪資: <strong className="text-amber-400">${candidate.wagePer10Ticks}</strong> / 10刻度
+                    </span>
+                  </div>
+
+                  {isHired ? (
+                    <button
+                      onClick={() => onFireStaff(candidate.id)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/40 transition flex items-center gap-1 active:scale-95"
+                      title="解聘此員工以停止計發工資"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      <span>資遣解聘</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => onHireStaff(candidate)}
+                      disabled={!canAfford}
+                      className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 hover:bg-amber-400 text-slate-950 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-1 shadow-md shadow-amber-950 active:scale-95"
+                    >
+                      <UserPlus className="w-3.5 h-3.5" />
+                      <span>招聘聘用</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Footer */}
+        <div className="p-3.5 bg-slate-950/80 border-t border-slate-800 flex items-center justify-between">
+          <span className="text-xs text-slate-400">
+            經營心法：高峰時段加派人手衝刺翻台，客流平緩時及時精簡人事成本！
+          </span>
+          <button
+            onClick={onClose}
+            className="px-4 py-1.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-white transition"
+          >
+            返回餐廳
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
