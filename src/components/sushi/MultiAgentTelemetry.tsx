@@ -7,6 +7,7 @@ import {
   RestaurantMetrics,
   SushiAgentRole
 } from '../../lib/sushi/types';
+import { useSushiI18n } from '../../lib/sushi/i18n';
 import {
   MessageSquare,
   Activity,
@@ -41,6 +42,7 @@ export const MultiAgentTelemetry: React.FC<MultiAgentTelemetryProps> = ({
   selectedRole,
   tick
 }) => {
+  const { t } = useSushiI18n();
   const [activeTab, setActiveTab] = useState<'comms' | 'thoughts' | 'finance' | 'tickets'>('comms');
   const [roleFilter, setRoleFilter] = useState<SushiAgentRole | 'all'>('all');
 
@@ -66,13 +68,13 @@ export const MultiAgentTelemetry: React.FC<MultiAgentTelemetryProps> = ({
   const getAgentName = (role: SushiAgentRole) => {
     switch (role) {
       case 'host':
-        return '阿葵 (Host)';
+        return t('roleAoi');
       case 'chef':
-        return '健次 (Chef)';
+        return t('roleKenji');
       case 'inventory':
-        return '蓮 (Inventory)';
+        return t('roleRen');
       case 'manager':
-        return '櫻 (Manager)';
+        return t('roleSakura');
     }
   };
 
@@ -105,7 +107,7 @@ export const MultiAgentTelemetry: React.FC<MultiAgentTelemetryProps> = ({
           title="Agent 之間的跨角色即時對話"
         >
           <MessageSquare className="w-4 h-4" />
-          <span>協同通訊</span>
+          <span>{t('tabComms')}</span>
         </button>
 
         <button
@@ -118,7 +120,7 @@ export const MultiAgentTelemetry: React.FC<MultiAgentTelemetryProps> = ({
           title="單一 Agent 的思考推理日誌"
         >
           <Activity className="w-4 h-4" />
-          <span>思維鏈</span>
+          <span>{t('tabThoughts')}</span>
         </button>
 
         <button
@@ -131,7 +133,7 @@ export const MultiAgentTelemetry: React.FC<MultiAgentTelemetryProps> = ({
           title="收支與滿意度營運數據"
         >
           <TrendingUp className="w-4 h-4" />
-          <span>經營數據</span>
+          <span>{t('tabFinance')}</span>
         </button>
 
         <button
@@ -144,7 +146,7 @@ export const MultiAgentTelemetry: React.FC<MultiAgentTelemetryProps> = ({
           title="當前廚房排程工單"
         >
           <Receipt className="w-4 h-4" />
-          <span>工單 ({activeTickets.length})</span>
+          <span>{t('tabTickets', { count: activeTickets.length })}</span>
         </button>
       </div>
 

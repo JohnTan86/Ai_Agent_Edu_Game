@@ -7,6 +7,7 @@ import {
 } from '../../lib/sushi/types';
 import { ALL_SUSHI_TOOLS, SUSHI_PROMPT_PRESETS } from '../../lib/sushi/defaultAgents';
 import { parseSushiPrompt } from '../../lib/sushi/agentEngine';
+import { useSushiI18n } from '../../lib/sushi/i18n';
 import {
   Bot,
   Sliders,
@@ -40,15 +41,16 @@ export const MultiAgentWorkspace: React.FC<MultiAgentWorkspaceProps> = ({
   isExecuting,
   unlockedAgents
 }) => {
+  const { t } = useSushiI18n();
   const [activeTab, setActiveTab] = useState<'prompt' | 'tools' | 'model'>('prompt');
   const agent = agents[selectedRole];
 
   // Role metadata list
   const roles: { role: SushiAgentRole; name: string; avatar: string; color: string }[] = [
-    { role: 'host', name: '阿葵 (Aoi)', avatar: '💁‍♀️', color: 'border-sky-400 text-sky-400' },
-    { role: 'chef', name: '健次 (Kenji)', avatar: '👨‍🍳', color: 'border-orange-400 text-orange-400' },
-    { role: 'inventory', name: '蓮 (Ren)', avatar: '📦', color: 'border-emerald-400 text-emerald-400' },
-    { role: 'manager', name: '櫻 (Sakura)', avatar: '👩‍💼', color: 'border-purple-400 text-purple-400' }
+    { role: 'host', name: t('roleAoi'), avatar: '💁‍♀️', color: 'border-sky-400 text-sky-400' },
+    { role: 'chef', name: t('roleKenji'), avatar: '👨‍🍳', color: 'border-orange-400 text-orange-400' },
+    { role: 'inventory', name: t('roleRen'), avatar: '📦', color: 'border-emerald-400 text-emerald-400' },
+    { role: 'manager', name: t('roleSakura'), avatar: '👩‍💼', color: 'border-purple-400 text-purple-400' }
   ];
 
   // Presets available for this agent
@@ -75,9 +77,9 @@ export const MultiAgentWorkspace: React.FC<MultiAgentWorkspaceProps> = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5 text-xs font-bold text-slate-300">
             <Bot className="w-4 h-4 text-amber-400" />
-            <span>AI Agent 控制中樞 (MAS Console)</span>
+            <span>{t('masConsole')}</span>
           </div>
-          <span className="text-[10px] text-slate-500 font-mono">4-Agent Architecture</span>
+          <span className="text-[10px] text-slate-500 font-mono">{t('architecture4')}</span>
         </div>
 
         {/* 4 Agent Badges */}
@@ -103,7 +105,7 @@ export const MultiAgentWorkspace: React.FC<MultiAgentWorkspaceProps> = ({
                 <span className="text-[10px] font-bold truncate max-w-full">{r.name.split(' ')[0]}</span>
                 {!isUnlocked && (
                   <span className="absolute top-1 right-1 text-[8px] bg-slate-800 text-slate-400 px-1 rounded">
-                    鎖定
+                    🔒
                   </span>
                 )}
               </button>
@@ -119,8 +121,12 @@ export const MultiAgentWorkspace: React.FC<MultiAgentWorkspaceProps> = ({
             {agent.avatar}
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-bold text-white">{agent.name}</span>
-            <span className="text-xs text-slate-400 truncate max-w-[200px]">{agent.title}</span>
+            <span className="text-sm font-bold text-white">
+              {selectedRole === 'host' ? t('roleAoi') : selectedRole === 'chef' ? t('roleKenji') : selectedRole === 'inventory' ? t('roleRen') : t('roleSakura')}
+            </span>
+            <span className="text-xs text-slate-400 truncate max-w-[200px]">
+              {selectedRole === 'host' ? t('titleAoi') : selectedRole === 'chef' ? t('titleKenji') : selectedRole === 'inventory' ? t('titleRen') : t('titleSakura')}
+            </span>
           </div>
         </div>
 
@@ -142,7 +148,7 @@ export const MultiAgentWorkspace: React.FC<MultiAgentWorkspaceProps> = ({
           }`}
         >
           <Sparkles className="w-4 h-4" />
-          <span className="text-xs sm:text-sm">System Prompt</span>
+          <span className="text-xs sm:text-sm">{t('tabPrompt')}</span>
         </button>
 
         <button
@@ -154,7 +160,7 @@ export const MultiAgentWorkspace: React.FC<MultiAgentWorkspaceProps> = ({
           }`}
         >
           <Wrench className="w-4 h-4" />
-          <span className="text-xs sm:text-sm">工具清單 ({agent.enabledTools?.length || 0})</span>
+          <span className="text-xs sm:text-sm">{t('tabTools', { count: agent.enabledTools?.length || 0 })}</span>
         </button>
 
         <button
@@ -166,7 +172,7 @@ export const MultiAgentWorkspace: React.FC<MultiAgentWorkspaceProps> = ({
           }`}
         >
           <Sliders className="w-4 h-4" />
-          <span className="text-xs sm:text-sm">模型與參數</span>
+          <span className="text-xs sm:text-sm">{t('tabModel')}</span>
         </button>
       </div>
 
@@ -477,7 +483,7 @@ export const MultiAgentWorkspace: React.FC<MultiAgentWorkspaceProps> = ({
           className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-rose-600 hover:from-amber-400 hover:to-rose-500 text-slate-950 font-bold text-sm flex items-center justify-center gap-2 shadow-lg transition disabled:opacity-50 cursor-pointer"
         >
           <Play className="w-4 h-4 fill-current" />
-          <span>{isExecuting ? 'Agent 協同決策中...' : '單步驅動多 Agent 思考 (Run Turn)'}</span>
+          <span>{isExecuting ? t('agentExecuting') : t('runManualTurn')}</span>
         </button>
       </div>
     </div>

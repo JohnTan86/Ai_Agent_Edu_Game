@@ -10,8 +10,9 @@ import { SushiHelpGuideModal } from '../../components/sushi/SushiHelpGuideModal'
 import { SushiReportModal } from '../../components/sushi/SushiReportModal';
 import { SushiStaffModal } from '../../components/sushi/SushiStaffModal';
 import { SushiBranchMapModal } from '../../components/sushi/SushiBranchMapModal';
+import { SushiI18nProvider } from '../../lib/sushi/i18n';
 
-export default function SushiApp() {
+function SushiAppContent() {
   const {
     state,
     agents,
@@ -162,5 +163,13 @@ export default function SushiApp() {
         onOpenNewBranch={openNewBranch}
       />
     </div>
+  );
+}
+
+export default function SushiApp() {
+  return (
+    <SushiI18nProvider>
+      <SushiAppContent />
+    </SushiI18nProvider>
   );
 }

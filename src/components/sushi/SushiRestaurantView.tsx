@@ -8,6 +8,7 @@ import {
 } from '../../lib/sushi/types';
 import { SUSHI_RECIPES } from '../../lib/sushi/recipes';
 import { SushiOvercookedStage } from './SushiOvercookedStage';
+import { useSushiI18n } from '../../lib/sushi/i18n';
 import {
   Utensils,
   Clock,
@@ -49,6 +50,7 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
   onOpenBranchMapModal,
   onSelectBranch
 }) => {
+  const { t } = useSushiI18n();
   const [hoveredCustomer, setHoveredCustomer] = useState<Customer | null>(null);
   const [viewMode, setViewMode] = useState<'cartoon' | 'classic'>('cartoon');
 
@@ -106,9 +108,9 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
               className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-gradient-to-r from-amber-500 via-rose-500 to-amber-500 text-slate-950 text-xs font-black shadow-md transition active:scale-95 animate-bounce border border-amber-300"
               title="席位已達 16 桌上限！點擊進入 Google Map 開設新分店"
             >
-              <span>🗺️ 開設新分店</span>
+              <span>🗺️ {t('branchMap')}</span>
               <span className="bg-slate-950/80 text-amber-300 px-1 py-0.5 rounded text-[10px] font-mono">
-                MAX 16席
+                MAX 16
               </span>
             </button>
           )}
@@ -120,7 +122,7 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
               title="招聘外場服務生或後廚助廚"
             >
               <Users className="w-3.5 h-3.5 text-sky-400" />
-              <span>招聘員工 ({state.hiredStaff?.length || 0})</span>
+              <span>{t('staff')} ({state.hiredStaff?.length || 0})</span>
             </button>
           )}
 
@@ -134,7 +136,7 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
               }`}
             >
               <Tv className="w-3.5 h-3.5" />
-              <span>卡通動畫劇場</span>
+              <span>{t('animeTheaterBtn')}</span>
             </button>
             <button
               onClick={() => setViewMode('classic')}
@@ -145,7 +147,7 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
               }`}
             >
               <LayoutGrid className="w-3.5 h-3.5" />
-              <span>數值看板</span>
+              <span>{t('dataBoardBtn')}</span>
             </button>
           </div>
 
@@ -153,17 +155,17 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
           <div className="flex items-center gap-3 text-xs font-mono">
             <div className="flex items-center gap-1 text-slate-400">
               <span className="w-2 h-2 rounded-full bg-sky-400" />
-              <span>候位:</span>
+              <span>{t('tabTickets') ? t('waitingQueueTitle').split(' ')[0] : '候位'}:</span>
               <span className="text-white font-bold">{state.customersInQueue.length}</span>
             </div>
             <div className="flex items-center gap-1 text-slate-400">
               <span className="w-2 h-2 rounded-full bg-emerald-400" />
-              <span>就座:</span>
+              <span>{t('tableCapacityCount').includes('席') ? '就座' : 'Seated'}:</span>
               <span className="text-white font-bold">{state.seatedCustomers.length}/{state.tables.length}</span>
             </div>
             <div className="flex items-center gap-1 text-slate-400">
               <span className="w-2 h-2 rounded-full bg-amber-400" />
-              <span>工單:</span>
+              <span>{t('tableCapacityCount').includes('席') ? '工單' : 'Orders'}:</span>
               <span className="text-white font-bold">{state.activeTickets.length}</span>
             </div>
           </div>

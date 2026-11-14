@@ -8,6 +8,7 @@ import {
 } from '../../lib/sushi/types';
 import { SUSHI_RECIPES } from '../../lib/sushi/recipes';
 import { getSushiClockInfo } from '../../lib/sushi/timeConstants';
+import { useSushiI18n } from '../../lib/sushi/i18n';
 import {
   Play,
   Pause,
@@ -70,6 +71,7 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
   onAddTable,
   onOpenBranchMapModal
 }) => {
+  const { t, language } = useSushiI18n();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -997,10 +999,10 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
               <span className="text-xl animate-lantern inline-block">🏮</span>
               <div className="flex items-center gap-2">
                 <span className="font-extrabold text-amber-200 tracking-wide text-xs sm:text-sm">
-                  ⛩️ {activeBranch ? activeBranch.name : '江戶前・壽司物語'} 2D 動畫實景
+                  ⛩️ {activeBranch ? activeBranch.name : '江戶前・壽司物語'} 2D {language === 'en' ? 'Anime Stage' : '動畫實景'}
                 </span>
                 <span className="text-xs bg-amber-950/80 text-amber-300 font-mono px-2 py-0.5 rounded-full border border-amber-700/60 font-bold">
-                  第 {clockInfo.day} 天 • {clockInfo.time12} [{clockInfo.shiftPhaseEmoji} {clockInfo.shiftPhaseLabel}]
+                  {t('dayClock', { day: clockInfo.day, time: clockInfo.time12 })} [{clockInfo.shiftPhaseEmoji} {clockInfo.shiftPhaseLabel}]
                 </span>
                 {state.marketCondition && (
                   <span className="hidden xl:inline text-xs bg-stone-900 text-stone-300 px-2 py-0.5 rounded-full border border-stone-700">
@@ -1009,7 +1011,7 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
                 )}
                 {state.rushHourActive && (
                   <span className="text-xs bg-rose-600 text-white font-mono px-2 py-0.5 rounded-full animate-bounce font-bold shadow-sm">
-                    ⚡ 爆單期
+                    ⚡ {t('rushHour')}
                   </span>
                 )}
               </div>
@@ -1019,7 +1021,7 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
             <div className="flex items-center gap-2 sm:gap-3 text-xs font-mono">
               {state.hiredStaff && state.hiredStaff.length > 0 && (
                 <span className="bg-sky-950/70 text-sky-300 font-bold px-2.5 py-1 rounded-xl border border-sky-800 shadow-sm flex items-center gap-1">
-                  <span>👥 助手:</span>
+                  <span>👥 {t('staff')}:</span>
                   <span>{state.hiredStaff.map(s => s.name.split(' ')[0]).join(', ')}</span>
                 </span>
               )}
@@ -1028,9 +1030,9 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
                   onClick={onAddTable}
                   disabled={state.tables.length >= 16}
                   className="bg-amber-500 hover:bg-amber-400 disabled:opacity-40 disabled:cursor-not-allowed text-stone-950 font-black px-2.5 py-1 rounded-xl shadow-md flex items-center gap-1 transition text-xs active:scale-95"
-                  title={state.tables.length >= 16 ? '席位已達上限（16席）！可開設新分店' : '增設新餐桌（花費 $150）'}
+                  title={state.tables.length >= 16 ? t('tableFull') : `${t('addTable')} ($150)`}
                 >
-                  <span>➕ 餐桌</span>
+                  <span>➕ {t('addTableShort')}</span>
                   <span className="bg-amber-950/70 text-amber-200 px-1 py-0.5 rounded text-[10px]">
                     {state.tables.length}/16
                   </span>
@@ -1040,11 +1042,11 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
                 <button
                   onClick={onOpenBranchMapModal}
                   className="bg-gradient-to-r from-amber-500 via-rose-500 to-amber-500 hover:brightness-110 text-stone-950 font-black px-2.5 py-1 rounded-xl shadow-lg flex items-center gap-1.5 transition text-xs animate-bounce active:scale-95 border border-amber-300"
-                  title="席位已達 16 桌上限！點擊進入 Google Map 開設新分店"
+                  title={t('branchMap')}
                 >
-                  <span>🗺️ 開設新分店</span>
+                  <span>🗺️ {t('branchMap')}</span>
                   <span className="bg-stone-950/70 text-amber-300 px-1 py-0.5 rounded text-[10px] font-mono">
-                    16席滿
+                    MAX 16
                   </span>
                 </button>
               )}
@@ -1055,7 +1057,7 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
                 ★ {(state.metrics?.averageSatisfactionStars ?? 5).toFixed(1)}
               </span>
               <span className="bg-stone-900/90 text-sky-300 font-bold px-2.5 py-1 rounded-xl border border-stone-700 shadow-sm hidden sm:inline">
-                已出餐 {state.metrics?.customersServed ?? 0} 人
+                {language === 'en' ? 'Served' : '已出餐'} {state.metrics?.customersServed ?? 0}
               </span>
             </div>
           </div>
