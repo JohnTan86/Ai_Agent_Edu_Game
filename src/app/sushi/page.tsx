@@ -183,6 +183,7 @@ function SushiAppContent() {
         onHireStaff={hireStaff}
         onFireStaff={fireStaff}
         financials={state.financials}
+        currentBranchName={state.branches?.find(b => b.id === state.activeBranchId)?.name}
       />
 
       {/* 6. Google Map Branch Expansion & Multi-Branch Management Modal */}

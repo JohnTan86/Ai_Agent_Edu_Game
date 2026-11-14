@@ -239,12 +239,13 @@ export interface SushiBranch {
   emoji: string;
   establishedAtDay: number;
   tables: DiningTable[];
-  customersInQueue?: Customer[];
-  seatedCustomers?: Customer[];
-  kitchenStations?: KitchenStation[];
-  activeTickets?: OrderTicket[];
-  completedTickets?: OrderTicket[];
-  metrics?: {
+  customersInQueue: Customer[];
+  seatedCustomers: Customer[];
+  kitchenStations: KitchenStation[];
+  activeTickets: OrderTicket[];
+  completedTickets: OrderTicket[];
+  hiredStaff: StaffCandidate[];
+  metrics: {
     customersServed: number;
     customersWalkout: number;
     revenue: number;

@@ -21,7 +21,7 @@ import { executeMultiAgentCycle, executeDirectSushiDispatch } from '../../lib/su
 import { sushiAudio } from '../../lib/sushi/audio';
 import { AVAILABLE_STAFF_CANDIDATES, DAILY_MARKET_CONDITIONS, MarketCondition, StaffCandidate } from '../../lib/sushi/staffConfig';
 import { getSushiClockInfo, TICKS_PER_DAY } from '../../lib/sushi/timeConstants';
-import { BranchLocationCandidate } from '../../lib/sushi/branchConfig';
+import { BranchLocationCandidate, spawnCustomerForBranch } from '../../lib/sushi/branchConfig';
 
 const INITIAL_TABLES: DiningTable[] = [
   { id: 'T1', name: '吧台 1 號席', type: 'counter', capacity: 1, status: 'empty', cleanliness: 100 },
@@ -92,6 +92,7 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
     }
 
     const initialTables = JSON.parse(JSON.stringify(INITIAL_TABLES));
+    const initialStations = JSON.parse(JSON.stringify(INITIAL_STATIONS));
     const initialBranch: SushiBranch = {
       id: 'branch_ginza',
       name: '江戶前・銀座旗艦總店',
@@ -101,6 +102,12 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
       emoji: '⛩️',
       establishedAtDay: 1,
       tables: initialTables,
+      customersInQueue: [],
+      seatedCustomers: [],
+      kitchenStations: initialStations,
+      activeTickets: [],
+      completedTickets: [],
+      hiredStaff: [],
       metrics: {
         customersServed: 0,
         customersWalkout: 0,
@@ -185,79 +192,22 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
   agentsRef.current = agents;
 
   /**
-   * Spawn a customer with random or special order
+   * Spawn a customer customized to the specific branch's district, clientele and tastes
    */
-  const spawnCustomer = useCallback((isRush: boolean = false, forceVip: boolean = false): Customer => {
-    const custId = `CUST-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-    const name = SAMPLE_NAMES[Math.floor(Math.random() * SAMPLE_NAMES.length)];
-    const avatars = ['🧑‍💼', '👩‍💻', '👨‍🎨', '👵', '👴', '👱‍♂️', '👩‍🦰', '🧔'];
-    const avatar = avatars[Math.floor(Math.random() * avatars.length)];
-
-    const specialChance = forceVip ? 1.0 : currentScenario.specialRequestsFrequency;
-    const isSpecial = Math.random() < specialChance;
-
+  const spawnCustomer = useCallback((isRush: boolean = false, forceVip: boolean = false, targetBranchId?: string): Customer => {
+    const branchId = targetBranchId || stateRef.current.activeBranchId || 'branch_ginza';
     const currentMarket = stateRef.current.marketCondition || DAILY_MARKET_CONDITIONS[0];
     const vipBonus = currentMarket.vipChanceBonus || 0;
+    const freq = currentScenario.specialRequestsFrequency || 0.25;
 
-    let specialPreference: SpecialDietaryTag = 'none';
-    let specialNote = '';
-    let isVip = forceVip || Math.random() < (0.15 + vipBonus);
-
-    if (isVip) {
-      specialPreference = 'vip_critic';
-      specialNote = '米其林指南秘密稽查員，對鮮度要求極高！';
-    } else if (isSpecial) {
-      const roll = Math.random();
-      if (roll < 0.35) {
-        specialPreference = 'no_wasabi';
-        specialNote = '對芥末辛辣敏感，要求【不要放山葵/芥末】';
-      } else if (roll < 0.65) {
-        specialPreference = 'vegetarian';
-        specialNote = '嚴格素食主義者，【僅食用酪梨蔬食卷】';
-      } else {
-        specialPreference = 'rush_hurry';
-        specialNote = '趕搭高鐵班次，要求出餐必須極速！';
-      }
-    }
-
-    // Select recipes based on preference
-    const recipeKeys = Object.keys(SUSHI_RECIPES);
-    const orders: { recipeId: string; quantity: number }[] = [];
-
-    if (specialPreference === 'vegetarian') {
-      orders.push({ recipeId: 'veggie_roll', quantity: 1 });
-    } else if (isVip) {
-      orders.push({ recipeId: 'omakase_supreme', quantity: 1 });
-    } else {
-      // 1-2 random items
-      const pick1 = recipeKeys[Math.floor(Math.random() * (recipeKeys.length - 1))];
-      orders.push({ recipeId: pick1, quantity: 1 });
-      if (Math.random() < 0.4) {
-        const pick2 = recipeKeys[Math.floor(Math.random() * (recipeKeys.length - 1))];
-        orders.push({ recipeId: pick2, quantity: 1 });
-      }
-    }
-
-    const billAmount = orders.reduce((acc, o) => acc + (SUSHI_RECIPES[o.recipeId]?.price || 15) * o.quantity, 0);
-    // Tightened customer patience: VIPs and rush customers are demanding; slow service causes walkouts
-    const patienceMax = isVip ? 34 : (specialPreference === 'rush_hurry' ? 24 : 44);
-
-    return {
-      id: custId,
-      name: isVip ? `【VIP】${name}` : name,
-      avatar,
-      arrivalTick: stateRef.current.tick,
-      status: 'in_queue',
-      orders,
-      specialPreference,
-      specialNote,
-      patienceMax,
-      patienceRemaining: patienceMax,
-      satisfactionStars: 5,
-      isVip,
-      billAmount,
-      tipAmount: 0
-    };
+    return spawnCustomerForBranch(
+      branchId,
+      stateRef.current.tick,
+      isRush,
+      forceVip,
+      vipBonus,
+      freq
+    );
   }, [currentScenario]);
 
   /**
@@ -329,10 +279,10 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
     const rushMultiplier = s.rushHourActive ? 2.0 : 1.0;
     const effectiveArrival = baseArrivalRate * clockMultiplier * marketMultiplier * rushMultiplier;
 
-    // During open business hours (before last call / closing), spawn customers
+    // During open business hours (before last call / closing), spawn customers for active branch
     if (clockInfo.shiftPhase !== 'closed' && clockInfo.shiftPhase !== 'last_call') {
       if (Math.random() < effectiveArrival && updatedQueue.length < 10) {
-        const newCust = spawnCustomer(s.rushHourActive);
+        const newCust = spawnCustomer(s.rushHourActive, false, s.activeBranchId);
         updatedQueue.push(newCust);
       }
     }
@@ -368,7 +318,7 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
       });
     }
 
-    // Multi-Agent Decision Loop
+    // Multi-Agent Decision Loop for Active Branch
     const draftState: SushiSimulationState = {
       ...s,
       tick: nextTick,
@@ -386,7 +336,156 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
 
     const result = await executeMultiAgentCycle(draftState, agentsRef.current);
 
-    // 4. Check Scenario End Conditions (Bankruptcy < 0, Satisfaction <= 3.0, Victory, MaxTicks)
+    // 4. Simulate Background Non-Active Branches independently
+    let extraBgRevenue = 0;
+    let extraBgServed = 0;
+    let extraBgExpenses = 0;
+
+    const updatedBranches = (s.branches || []).map(b => {
+      if (b.id === s.activeBranchId) {
+        return {
+          ...b,
+          tables: result.updatedTables,
+          customersInQueue: result.updatedCustomersInQueue,
+          seatedCustomers: result.updatedSeatedCustomers,
+          kitchenStations: result.updatedKitchenStations,
+          activeTickets: result.updatedActiveTickets,
+          completedTickets: result.updatedCompletedTickets,
+          hiredStaff: s.hiredStaff || [],
+          metrics: {
+            customersServed: result.updatedMetrics.customersServed,
+            customersWalkout: result.updatedMetrics.customersWalkout,
+            revenue: result.updatedFinancials.totalRevenue,
+            satisfaction: result.updatedMetrics.averageSatisfactionStars
+          }
+        };
+      }
+
+      // Autonomous independent simulation for background branches
+      let bgQueue = [...(b.customersInQueue || [])];
+      let bgSeated = [...(b.seatedCustomers || [])];
+      let bgTables = [...(b.tables || [])];
+      let bgStations = JSON.parse(JSON.stringify(b.kitchenStations && b.kitchenStations.length > 0 ? b.kitchenStations : INITIAL_STATIONS));
+      let bgTickets = [...(b.activeTickets || [])];
+      let bgCompleted = [...(b.completedTickets || [])];
+      const bgStaff = b.hiredStaff || [];
+      const bgMetrics = { ...(b.metrics || { customersServed: 0, customersWalkout: 0, revenue: 0, satisfaction: 5.0 }) };
+
+      // Background branch periodic expenses (rent + its own staff wages)
+      if (nextTick > 0 && nextTick % 10 === 0 && s.scenario.difficulty !== 'Sandbox') {
+        const bgStaffPayroll = bgStaff.reduce((sum, st) => sum + st.wagePer10Ticks, 0);
+        const bgRent = 8;
+        extraBgExpenses += (bgStaffPayroll + bgRent);
+      }
+
+      // Background branch customer patience decay
+      bgQueue = bgQueue.filter(c => {
+        c.patienceRemaining -= 1;
+        if (c.patienceRemaining <= 0) {
+          bgMetrics.customersWalkout += 1;
+          return false;
+        }
+        return true;
+      });
+
+      // Background branch seated diners progress
+      bgSeated = bgSeated.filter(c => {
+        if (c.status === 'eating') {
+          if (!c.eatingTicksRemaining) c.eatingTicksRemaining = 5;
+          c.eatingTicksRemaining -= 1;
+          if (c.eatingTicksRemaining <= 0) {
+            const earned = c.billAmount + (c.tipAmount || 0);
+            bgMetrics.revenue += earned;
+            bgMetrics.customersServed += 1;
+            extraBgRevenue += earned;
+            extraBgServed += 1;
+
+            const tbl = bgTables.find(t => t.id === c.tableId);
+            if (tbl) {
+              tbl.status = 'empty';
+              tbl.assignedCustomerId = undefined;
+            }
+            return false;
+          }
+        } else if (c.status === 'waiting_food') {
+          c.patienceRemaining -= 1;
+          if (c.patienceRemaining <= 0) {
+            bgMetrics.customersWalkout += 1;
+            const tbl = bgTables.find(t => t.id === c.tableId);
+            if (tbl) {
+              tbl.status = 'empty';
+              tbl.assignedCustomerId = undefined;
+            }
+            return false;
+          }
+        }
+        return true;
+      });
+
+      // Background branch kitchen station progress
+      bgStations.forEach((st: KitchenStation) => {
+        if (st.status === 'prepping') {
+          st.remainingPrepTicks = Math.max(0, st.remainingPrepTicks - 1);
+          if (st.remainingPrepTicks <= 0) {
+            st.status = 'idle';
+            const waitingDiner = bgSeated.find(c => c.status === 'waiting_food');
+            if (waitingDiner) {
+              waitingDiner.status = 'eating';
+              waitingDiner.eatingTicksRemaining = 5;
+            }
+          }
+        }
+      });
+
+      // Start cooking for waiting diners if station idle
+      const waitingForFood = bgSeated.filter(c => c.status === 'waiting_food');
+      if (waitingForFood.length > 0) {
+        const idleStation = bgStations.find((st: KitchenStation) => st.status === 'idle');
+        if (idleStation) {
+          idleStation.status = 'prepping';
+          idleStation.remainingPrepTicks = 4;
+        }
+      }
+
+      // Seat queuing customers into empty tables
+      const emptyTable = bgTables.find(t => t.status === 'empty');
+      if (emptyTable && bgQueue.length > 0) {
+        const guest = bgQueue.shift()!;
+        guest.status = 'waiting_food';
+        guest.tableId = emptyTable.id;
+        emptyTable.status = 'occupied';
+        emptyTable.assignedCustomerId = guest.id;
+        bgSeated.push(guest);
+      }
+
+      // Background customer spawning
+      if (clockInfo.shiftPhase !== 'closed' && clockInfo.shiftPhase !== 'last_call') {
+        if (Math.random() < 0.25 && bgQueue.length < 6) {
+          const bgCust = spawnCustomerForBranch(b.id, nextTick, false, false, 0, 0.2);
+          bgQueue.push(bgCust);
+        }
+      }
+
+      return {
+        ...b,
+        tables: bgTables,
+        customersInQueue: bgQueue,
+        seatedCustomers: bgSeated,
+        kitchenStations: bgStations,
+        activeTickets: bgTickets,
+        completedTickets: bgCompleted,
+        hiredStaff: bgStaff,
+        metrics: bgMetrics
+      };
+    });
+
+    if (extraBgRevenue > 0 || extraBgExpenses > 0) {
+      result.updatedFinancials.balance += (extraBgRevenue - extraBgExpenses);
+      result.updatedFinancials.totalRevenue += extraBgRevenue;
+      result.updatedFinancials.totalExpenses += extraBgExpenses;
+    }
+
+    // 5. Check Scenario End Conditions (Bankruptcy < 0, Satisfaction <= 3.0, Victory, MaxTicks)
     let newStatus: SushiSimulationState['status'] = s.status;
     let endReason: string | undefined = undefined;
 
@@ -435,6 +534,7 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
       status: newStatus,
       isShiftEnded: isDayShiftEnded,
       endReason,
+      branches: updatedBranches,
       inventory: result.updatedInventory,
       financials: result.updatedFinancials,
       metrics: result.updatedMetrics,
@@ -497,13 +597,23 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
   const spawnCustomerManually = (forceVip: boolean = false, burstCount: number = 1) => {
     const newCusts: Customer[] = [];
     for (let i = 0; i < burstCount; i++) {
-      newCusts.push(spawnCustomer(state.rushHourActive, forceVip));
+      newCusts.push(spawnCustomer(state.rushHourActive, forceVip, state.activeBranchId));
     }
 
     setState(prev => {
       const updatedQueue = [...prev.customersInQueue, ...newCusts];
       const isDanger = updatedQueue.length >= 6;
       const newThoughts = [...prev.thoughtSteps];
+
+      const updatedBranches = (prev.branches || []).map(b => {
+        if (b.id === prev.activeBranchId) {
+          return {
+            ...b,
+            customersInQueue: updatedQueue
+          };
+        }
+        return b;
+      });
 
       if (isDanger) {
         newThoughts.unshift({
@@ -533,6 +643,7 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
 
       return {
         ...prev,
+        branches: updatedBranches,
         customersInQueue: updatedQueue,
         thoughtSteps: newThoughts
       };
@@ -542,7 +653,7 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
   };
 
   /**
-   * Hire a staff assistant member
+   * Hire a staff assistant member for the active branch
    */
   const hireStaff = useCallback((candidate: StaffCandidate): boolean => {
     const s = stateRef.current;
@@ -558,11 +669,24 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
       const updatedStaffWages = prev.financials.staffWages + candidate.hireCost;
       const updatedHired = [...(prev.hiredStaff || []), candidate];
 
+      const updatedBranches = (prev.branches || []).map(b => {
+        if (b.id === prev.activeBranchId) {
+          return {
+            ...b,
+            hiredStaff: updatedHired
+          };
+        }
+        return b;
+      });
+
+      const activeBranchName = prev.branches?.find(b => b.id === prev.activeBranchId)?.name || '分店';
+
       sushiAudio.playPayment();
 
       return {
         ...prev,
         hiredStaff: updatedHired,
+        branches: updatedBranches,
         financials: {
           ...prev.financials,
           balance: updatedBalance,
@@ -577,7 +701,7 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
             tick: prev.tick,
             timestamp: new Date().toLocaleTimeString('zh-TW', { hour12: false }),
             type: 'tool_call',
-            content: `🤝【招聘新員工入職】成功聘用【${candidate.name}】擔任【${candidate.roleTitle}】！支付簽約金 $${candidate.hireCost}，每期工資 $${candidate.wagePer10Ticks}。特長：${candidate.perks}`
+            content: `🤝【招聘新員工入職】成功為【${activeBranchName}】聘用【${candidate.name}】擔任【${candidate.roleTitle}】！支付簽約金 $${candidate.hireCost}，每期工資 $${candidate.wagePer10Ticks}。特長：${candidate.perks}`
           },
           ...prev.thoughtSteps
         ]
@@ -587,16 +711,30 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
   }, []);
 
   /**
-   * Dismiss/fire a staff member to save ongoing operational payroll
+   * Dismiss/fire a staff member from active branch
    */
   const fireStaff = useCallback((staffId: string) => {
     setState(prev => {
       const target = prev.hiredStaff?.find(s => s.id === staffId);
       if (!target) return prev;
 
+      const updatedHired = (prev.hiredStaff || []).filter(s => s.id !== staffId);
+      const updatedBranches = (prev.branches || []).map(b => {
+        if (b.id === prev.activeBranchId) {
+          return {
+            ...b,
+            hiredStaff: updatedHired
+          };
+        }
+        return b;
+      });
+
+      const activeBranchName = prev.branches?.find(b => b.id === prev.activeBranchId)?.name || '分店';
+
       return {
         ...prev,
-        hiredStaff: (prev.hiredStaff || []).filter(s => s.id !== staffId),
+        hiredStaff: updatedHired,
+        branches: updatedBranches,
         thoughtSteps: [
           {
             id: `th_fire_${staffId}_${Date.now()}`,
@@ -605,7 +743,7 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
             tick: prev.tick,
             timestamp: new Date().toLocaleTimeString('zh-TW', { hour12: false }),
             type: 'tool_call',
-            content: `👋【員工解聘資遣】店長辦理解聘【${target.name}】（${target.roleTitle}），停止計發後續每期工資 $${target.wagePer10Ticks}，以降低固定營運成本。`
+            content: `👋【員工解聘資遣】店長為【${activeBranchName}】辦理解聘【${target.name}】（${target.roleTitle}），停止計發後續每期工資 $${target.wagePer10Ticks}，以降低固定營運成本。`
           },
           ...prev.thoughtSteps
         ]
@@ -818,6 +956,7 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
 
     const newBranchId = `branch_${Date.now()}`;
     const initialTablesForBranch: DiningTable[] = JSON.parse(JSON.stringify(INITIAL_TABLES));
+    const initialStationsForBranch: KitchenStation[] = JSON.parse(JSON.stringify(INITIAL_STATIONS));
 
     const newBranch: SushiBranch = {
       id: newBranchId,
@@ -828,6 +967,12 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
       emoji: candidate.emoji || '🍣',
       establishedAtDay: s.day,
       tables: initialTablesForBranch,
+      customersInQueue: [],
+      seatedCustomers: [],
+      kitchenStations: initialStationsForBranch,
+      activeTickets: [],
+      completedTickets: [],
+      hiredStaff: [],
       metrics: {
         customersServed: 0,
         customersWalkout: 0,
@@ -836,12 +981,18 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
       }
     };
 
-    // Also sync the current branch's tables before switching
+    // Also sync the current branch's full operational state before switching
     const updatedBranches = (s.branches || []).map(b => {
       if (b.id === s.activeBranchId) {
         return {
           ...b,
           tables: s.tables,
+          customersInQueue: s.customersInQueue,
+          seatedCustomers: s.seatedCustomers,
+          kitchenStations: s.kitchenStations,
+          activeTickets: s.activeTickets,
+          completedTickets: s.completedTickets,
+          hiredStaff: s.hiredStaff,
           metrics: {
             customersServed: s.metrics.customersServed,
             customersWalkout: s.metrics.customersWalkout,
@@ -867,6 +1018,12 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
       branches: updatedBranches,
       activeBranchId: newBranchId,
       tables: initialTablesForBranch,
+      customersInQueue: [],
+      seatedCustomers: [],
+      kitchenStations: initialStationsForBranch,
+      activeTickets: [],
+      completedTickets: [],
+      hiredStaff: [],
       hasReachedMaxTables: initialTablesForBranch.length >= 16,
       thoughtSteps: [
         {
@@ -876,7 +1033,7 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
           tick: prev.tick,
           timestamp: new Date().toLocaleTimeString('zh-TW', { hour12: false }),
           type: 'observe',
-          content: `🏢🎉【全新分店正式開幕！】壽司物語【${newBranch.name}】（${candidate.districtName}）盛大開業！初始配置 6 張精緻餐桌，實景動畫已切換至新分行，期待在此打造米其林傳奇！`
+          content: `🏢🎉【全新分店正式開幕！】壽司物語【${newBranch.name}】（${candidate.districtName}）盛大開業！獨立配置專屬商圈客群、6張精緻餐桌與獨立後廚，實景動畫已切換至新分行！`
         },
         ...prev.thoughtSteps
       ]
@@ -894,12 +1051,18 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
       const targetBranch = (prev.branches || []).find(b => b.id === branchId);
       if (!targetBranch) return prev;
 
-      // Update currently active branch with current tables
+      // Update currently active branch with all current operational state
       const updatedBranches = (prev.branches || []).map(b => {
         if (b.id === prev.activeBranchId) {
           return {
             ...b,
             tables: prev.tables,
+            customersInQueue: prev.customersInQueue,
+            seatedCustomers: prev.seatedCustomers,
+            kitchenStations: prev.kitchenStations,
+            activeTickets: prev.activeTickets,
+            completedTickets: prev.completedTickets,
+            hiredStaff: prev.hiredStaff,
             metrics: {
               customersServed: prev.metrics.customersServed,
               customersWalkout: prev.metrics.customersWalkout,
@@ -913,14 +1076,26 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
 
       sushiAudio.playOrderTaken();
 
+      const nextTables = targetBranch.tables && targetBranch.tables.length > 0
+        ? targetBranch.tables
+        : JSON.parse(JSON.stringify(INITIAL_TABLES));
+
+      const nextStations = targetBranch.kitchenStations && targetBranch.kitchenStations.length > 0
+        ? targetBranch.kitchenStations
+        : JSON.parse(JSON.stringify(INITIAL_STATIONS));
+
       return {
         ...prev,
         branches: updatedBranches,
         activeBranchId: branchId,
-        tables: targetBranch.tables && targetBranch.tables.length > 0
-          ? targetBranch.tables
-          : JSON.parse(JSON.stringify(INITIAL_TABLES)),
-        hasReachedMaxTables: (targetBranch.tables?.length ?? 6) >= 16,
+        tables: nextTables,
+        customersInQueue: targetBranch.customersInQueue || [],
+        seatedCustomers: targetBranch.seatedCustomers || [],
+        kitchenStations: nextStations,
+        activeTickets: targetBranch.activeTickets || [],
+        completedTickets: targetBranch.completedTickets || [],
+        hiredStaff: targetBranch.hiredStaff || [],
+        hasReachedMaxTables: (nextTables.length ?? 6) >= 16,
         thoughtSteps: [
           {
             id: `th_branch_switch_${Date.now()}`,
@@ -929,7 +1104,7 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
             tick: prev.tick,
             timestamp: new Date().toLocaleTimeString('zh-TW', { hour12: false }),
             type: 'observe',
-            content: `🔀【分行視角切換】切換監控分行至【${targetBranch.name}】。實景動畫與餐桌席位已更新！`
+            content: `🔀【分行視角切換】切換監控分行至【${targetBranch.name}】。獨立候位隊列 (${(targetBranch.customersInQueue || []).length}人)、就座食客 (${(targetBranch.seatedCustomers || []).length}人)、員工陣容 (${(targetBranch.hiredStaff || []).length}人) 與實景餐桌席位已就緒！`
           },
           ...prev.thoughtSteps
         ]
