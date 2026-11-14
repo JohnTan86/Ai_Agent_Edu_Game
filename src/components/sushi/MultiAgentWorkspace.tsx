@@ -69,7 +69,7 @@ export const MultiAgentWorkspace: React.FC<MultiAgentWorkspaceProps> = ({
   };
 
   return (
-    <div className="w-72 xl:w-80 2xl:w-96 h-full flex flex-col bg-slate-900 border-r border-slate-800 select-none z-10 shrink-0">
+    <div className="w-60 lg:w-64 xl:w-72 2xl:w-80 h-full flex flex-col bg-slate-900 border-r border-slate-800 select-none z-10 shrink-0">
       {/* 1. Agent Selector Tabs */}
       <div className="p-3 border-b border-slate-800 bg-slate-950/60 flex flex-col gap-2 shrink-0">
         <div className="flex items-center justify-between">

@@ -494,25 +494,27 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
       ctx.fillRect(400, 75, 55, 45);
       ctx.strokeRect(400, 75, 55, 45);
       ctx.fillStyle = '#fef3c7';
-      ctx.font = '10px sans-serif';
+      ctx.font = 'bold 11px sans-serif';
       ctx.fillText(isEn ? '🔪 Nigiri' : '🔪 握壽司', 427, 95);
-      ctx.fillText(isEn ? 'Board' : '砧板', 427, 108);
+      ctx.fillText(isEn ? 'Board' : '砧板', 427, 109);
 
       // Station 2: Gunkan / Maki
       ctx.fillStyle = '#452614';
       ctx.fillRect(500, 75, 55, 45);
       ctx.strokeRect(500, 75, 55, 45);
       ctx.fillStyle = '#fef3c7';
+      ctx.font = 'bold 11px sans-serif';
       ctx.fillText(isEn ? '🍙 Gunkan' : '🍙 軍艦卷', 527, 95);
-      ctx.fillText(isEn ? 'Mat' : '竹簾', 527, 108);
+      ctx.fillText(isEn ? 'Mat' : '竹簾', 527, 109);
 
       // Station 3: Aburi Torch Grill
       ctx.fillStyle = '#452614';
       ctx.fillRect(600, 75, 55, 45);
       ctx.strokeRect(600, 75, 55, 45);
       ctx.fillStyle = '#fef3c7';
+      ctx.font = 'bold 11px sans-serif';
       ctx.fillText(isEn ? '🔥 Aburi' : '🔥 炙燒台', 627, 95);
-      ctx.fillText(isEn ? 'Torch' : '噴槍', 627, 108);
+      ctx.fillText(isEn ? 'Torch' : '噴槍', 627, 109);
 
       // Plated Pickup Pass (右端)
       ctx.fillStyle = '#5c1d1d';
@@ -521,7 +523,7 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
       ctx.lineWidth = 1.5;
       ctx.strokeRect(680, 135, 65, 38);
       ctx.fillStyle = '#fde68a';
-      ctx.font = 'bold 9px sans-serif';
+      ctx.font = 'bold 11px sans-serif';
       ctx.fillText(isEn ? '🔔 Pass' : '🔔 出餐取盤口', 712, 150);
 
       const hasPlated = stateRef.current.kitchenStations.some(s => s.status === 'plated');
@@ -648,14 +650,14 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
 
         // Table Name Label
         ctx.fillStyle = '#fde68a';
-        ctx.font = 'bold 10px sans-serif';
+        ctx.font = 'bold 12px sans-serif';
         ctx.textAlign = 'center';
         const tableName = isEn ? table.id.replace('T', 'Table ') : (table.name || pos.name);
         ctx.fillText(tableName, pos.x, pos.y - 6);
 
         // Table Status
         if (customer) {
-          ctx.font = '10px sans-serif';
+          ctx.font = 'bold 11px sans-serif';
           ctx.fillStyle = isEating ? '#6ee7b7' : isPaying ? '#e9d5ff' : '#fcd34d';
           ctx.fillText(isEating ? (isEn ? '🥢 Dining' : '🥢 品嚐中') : isPaying ? (isEn ? '🪙 Paying' : '🪙 結帳中') : (isEn ? '⏳ Waiting' : '⏳ 等出餐'), pos.x, pos.y + 10);
 
@@ -670,7 +672,7 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
           ctx.fillStyle = pct > 0.5 ? '#10b981' : pct > 0.25 ? '#f59e0b' : '#ef4444';
           ctx.fillRect(pos.x - 30, pos.y - 32, Math.max(0, 60 * pct), 4);
         } else {
-          ctx.font = '10px sans-serif';
+          ctx.font = 'bold 11px sans-serif';
           ctx.fillStyle = '#64748b';
           ctx.fillText(isEn ? '🪑 Empty' : '🪑 空席待客', pos.x, pos.y + 10);
         }
@@ -881,10 +883,10 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
           actor.bubbleTimer = (actor.bubbleTimer ?? 0) - 0.5;
 
           const text = actor.bubbleText;
-          ctx.font = 'bold 11px sans-serif';
+          ctx.font = 'bold 12px sans-serif';
           const textMetrics = ctx.measureText(text);
-          const bubbleW = textMetrics.width + 16;
-          const bubbleH = 22;
+          const bubbleW = textMetrics.width + 18;
+          const bubbleH = 24;
           const bubbleY = -45;
 
           ctx.fillStyle = '#ffffff';

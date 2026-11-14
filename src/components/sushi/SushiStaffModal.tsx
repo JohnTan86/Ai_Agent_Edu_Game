@@ -23,8 +23,9 @@ export const SushiStaffModal: React.FC<SushiStaffModalProps> = ({
   financials,
   currentBranchName
 }) => {
-  const { language, t } = useSushiI18n();
+  const { language, t, translateBranch } = useSushiI18n();
   const isEn = language === 'en';
+  const branchDisplay = currentBranchName ? (translateBranch ? translateBranch(currentBranchName) : currentBranchName) : '';
 
   if (!isOpen) return null;
 
@@ -82,9 +83,9 @@ export const SushiStaffModal: React.FC<SushiStaffModalProps> = ({
                 <h2 className="text-base sm:text-lg font-bold text-white tracking-wide">
                   {t('staffModalTitle')}
                 </h2>
-                {currentBranchName && (
+                {branchDisplay && (
                   <span className="text-xs px-2 py-0.5 rounded-md bg-amber-950/80 text-amber-200 border border-amber-500/40 font-bold">
-                    🏢 {currentBranchName}
+                    🏢 {branchDisplay}
                   </span>
                 )}
                 <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 font-semibold">
@@ -92,7 +93,7 @@ export const SushiStaffModal: React.FC<SushiStaffModalProps> = ({
                 </span>
               </div>
               <p className="text-xs text-slate-400">
-                {currentBranchName ? (isEn ? `Recruiting and managing dedicated staff for [${currentBranchName}]. Each branch maintains independent staff.` : `為【${currentBranchName}】招募與管理專屬員工，各分店人事營運獨立獨立計薪。`) : t('staffModalSub')}
+                {branchDisplay ? (isEn ? `Recruiting and managing dedicated staff for [${branchDisplay}]. Each branch maintains independent staff.` : `為【${branchDisplay}】招募與管理專屬員工，各分店人事營運獨立獨立計薪。`) : t('staffModalSub')}
               </p>
             </div>
           </div>

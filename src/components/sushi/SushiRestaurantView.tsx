@@ -43,13 +43,14 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
   onOpenBranchMapModal,
   onSelectBranch
 }) => {
-  const { language, t, getRecipeTitle, getIngredientInfo, translateCustName } = useSushiI18n();
+  const { language, t, getRecipeTitle, getIngredientInfo, translateCustName, translateBranch } = useSushiI18n();
   const [hoveredCustomer, setHoveredCustomer] = useState<Customer | null>(null);
   const [viewMode, setViewMode] = useState<'cartoon' | 'classic'>('cartoon');
   const isEn = language === 'en';
 
-  const branchName = state.branches?.find(b => b.id === state.activeBranchId)?.name;
-  const displayBranchName = branchName || (isEn ? 'SushiFlow AI Flagship Store' : '江戶前・壽司物語 AI 旗艦店');
+  const activeBranch = state.branches?.find(b => b.id === state.activeBranchId);
+  const rawBranchName = activeBranch?.name || '江戶前・壽司物語 AI 旗艦店';
+  const displayBranchName = translateBranch ? translateBranch(rawBranchName) : rawBranchName;
 
   // Helper for patience color
   const getPatienceColor = (rem: number, max: number) => {
@@ -60,44 +61,44 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
   };
 
   return (
-    <div className="w-full h-full flex flex-col bg-slate-950/90 text-slate-200 select-none overflow-y-auto p-2 sm:p-2.5 gap-2 relative">
-      {/* Sleek Ambience Bar with View Mode Toggle */}
-      <div className="flex items-center justify-between bg-gradient-to-r from-amber-950/40 via-slate-900/80 to-amber-950/40 border border-amber-900/30 rounded-xl px-3 py-1.5 shadow-sm flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <span className="text-lg">🏮</span>
-          <h2 className="text-xs sm:text-sm font-bold text-amber-200 tracking-wider flex items-center gap-2">
-            {displayBranchName}
-            {state.rushHourActive && (
-              <span className="text-[10px] bg-rose-600 text-white font-mono px-1.5 py-0.2 rounded-full animate-bounce font-bold">
-                ⚡ {isEn ? 'Rush Hour' : '尖峰客流'}
-              </span>
-            )}
-          </h2>
-        </div>
-
-        {/* View Mode Switcher + Multi-Branch + Counters */}
-        <div className="flex items-center gap-2.5">
-          {/* Multi-Branch Switcher */}
-          {state.branches && state.branches.length > 1 && (
+    <div className="w-full h-full flex flex-col bg-slate-950/90 text-slate-200 select-none overflow-hidden p-1.5 sm:p-2 gap-1.5 relative min-w-0">
+      {/* Sleek Ambience Bar with View Mode Toggle - Strict 40px Height & Single-Line Layout */}
+      <div className="h-10 min-h-[40px] max-h-[40px] flex items-center justify-between bg-gradient-to-r from-amber-950/50 via-slate-900 to-amber-950/50 border border-amber-900/40 rounded-xl px-3 shadow-sm flex-shrink-0 whitespace-nowrap overflow-hidden">
+        {/* Left: Branch Indicator / Selector */}
+        <div className="flex items-center gap-2 shrink-0 max-w-[50%] min-w-0 truncate">
+          <span className="text-base shrink-0">🏮</span>
+          {state.branches && state.branches.length > 1 ? (
             <select
               value={state.activeBranchId}
               onChange={e => onSelectBranch?.(e.target.value)}
-              className="bg-amber-950/80 hover:bg-amber-900 text-amber-200 border border-amber-500/50 rounded-lg px-2 py-0.5 text-xs font-bold cursor-pointer"
+              className="bg-amber-950/90 hover:bg-amber-900 text-amber-200 border border-amber-500/60 rounded-lg px-2 py-0.5 text-xs font-bold cursor-pointer max-w-[240px] truncate shadow-sm shrink-0"
               title="Switch Branch View"
             >
               {state.branches.map(b => (
-                <option key={b.id} value={b.id} className="bg-slate-900 text-white">
-                  🏢 {b.name} ({b.tables?.length || 6}/16)
+                <option key={b.id} value={b.id} className="bg-slate-900 text-white font-medium">
+                  🏢 {translateBranch ? translateBranch(b.name) : b.name} ({b.tables?.length || 6}/16)
                 </option>
               ))}
             </select>
+          ) : (
+            <h2 className="text-xs sm:text-sm font-bold text-amber-200 tracking-wider whitespace-nowrap truncate">
+              {displayBranchName}
+            </h2>
           )}
+          {state.rushHourActive && (
+            <span className="text-[10px] bg-rose-600 text-white font-mono px-1.5 py-0.2 rounded-full font-bold whitespace-nowrap shrink-0">
+              ⚡ {isEn ? 'Rush' : '尖峰'}
+            </span>
+          )}
+        </div>
 
+        {/* Right: View Mode Switcher + Live Quick Counters */}
+        <div className="flex items-center gap-2 shrink-0">
           {/* View Mode Buttons */}
-          <div className="flex items-center gap-1 bg-slate-900/90 border border-slate-700/60 p-0.5 rounded-lg text-xs font-medium shadow-inner">
+          <div className="flex items-center gap-0.5 bg-slate-900/95 border border-slate-700/80 p-0.5 rounded-lg text-xs font-semibold shadow-inner shrink-0">
             <button
               onClick={() => setViewMode('cartoon')}
-              className={`flex items-center gap-1 px-2.5 py-0.5 rounded-md transition-all text-xs ${
+              className={`flex items-center gap-1 px-2 py-0.5 rounded-md transition-all text-xs whitespace-nowrap ${
                 viewMode === 'cartoon'
                   ? 'bg-gradient-to-r from-amber-600 to-rose-600 text-white font-bold shadow-sm'
                   : 'text-slate-400 hover:text-white'
@@ -108,7 +109,7 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
             </button>
             <button
               onClick={() => setViewMode('classic')}
-              className={`flex items-center gap-1 px-2.5 py-0.5 rounded-md transition-all text-xs ${
+              className={`flex items-center gap-1 px-2 py-0.5 rounded-md transition-all text-xs whitespace-nowrap ${
                 viewMode === 'classic'
                   ? 'bg-slate-700 text-white font-bold shadow-sm'
                   : 'text-slate-400 hover:text-white'
@@ -120,20 +121,20 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
           </div>
 
           {/* Quick status counters */}
-          <div className="flex items-center gap-2 text-xs font-mono">
-            <div className="flex items-center gap-1 text-slate-400">
-              <span className="w-2 h-2 rounded-full bg-sky-400" />
-              <span>{isEn ? 'Queue:' : '候位:'}</span>
+          <div className="flex items-center gap-2 text-xs font-mono shrink-0 whitespace-nowrap">
+            <div className="flex items-center gap-1 text-slate-400 shrink-0">
+              <span className="w-2 h-2 rounded-full bg-sky-400 shrink-0" />
+              <span className="text-slate-400">{isEn ? 'Queue:' : '候位:'}</span>
               <span className="text-white font-bold">{state.customersInQueue.length}</span>
             </div>
-            <div className="flex items-center gap-1 text-slate-400">
-              <span className="w-2 h-2 rounded-full bg-emerald-400" />
-              <span>{isEn ? 'Tables:' : '席位:'}</span>
-              <span className="text-white font-bold">{state.seatedCustomers.length}/{state.tables.length}</span>
+            <div className="flex items-center gap-1 text-slate-400 shrink-0">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+              <span className="text-slate-400">{isEn ? 'Tables:' : '席位:'}</span>
+              <span className="text-white font-bold">{Math.min(state.seatedCustomers.length, state.tables.length)}/{state.tables.length}</span>
             </div>
-            <div className="flex items-center gap-1 text-slate-400">
-              <span className="w-2 h-2 rounded-full bg-amber-400" />
-              <span>{isEn ? 'Orders:' : '工單:'}</span>
+            <div className="flex items-center gap-1 text-slate-400 shrink-0">
+              <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+              <span className="text-slate-400">{isEn ? 'Orders:' : '工單:'}</span>
               <span className="text-white font-bold">{state.activeTickets.length}</span>
             </div>
           </div>
@@ -142,7 +143,7 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
 
       {/* Main Content: Either Animated Cartoon Scene or Classic Data Grid */}
       {viewMode === 'cartoon' ? (
-        <div className="flex-1 flex flex-col min-h-0">
+        <div className="flex-1 w-full h-full flex flex-col min-h-0 min-w-0 overflow-hidden">
           <SushiOvercookedStage
             state={state}
             onSelectCustomer={onSelectCustomer}

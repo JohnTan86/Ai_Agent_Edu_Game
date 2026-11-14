@@ -93,7 +93,7 @@ export const MultiAgentTelemetry: React.FC<MultiAgentTelemetryProps> = ({
   };
 
   return (
-    <div className="w-72 xl:w-80 2xl:w-96 h-full flex flex-col bg-slate-900 border-l border-slate-800 select-none z-10 shrink-0">
+    <div className="w-60 lg:w-64 xl:w-72 2xl:w-80 h-full flex flex-col bg-slate-900 border-l border-slate-800 select-none z-10 shrink-0">
       {/* 1. Header Tabs */}
       <div className="flex border-b border-slate-800 text-xs sm:text-sm font-semibold bg-slate-950/80 shrink-0">
         <button

@@ -25,7 +25,7 @@ export const SushiBranchMapModal: React.FC<SushiBranchMapModalProps> = ({
   onSelectBranch,
   onOpenNewBranch
 }) => {
-  const { language, t } = useSushiI18n();
+  const { language, t, translateBranch } = useSushiI18n();
   const isEn = language === 'en';
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -262,7 +262,7 @@ export const SushiBranchMapModal: React.FC<SushiBranchMapModalProps> = ({
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-1.5">
               <span className="text-slate-400">{isEn ? 'Current Branch:' : '當前管理分店:'}</span>
-              <strong className="text-amber-300 font-bold">{currentBranch?.name}</strong>
+              <strong className="text-amber-300 font-bold">{translateBranch ? translateBranch(currentBranch?.name) : currentBranch?.name}</strong>
               <span className="text-slate-500 font-mono">({currentBranch?.tables.length}/16 {isEn ? 'Tables' : '席'})</span>
             </div>
             <div className="flex items-center gap-1.5 font-mono">
@@ -339,7 +339,7 @@ export const SushiBranchMapModal: React.FC<SushiBranchMapModalProps> = ({
                       <div className="flex items-center gap-2.5">
                         <span className="text-xl">{b.emoji || '🍣'}</span>
                         <div className="flex flex-col">
-                          <span className="text-xs font-bold">{b.name}</span>
+                          <span className="text-xs font-bold">{translateBranch ? translateBranch(b.name) : b.name}</span>
                           <span className="text-xs text-slate-400 font-mono">
                             {b.districtName.split(' ')[1] || b.districtName} • {isEn ? 'Tables' : '餐桌'} {b.tables.length}/16
                           </span>
@@ -382,7 +382,7 @@ export const SushiBranchMapModal: React.FC<SushiBranchMapModalProps> = ({
                 <div className="flex items-center gap-2.5">
                   <span className="text-2xl">{selectedBranch.emoji || '🍣'}</span>
                   <div>
-                    <h3 className="font-black text-sm text-white">{selectedBranch.name}</h3>
+                    <h3 className="font-black text-sm text-white">{translateBranch ? translateBranch(selectedBranch.name) : selectedBranch.name}</h3>
                     <p className="text-xs text-slate-400">{selectedBranch.districtName}</p>
                   </div>
                 </div>

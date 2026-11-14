@@ -1084,13 +1084,16 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
         ? targetBranch.kitchenStations
         : JSON.parse(JSON.stringify(INITIAL_STATIONS));
 
+      const validTableIds = new Set((nextTables as DiningTable[]).map(t => t.id));
+      const cleanSeated = (targetBranch.seatedCustomers || []).filter(c => c.tableId && validTableIds.has(c.tableId));
+
       return {
         ...prev,
         branches: updatedBranches,
         activeBranchId: branchId,
         tables: nextTables,
         customersInQueue: targetBranch.customersInQueue || [],
-        seatedCustomers: targetBranch.seatedCustomers || [],
+        seatedCustomers: cleanSeated,
         kitchenStations: nextStations,
         activeTickets: targetBranch.activeTickets || [],
         completedTickets: targetBranch.completedTickets || [],

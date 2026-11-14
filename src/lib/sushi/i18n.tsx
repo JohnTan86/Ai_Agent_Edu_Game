@@ -559,24 +559,30 @@ export const SCENARIO_TITLES: Record<SushiLanguage, Record<string, string>> = {
 export const MARKET_TITLES: Record<SushiLanguage, Record<string, { title: string; desc: string }>> = {
   'zh-TW': {
     market_standard: { title: '晴朗工作日', desc: '客流規律，午市與晚市皆有穩定客群進店用餐。' },
-    market_festival: { title: '商圈美食祭', desc: '街頭人潮湧動！客流提升 40%，且顧客給予小費更加慷慨！' },
+    market_festival: { title: '商圈美食祭', desc: '街頭人潮湧動！客流提升 50%，且顧客給予小費更加慷慨！' },
     market_rainy: { title: '梅雨濕冷天', desc: '雨勢影響出行，客流下降 25%，但進店顧客耐心更加沉穩。' },
     market_critic: { title: '米其林巡迴', desc: '美食家與 VIP 稽查員出沒機率大增 25%！菜品鮮度與忌口不容絲毫差錯！' },
-    market_holiday: { title: '黃金週連假', desc: '客流全面暴增 50%！外場與後廚高壓運轉，翻台效率決定成敗！' }
+    market_michelin_week: { title: '米其林探店週', desc: '各大美食名家與神秘稽查員高頻巡訪 (VIP 機率翻倍)！' },
+    market_holiday: { title: '黃金週連假', desc: '客流全面暴增 50%！外場與後廚高壓運轉，翻台效率決定成敗！' },
+    market_friday_rush: { title: '週五犒賞狂歡', desc: '上班族下班聚餐狂潮！午間快節奏速食、晚間海鮮大單頻出！' }
   },
   'en': {
     market_standard: { title: 'Sunny Day', desc: 'Steady customer flow with standard lunch and dinner peaks.' },
-    market_festival: { title: 'Food Fest', desc: 'Street crowd surge! Guest arrival +40% with generous tips!' },
+    market_festival: { title: 'Food Fest', desc: 'Street crowd surge! Guest arrival +50% with generous tips!' },
     market_rainy: { title: 'Rainy Day', desc: 'Rain slows down foot traffic (-25%), but guests have more patience.' },
     market_critic: { title: 'Critic Week', desc: 'VIP Food Critic arrival rate +25%! Strict quality checks!' },
-    market_holiday: { title: 'Golden Week', desc: 'Massive +50% holiday tourist surge! Tests turnover speed!' }
+    market_michelin_week: { title: 'Michelin Week', desc: 'VIP Food Critics and inspectors arrive frequently!' },
+    market_holiday: { title: 'Golden Week', desc: 'Massive holiday tourist surge! Tests turnover speed!' },
+    market_friday_rush: { title: 'Friday Night Rush', desc: 'After-work party surge! Fast dining and seafood feasts!' }
   },
   'zh-CN': {
     market_standard: { title: '晴朗工作日', desc: '客流规律，午市与晚市皆有稳定客群进店用餐。' },
-    market_festival: { title: '商圈美食祭', desc: '街头人潮涌动！客流提升 40%，且顾客给予小费更加慷慨！' },
+    market_festival: { title: '商圈美食祭', desc: '街头人潮涌动！客流提升 50%，且顾客给予小费更加慷慨！' },
     market_rainy: { title: '梅雨湿冷天', desc: '雨势影响出行，客流下降 25%，但进店顾客耐心更加沉稳。' },
     market_critic: { title: '米其林巡回', desc: '美食家与 VIP 稽查员出没机率大增 25%！菜品鲜度与忌口不容丝毫差错！' },
-    market_holiday: { title: '黄金周连假', desc: '客流全面暴增 50%！外场与后厨高压运转，翻台效率决定成败！' }
+    market_michelin_week: { title: '米其林探店周', desc: '各大美食名家与神秘稽查员高频巡访 (VIP 机率翻倍)！' },
+    market_holiday: { title: '黄金周连假', desc: '客流全面暴增 50%！外场与后厨高压运转，翻台效率决定成败！' },
+    market_friday_rush: { title: '周五犒赏狂欢', desc: '上班族下班聚餐狂潮！午间快节奏速食、晚间海鲜大单频出！' }
   }
 };
 
@@ -985,6 +991,10 @@ export const useSushiI18n = () => {
     return translateCustomerNote(note, lang);
   };
 
+  const translateBranch = (name: string) => {
+    return translateBranchName(name, lang);
+  };
+
   return {
     ...context,
     getScenarioName,
@@ -995,9 +1005,28 @@ export const useSushiI18n = () => {
     getPresetLocalization,
     translateMsg,
     translateCustName,
-    translateCustNote
+    translateCustNote,
+    translateBranch
   };
 };
+
+export function translateBranchName(name: string, lang: SushiLanguage): string {
+  if (lang !== 'en' || !name) return name;
+  const map: Record<string, string> = {
+    '江戶前・銀座旗艦總店': 'Ginza Flagship Store',
+    '澀谷十字路口潮流分店': 'Shibuya Crossing Trend Store',
+    '新宿歌舞伎町不夜城分店': 'Shinjuku Nightlife Branch',
+    '六本木之丘奢華景觀分店': 'Roppongi Hills Luxury View Branch',
+    '秋葉原電器街動漫聯名分店': 'Akihabara Anime & Tech Branch',
+    '淺草雷門傳統老街分店': 'Asakusa Kaminarimon Heritage Branch',
+    '橫濱未來港海灣景觀分店': 'Yokohama Harbor View Branch',
+    '京都祇園傳統茶寮旗艦店': 'Kyoto Gion Traditional Teahouse',
+    '自訂・特色連鎖分店': 'Custom Franchise Branch',
+    '江戶前・壽司物語 AI 旗艦店': 'SushiFlow AI Flagship Store',
+    '江戶前・壽司物語 AI 本店': 'SushiFlow AI Main Store'
+  };
+  return map[name] || name;
+}
 
 export function translateCustomerName(name: string, lang: SushiLanguage): string {
   if (lang !== 'en' || !name) return name;
