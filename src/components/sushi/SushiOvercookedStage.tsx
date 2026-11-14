@@ -71,7 +71,8 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
   onAddTable,
   onOpenBranchMapModal
 }) => {
-  const { t, language } = useSushiI18n();
+  const { t, language, getIngredientInfo } = useSushiI18n();
+  const isEn = language === 'en';
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -201,7 +202,9 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
           const coord = TABLE_COORDS[ticket.tableId];
           actors.aoi.targetX = coord.x + 35;
           actors.aoi.targetY = coord.y;
-          actors.aoi.bubbleText = `極上【${ticket.recipeName}】上桌！`;
+          actors.aoi.bubbleText = isEn
+            ? `Order #${ticket.id} (${ticket.recipeName || 'Sushi'}) served!`
+            : `極上【${ticket.recipeName}】上桌！`;
           actors.aoi.bubbleTimer = 60;
         }
       } else {
@@ -209,7 +212,9 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
         actors.aoi.targetX = STATION_COORDS.pass.x;
         actors.aoi.targetY = STATION_COORDS.pass.y + 20;
         actors.aoi.carryingItem = plated.currentRecipeId || 'salmon_nigiri';
-        actors.aoi.bubbleText = '料理備妥！阿葵這就端送～';
+        actors.aoi.bubbleText = isEn
+          ? 'Order ready! Delivering now~'
+          : '料理備妥！阿葵這就端送～';
         actors.aoi.bubbleTimer = 60;
       }
     } else if (orderingCust && orderingCust.tableId && TABLE_COORDS[orderingCust.tableId]) {
@@ -217,13 +222,17 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
       actors.aoi.targetX = coord.x + 35;
       actors.aoi.targetY = coord.y;
       actors.aoi.carryingItem = undefined;
-      actors.aoi.bubbleText = '請問貴賓有忌口或特殊偏好嗎？';
+      actors.aoi.bubbleText = isEn
+        ? 'Any dietary needs or requests?'
+        : '請問貴賓有忌口或特殊偏好嗎？';
       actors.aoi.bubbleTimer = 60;
     } else if (queueWaiting && emptyTable) {
       actors.aoi.targetX = 140;
       actors.aoi.targetY = 220;
       actors.aoi.carryingItem = undefined;
-      actors.aoi.bubbleText = '歡迎光臨！請隨我來～';
+      actors.aoi.bubbleText = isEn
+        ? 'Welcome! Please follow me~'
+        : '歡迎光臨！請隨我來～';
       actors.aoi.bubbleTimer = 60;
     } else {
       // Idle patrol near dining center
@@ -239,24 +248,32 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
         actors.kenji.targetX = STATION_COORDS.prep3.x;
         actors.kenji.targetY = STATION_COORDS.prep3.y;
         actors.kenji.state = 'torching';
-        actors.kenji.bubbleText = '🔥 嘶——噴槍高溫炙燒和牛！';
+        actors.kenji.bubbleText = isEn
+          ? '🔥 Sizzle! High heat aburi torching!'
+          : '🔥 嘶——噴槍高溫炙燒和牛！';
       } else if (prepping.id === 'station_2') {
         actors.kenji.targetX = STATION_COORDS.prep2.x;
         actors.kenji.targetY = STATION_COORDS.prep2.y;
         actors.kenji.state = 'chopping';
-        actors.kenji.bubbleText = '🍙 巧手包卷軍艦海苔！';
+        actors.kenji.bubbleText = isEn
+          ? '🍙 Wrapping crispy gunkan nori!'
+          : '🍙 巧手包卷軍艦海苔！';
       } else {
         actors.kenji.targetX = STATION_COORDS.prep1.x;
         actors.kenji.targetY = STATION_COORDS.prep1.y;
         actors.kenji.state = 'chopping';
-        actors.kenji.bubbleText = '🔪 噠噠噠！俐落厚切極鮮刺身！';
+        actors.kenji.bubbleText = isEn
+          ? '🔪 Chop! Precision sashimi slicing!'
+          : '🔪 噠噠噠！俐落厚切極鮮刺身！';
       }
       actors.kenji.bubbleTimer = 50;
     } else if (plated) {
       actors.kenji.targetX = STATION_COORDS.pass.x - 20;
       actors.kenji.targetY = STATION_COORDS.pass.y - 20;
       actors.kenji.state = 'idle';
-      actors.kenji.bubbleText = '🔔 叮！壽司擺盤完成！請取餐！';
+      actors.kenji.bubbleText = isEn
+        ? '🔔 Plated! Order ready for pickup!'
+        : '🔔 叮！壽司擺盤完成！請取餐！';
       actors.kenji.bubbleTimer = 50;
     } else {
       actors.kenji.targetX = 520;
@@ -272,13 +289,17 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
       actors.ren.targetX = 220;
       actors.ren.targetY = 560;
       actors.ren.state = 'calling';
-      actors.ren.bubbleText = '📞 喂！豐洲市場嗎？食材見底了加急追加！';
+      actors.ren.bubbleText = isEn
+        ? '📞 Urgent! Toyosu market reorder!'
+        : '📞 喂！豐洲市場嗎？食材見底了加急追加！';
       actors.ren.bubbleTimer = 60;
     } else if (isLow) {
       actors.ren.targetX = 140; // At delivery scooter dock
       actors.ren.targetY = 570;
       actors.ren.state = 'carrying';
-      actors.ren.bubbleText = '🛵 到貨啦！正把鮮魚水產搬運入庫！';
+      actors.ren.bubbleText = isEn
+        ? '🛵 Shipment arrived! Restocking pantry!'
+        : '🛵 到貨啦！正把鮮魚水產搬運入庫！';
       actors.ren.bubbleTimer = 60;
     } else {
       actors.ren.targetX = 500;
@@ -295,14 +316,16 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
       const coord = TABLE_COORDS[upset.tableId];
       actors.sakura.targetX = coord.x - 35;
       actors.sakura.targetY = coord.y;
-      actors.sakura.bubbleText = '🍵 抱歉讓您久等！店長招待特製御抹茶甜點！';
+      actors.sakura.bubbleText = isEn
+        ? '🍵 Apologies for waiting! Special matcha dessert on us!'
+        : '🍵 抱歉讓您久等！店長招待特製御抹茶甜點！';
       actors.sakura.bubbleTimer = 70;
     } else {
       actors.sakura.targetX = 880;
       actors.sakura.targetY = 120;
       actors.sakura.bubbleText = s.rushHourActive
-        ? '📢 爆單人潮湧入！全員加油衝刺！'
-        : '今日翻台率與營業額穩定達標～';
+        ? (isEn ? '📢 Rush hour! All hands on deck!' : '📢 爆單人潮湧入！全員加油衝刺！')
+        : (isEn ? 'Turnover and revenue on target today~' : '今日翻台率與營業額穩定達標～');
       actors.sakura.bubbleTimer = 40;
     }
 
@@ -463,7 +486,7 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
       ctx.fillStyle = '#fef3c7';
       ctx.font = 'bold 12px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('🍣 江戶前・板前壽司吧台', 540, 161);
+      ctx.fillText(isEn ? '🍣 Edo-Style Sushi Bar' : '🍣 江戶前・板前壽司吧台', 540, 161);
 
       // 3. Chef Cooking Stations on Kitchen Counter
       // Station 1: Nigiri
@@ -472,24 +495,24 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
       ctx.strokeRect(400, 75, 55, 45);
       ctx.fillStyle = '#fef3c7';
       ctx.font = '10px sans-serif';
-      ctx.fillText('🔪 握壽司', 427, 95);
-      ctx.fillText('砧板', 427, 108);
+      ctx.fillText(isEn ? '🔪 Nigiri' : '🔪 握壽司', 427, 95);
+      ctx.fillText(isEn ? 'Board' : '砧板', 427, 108);
 
       // Station 2: Gunkan / Maki
       ctx.fillStyle = '#452614';
       ctx.fillRect(500, 75, 55, 45);
       ctx.strokeRect(500, 75, 55, 45);
       ctx.fillStyle = '#fef3c7';
-      ctx.fillText('🍙 軍艦卷', 527, 95);
-      ctx.fillText('竹簾', 527, 108);
+      ctx.fillText(isEn ? '🍙 Gunkan' : '🍙 軍艦卷', 527, 95);
+      ctx.fillText(isEn ? 'Mat' : '竹簾', 527, 108);
 
       // Station 3: Aburi Torch Grill
       ctx.fillStyle = '#452614';
       ctx.fillRect(600, 75, 55, 45);
       ctx.strokeRect(600, 75, 55, 45);
       ctx.fillStyle = '#fef3c7';
-      ctx.fillText('🔥 炙燒台', 627, 95);
-      ctx.fillText('噴槍', 627, 108);
+      ctx.fillText(isEn ? '🔥 Aburi' : '🔥 炙燒台', 627, 95);
+      ctx.fillText(isEn ? 'Torch' : '噴槍', 627, 108);
 
       // Plated Pickup Pass (右端)
       ctx.fillStyle = '#5c1d1d';
@@ -499,7 +522,7 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
       ctx.strokeRect(680, 135, 65, 38);
       ctx.fillStyle = '#fde68a';
       ctx.font = 'bold 9px sans-serif';
-      ctx.fillText('🔔 出餐取盤口', 712, 150);
+      ctx.fillText(isEn ? '🔔 Pass' : '🔔 出餐取盤口', 712, 150);
 
       const hasPlated = stateRef.current.kitchenStations.some(s => s.status === 'plated');
       if (hasPlated) {
@@ -519,7 +542,7 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
       ctx.fillRect(40, 32, 220, 24);
       ctx.fillStyle = '#fef08a';
       ctx.font = 'bold 12px sans-serif';
-      ctx.fillText('⛩️ 壽司物語 AI 暖簾入口', 150, 48);
+      ctx.fillText(isEn ? '⛩️ SushiFlow Entrance' : '⛩️ 壽司物語 AI 暖簾入口', 150, 48);
 
       // Waiting Bench
       ctx.fillStyle = '#78350f';
@@ -528,14 +551,14 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
       ctx.strokeRect(40, 205, 220, 35);
       ctx.fillStyle = '#fef3c7';
       ctx.font = '11px sans-serif';
-      ctx.fillText('🪑 迎賓等候長凳區', 150, 226);
+      ctx.fillText(isEn ? '🪑 Waiting Bench' : '🪑 迎賓等候長凳區', 150, 226);
 
       // Lucky Waving Cat
       ctx.font = '22px sans-serif';
       ctx.fillText('🐾', 245, 100);
       ctx.font = 'bold 10px sans-serif';
       ctx.fillStyle = '#fbbf24';
-      ctx.fillText('千客萬來', 245, 116);
+      ctx.fillText(isEn ? 'Welcome' : '千客萬來', 245, 116);
 
       // 5. Manager Sakura Podium (Top Right)
       ctx.fillStyle = '#201026';
@@ -546,7 +569,7 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
 
       ctx.fillStyle = '#a855f7';
       ctx.font = 'bold 12px sans-serif';
-      ctx.fillText('👩‍💼 店長營運指揮台', 890, 52);
+      ctx.fillText(isEn ? '👩‍💼 GM Command Desk' : '👩‍💼 店長營運指揮台', 890, 52);
 
       // Manager's Desk & Laptop
       ctx.fillStyle = '#3b1747';
@@ -564,19 +587,20 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
 
       ctx.fillStyle = '#34d399';
       ctx.font = 'bold 12px sans-serif';
-      ctx.fillText('📦 後院生鮮冷藏庫 & 豐洲市場卸貨碼頭 (Logistics Bay)', 500, 520);
+      ctx.fillText(isEn ? '📦 Pantry & Logistics Bay' : '📦 後院生鮮冷藏庫 & 豐洲市場卸貨碼頭 (Logistics Bay)', 500, 520);
 
       // Delivery Scooter at Dock
       ctx.font = '24px sans-serif';
       ctx.fillText('🛵💨', 110, 580);
       ctx.font = 'bold 10px sans-serif';
       ctx.fillStyle = '#6ee7b7';
-      ctx.fillText('市場專車', 110, 600);
+      ctx.fillText(isEn ? 'Logistics' : '市場專車', 110, 600);
 
       // 8 Ingredient Wooden Crates Drawn on Shelves
       const invKeys: IngredientKey[] = ['rice', 'salmon', 'tuna', 'uni', 'wagyu', 'nori', 'wasabi', 'avocado'];
       invKeys.forEach((key, idx) => {
         const item = stateRef.current.inventory[key];
+        const ingInfo = getIngredientInfo(key, item.name, item.unit);
         const boxX = 220 + idx * 90;
         const boxY = 545;
 
@@ -594,11 +618,11 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
 
         ctx.font = 'bold 10px sans-serif';
         ctx.fillStyle = '#f8fafc';
-        ctx.fillText(item.name.split(' ')[0], boxX + 39, boxY + 38);
+        ctx.fillText(ingInfo.name.split(' ')[0], boxX + 39, boxY + 38);
 
         ctx.font = '9px monospace';
         ctx.fillStyle = isOut ? '#f87171' : isLow ? '#fcd34d' : '#86efac';
-        ctx.fillText(`${item.currentStock} ${item.unit}`, boxX + 39, boxY + 50);
+        ctx.fillText(`${item.currentStock} ${ingInfo.unit}`, boxX + 39, boxY + 50);
       });
 
       // 7. Dining Tables & Counter Seats (Center Floor) - Render Active Tables
@@ -626,13 +650,14 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
         ctx.fillStyle = '#fde68a';
         ctx.font = 'bold 10px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(table.name || pos.name, pos.x, pos.y - 6);
+        const tableName = isEn ? table.id.replace('T', 'Table ') : (table.name || pos.name);
+        ctx.fillText(tableName, pos.x, pos.y - 6);
 
         // Table Status
         if (customer) {
           ctx.font = '10px sans-serif';
           ctx.fillStyle = isEating ? '#6ee7b7' : isPaying ? '#e9d5ff' : '#fcd34d';
-          ctx.fillText(isEating ? '🥢 品嚐中' : isPaying ? '🪙 結帳中' : '⏳ 等出餐', pos.x, pos.y + 10);
+          ctx.fillText(isEating ? (isEn ? '🥢 Dining' : '🥢 品嚐中') : isPaying ? (isEn ? '🪙 Paying' : '🪙 結帳中') : (isEn ? '⏳ Waiting' : '⏳ 等出餐'), pos.x, pos.y + 10);
 
           // Plate on table
           ctx.font = '14px sans-serif';
@@ -647,7 +672,7 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
         } else {
           ctx.font = '10px sans-serif';
           ctx.fillStyle = '#64748b';
-          ctx.fillText('🪑 空席待客', pos.x, pos.y + 10);
+          ctx.fillText(isEn ? '🪑 Empty' : '🪑 空席待客', pos.x, pos.y + 10);
         }
       });
 
@@ -670,7 +695,7 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
         ctx.font = 'bold 11px sans-serif';
         ctx.fillStyle = '#fbbf24';
         ctx.textAlign = 'center';
-        ctx.fillText('➕ 點擊擴建席位', slotPos.x, slotPos.y - 4);
+        ctx.fillText(isEn ? '➕ Add Table' : '➕ 點擊擴建席位', slotPos.x, slotPos.y - 4);
         ctx.font = 'bold 10px monospace';
         ctx.fillStyle = '#fde68a';
         ctx.fillText(`$150 (${stateRef.current.tables.length}/16)`, slotPos.x, slotPos.y + 12);
@@ -687,10 +712,10 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
         ctx.font = 'bold 11px sans-serif';
         ctx.fillStyle = '#fecdd3';
         ctx.textAlign = 'center';
-        ctx.fillText('🎊 席位達 16 桌上限！', 887, 442);
+        ctx.fillText(isEn ? '🎊 16 Tables Limit!' : '🎊 席位達 16 桌上限！', 887, 442);
         ctx.font = 'bold 10px sans-serif';
         ctx.fillStyle = '#fbbf24';
-        ctx.fillText('🗺️ 請點擊開設新分店', 887, 458);
+        ctx.fillText(isEn ? '🗺️ Open New Branch' : '🗺️ 請點擊開設新分店', 887, 458);
         ctx.restore();
       }
 
@@ -786,9 +811,22 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
         ctx.fillText(hatEmoji, 0, -8);
 
         // Name Tag underneath
-        ctx.font = 'bold 9px sans-serif';
+        ctx.font = 'bold 10px sans-serif';
         ctx.fillStyle = '#f8fafc';
-        ctx.fillText(actor.name.split(' ')[0], 0, 26);
+        const displayName = isEn
+          ? actor.role === 'aoi'
+            ? 'Aoi'
+            : actor.role === 'kenji'
+            ? 'Kenji'
+            : actor.role === 'ren'
+            ? 'Ren'
+            : actor.role === 'sakura'
+            ? 'Sakura'
+            : actor.customerRef
+            ? (actor.customerRef.isVip ? 'VIP' : 'Guest')
+            : actor.name
+          : actor.name.split(' ')[0];
+        ctx.fillText(displayName, 0, 26);
 
         // 3. Hands & Carried Items (Overcooked Style: Platter over head or in hands)
         if (actor.carryingItem) {
@@ -989,81 +1027,6 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
       ref={containerRef}
       className="w-full h-full flex flex-col bg-stone-950 text-stone-100 select-none overflow-hidden rounded-2xl border-2 border-amber-900/50 shadow-2xl relative"
     >
-      {/* Top Ambience Bar with Large High-Contrast Font */}
-      {(() => {
-        const clockInfo = getSushiClockInfo(state.tick, state.day, state.isShiftEnded);
-        const activeBranch = state.branches?.find(b => b.id === state.activeBranchId);
-        return (
-          <div className="bg-gradient-to-r from-red-950 via-stone-900 to-red-950 px-4 py-2 border-b border-amber-800/60 flex items-center justify-between shadow-md z-10 flex-shrink-0">
-            <div className="flex items-center gap-3">
-              <span className="text-xl animate-lantern inline-block">🏮</span>
-              <div className="flex items-center gap-2">
-                <span className="font-extrabold text-amber-200 tracking-wide text-xs sm:text-sm">
-                  ⛩️ {activeBranch ? activeBranch.name : '江戶前・壽司物語'} 2D {language === 'en' ? 'Anime Stage' : '動畫實景'}
-                </span>
-                <span className="text-xs bg-amber-950/80 text-amber-300 font-mono px-2 py-0.5 rounded-full border border-amber-700/60 font-bold">
-                  {t('dayClock', { day: clockInfo.day, time: clockInfo.time12 })} [{clockInfo.shiftPhaseEmoji} {clockInfo.shiftPhaseLabel}]
-                </span>
-                {state.marketCondition && (
-                  <span className="hidden xl:inline text-xs bg-stone-900 text-stone-300 px-2 py-0.5 rounded-full border border-stone-700">
-                    {state.marketCondition.emoji} {state.marketCondition.title}
-                  </span>
-                )}
-                {state.rushHourActive && (
-                  <span className="text-xs bg-rose-600 text-white font-mono px-2 py-0.5 rounded-full animate-bounce font-bold shadow-sm">
-                    ⚡ {t('rushHour')}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Live Status Indicators & Expand Table Button */}
-            <div className="flex items-center gap-2 sm:gap-3 text-xs font-mono">
-              {state.hiredStaff && state.hiredStaff.length > 0 && (
-                <span className="bg-sky-950/70 text-sky-300 font-bold px-2.5 py-1 rounded-xl border border-sky-800 shadow-sm flex items-center gap-1">
-                  <span>👥 {t('staff')}:</span>
-                  <span>{state.hiredStaff.map(s => s.name.split(' ')[0]).join(', ')}</span>
-                </span>
-              )}
-              {onAddTable && (
-                <button
-                  onClick={onAddTable}
-                  disabled={state.tables.length >= 16}
-                  className="bg-amber-500 hover:bg-amber-400 disabled:opacity-40 disabled:cursor-not-allowed text-stone-950 font-black px-2.5 py-1 rounded-xl shadow-md flex items-center gap-1 transition text-xs active:scale-95"
-                  title={state.tables.length >= 16 ? t('tableFull') : `${t('addTable')} ($150)`}
-                >
-                  <span>➕ {t('addTableShort')}</span>
-                  <span className="bg-amber-950/70 text-amber-200 px-1 py-0.5 rounded text-[10px]">
-                    {state.tables.length}/16
-                  </span>
-                </button>
-              )}
-              {onOpenBranchMapModal && (state.tables.length >= 16 || state.hasReachedMaxTables) && (
-                <button
-                  onClick={onOpenBranchMapModal}
-                  className="bg-gradient-to-r from-amber-500 via-rose-500 to-amber-500 hover:brightness-110 text-stone-950 font-black px-2.5 py-1 rounded-xl shadow-lg flex items-center gap-1.5 transition text-xs animate-bounce active:scale-95 border border-amber-300"
-                  title={t('branchMap')}
-                >
-                  <span>🗺️ {t('branchMap')}</span>
-                  <span className="bg-stone-950/70 text-amber-300 px-1 py-0.5 rounded text-[10px] font-mono">
-                    MAX 16
-                  </span>
-                </button>
-              )}
-              <span className="bg-stone-900/90 text-emerald-400 font-bold px-2.5 py-1 rounded-xl border border-stone-700 shadow-sm">
-                💰 ${(state.financials?.balance ?? 0).toFixed(0)}
-              </span>
-              <span className="bg-stone-900/90 text-amber-300 font-bold px-2.5 py-1 rounded-xl border border-stone-700 shadow-sm">
-                ★ {(state.metrics?.averageSatisfactionStars ?? 5).toFixed(1)}
-              </span>
-              <span className="bg-stone-900/90 text-sky-300 font-bold px-2.5 py-1 rounded-xl border border-stone-700 shadow-sm hidden sm:inline">
-                {language === 'en' ? 'Served' : '已出餐'} {state.metrics?.customersServed ?? 0}
-              </span>
-            </div>
-          </div>
-        );
-      })()}
-
       {/* The 60 FPS HTML5 Canvas Interactive Stage */}
       <div className="flex-1 w-full h-full relative overflow-hidden bg-[#1c120a] flex items-center justify-center">
         <canvas
@@ -1075,25 +1038,25 @@ export const SushiOvercookedStage: React.FC<SushiOvercookedStageProps> = ({
       </div>
 
       {/* Bottom Operational Status Bar */}
-      <div className="bg-stone-900/95 border-t border-amber-900/40 px-4 py-2 flex items-center justify-between text-xs text-stone-300 font-mono z-10 flex-shrink-0">
-        <div className="flex items-center gap-4">
-          <span className="flex items-center gap-1.5 text-amber-300 font-semibold">
-            <span>💁‍♀️ 阿葵:</span>
-            <span className="text-stone-300 font-normal">帶位 ➔ 點餐 ➔ 取盤 ➔ 送餐 ➔ 收銀</span>
+      <div className="bg-stone-900/95 border-t border-amber-900/40 px-3 py-1.5 flex items-center justify-between text-xs text-stone-300 font-mono z-10 flex-shrink-0">
+        <div className="flex items-center gap-3">
+          <span className="flex items-center gap-1 text-amber-300 font-semibold">
+            <span>💁‍♀️ {isEn ? 'Aoi:' : '阿葵:'}</span>
+            <span className="text-stone-300 font-normal">{t('stageHostAction')}</span>
           </span>
           <span className="text-stone-600">|</span>
-          <span className="flex items-center gap-1.5 text-orange-300 font-semibold">
-            <span>👨‍🍳 健次:</span>
-            <span className="text-stone-300 font-normal">握壽司砧板 ➔ 炙燒噴槍 ➔ 敲鈴擺盤</span>
+          <span className="flex items-center gap-1 text-orange-300 font-semibold">
+            <span>👨‍🍳 {isEn ? 'Kenji:' : '健次:'}</span>
+            <span className="text-stone-300 font-normal">{t('stageChefAction')}</span>
           </span>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <span className="text-emerald-400">
-            📦 蓮: 安全庫存監控
+            📦 {isEn ? 'Ren: ' : '蓮: '}{t('stageInventoryAction')}
           </span>
           <span className="text-stone-600">|</span>
           <span className="text-purple-300">
-            👩‍💼 櫻: 店長滿意度稽核
+            👩‍💼 {isEn ? 'Sakura: ' : '櫻: '}{t('stageManagerAction')}
           </span>
         </div>
       </div>

@@ -1,7 +1,8 @@
 import React from 'react';
-import { Award, RotateCcw, ArrowRight, CheckCircle2, AlertTriangle, X, Star } from 'lucide-react';
-import { SushiScenario, SushiSimulationState } from '../../lib/sushi/types';
+import { Award, RotateCcw, ArrowRight, X, Star } from 'lucide-react';
+import { SushiSimulationState } from '../../lib/sushi/types';
 import { SUSHI_SCENARIOS } from '../../lib/sushi/defaultScenarios';
+import { useSushiI18n } from '../../lib/sushi/i18n';
 
 interface SushiReportModalProps {
   state: SushiSimulationState;
@@ -20,6 +21,9 @@ export const SushiReportModal: React.FC<SushiReportModalProps> = ({
   onSelectScenario,
   onStartNextDay
 }) => {
+  const { language, t, getScenarioName } = useSushiI18n();
+  const isEn = language === 'en';
+
   if (!isOpen) return null;
 
   const { financials, metrics, scenario, endReason, status } = state;
@@ -68,9 +72,11 @@ export const SushiReportModal: React.FC<SushiReportModalProps> = ({
             )}
             <div>
               <h2 className="text-sm font-bold text-white">
-                {isFailed ? '壽司物語 AI 經營失敗報告 (GAME OVER)' : '壽司物語 AI 營運總結報告 (Performance Review)'}
+                {isFailed
+                  ? (isEn ? 'SushiFlow AI Failure Review (GAME OVER)' : '壽司物語 AI 經營失敗報告 (GAME OVER)')
+                  : (isEn ? 'SushiFlow AI Performance Evaluation' : '壽司物語 AI 營運總結報告 (Performance Review)')}
               </h2>
-              <p className="text-[11px] text-slate-400">{scenario.title}</p>
+              <p className="text-[11px] text-slate-400">{getScenarioName(scenario.id)}</p>
             </div>
           </div>
           <button
@@ -86,17 +92,19 @@ export const SushiReportModal: React.FC<SushiReportModalProps> = ({
           {/* Top Grade Banner */}
           <div className={`flex items-center justify-between p-4 rounded-2xl border ${isFailed ? 'bg-rose-950/40 border-rose-500/60' : 'bg-slate-800/60 border-slate-700/60'}`}>
             <div className="flex flex-col gap-1 pr-4">
-              <span className="text-xs text-slate-400 font-mono">綜合經營評等 (Overall Grade)</span>
+              <span className="text-xs text-slate-400 font-mono">
+                {isEn ? 'Overall Grade' : '綜合經營評等 (Overall Grade)'}
+              </span>
               <span className={`text-base font-black ${isFailed ? 'text-rose-400' : 'text-white'}`}>
                 {status === 'victory'
-                  ? '🎉 順利達成關卡營運目標！'
+                  ? (isEn ? '🎉 Scenario Target Achieved!' : '🎉 順利達成關卡營運目標！')
                   : isBankruptcy
-                  ? '💸 資金斷裂・宣告破產 (GAME OVER)'
+                  ? (isEn ? '💸 Bankruptcy Declared (GAME OVER)' : '💸 資金斷裂・宣告破產 (GAME OVER)')
                   : isReputationCollapse
-                  ? '💔 顧客滿意度崩盤・停業整頓 (GAME OVER)'
+                  ? (isEn ? '💔 CSAT Collapsed below 3.0 (GAME OVER)' : '💔 顧客滿意度崩盤・停業整頓 (GAME OVER)')
                   : isFailed
-                  ? '💀 經營失敗 (GAME OVER)'
-                  : '本日營業已打烊核算'}
+                  ? (isEn ? '💀 Operation Failed (GAME OVER)' : '💀 經營失敗 (GAME OVER)')
+                  : (isEn ? 'Daily Shift Concluded' : '本日營業已打烊核算')}
               </span>
               {endReason && <p className={`text-xs mt-1 ${isFailed ? 'text-rose-200' : 'text-amber-300/90'}`}>{endReason}</p>}
             </div>
@@ -112,7 +120,7 @@ export const SushiReportModal: React.FC<SushiReportModalProps> = ({
           {/* Key Metrics Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
             <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 flex flex-col">
-              <span className="text-[10px] text-slate-400 font-mono">接待顧客數</span>
+              <span className="text-xs text-slate-400 font-mono">{isEn ? 'Guests Served' : '接待顧客數'}</span>
               <span className="text-base font-bold text-white font-mono mt-1">
                 {metrics.customersServed}{' '}
                 <span className="text-xs text-slate-500 font-normal">
@@ -122,14 +130,14 @@ export const SushiReportModal: React.FC<SushiReportModalProps> = ({
             </div>
 
             <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 flex flex-col">
-              <span className="text-[10px] text-slate-400 font-mono">營業總收入</span>
+              <span className="text-xs text-slate-400 font-mono">{isEn ? 'Total Revenue' : '營業總收入'}</span>
               <span className="text-base font-bold text-emerald-400 font-mono mt-1">
                 ${financials.totalRevenue.toFixed(0)}
               </span>
             </div>
 
             <div className={`p-3 rounded-xl border flex flex-col ${isBankruptcy ? 'bg-rose-950/50 border-rose-500/80' : 'bg-slate-800/80 border-slate-700/60'}`}>
-              <span className="text-[10px] text-slate-400 font-mono">淨結餘資金</span>
+              <span className="text-xs text-slate-400 font-mono">{isEn ? 'Net Balance' : '淨結餘資金'}</span>
               <span
                 className={`text-base font-bold font-mono mt-1 ${
                   financials.balance >= 0 ? 'text-emerald-400' : 'text-rose-400'
@@ -140,7 +148,7 @@ export const SushiReportModal: React.FC<SushiReportModalProps> = ({
             </div>
 
             <div className={`p-3 rounded-xl border flex flex-col ${isReputationCollapse ? 'bg-rose-950/50 border-rose-500/80' : 'bg-slate-800/80 border-slate-700/60'}`}>
-              <span className="text-[10px] text-slate-400 font-mono">平均滿意度</span>
+              <span className="text-xs text-slate-400 font-mono">{isEn ? 'Average CSAT' : '平均滿意度'}</span>
               <span className={`text-base font-bold font-mono mt-1 flex items-center justify-center gap-1 ${isReputationCollapse ? 'text-rose-400' : 'text-amber-300'}`}>
                 <Star className="w-3.5 h-3.5 fill-current" />
                 <span>{metrics.averageSatisfactionStars.toFixed(1)}</span>
@@ -150,22 +158,24 @@ export const SushiReportModal: React.FC<SushiReportModalProps> = ({
 
           {/* Daily P&L Settlement Breakdown */}
           <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 flex flex-col gap-2.5">
-            <span className="text-xs font-bold text-slate-300">📊 營業損益結算清單 (Operating P&L Breakdown)：</span>
+            <span className="text-xs font-bold text-slate-300">
+              {isEn ? '📊 Daily P&L Breakdown:' : '📊 營業損益結算清單 (Operating P&L Breakdown)：'}
+            </span>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono">
               <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex flex-col">
-                <span className="text-slate-400 text-[10px]">食材採購支出</span>
+                <span className="text-slate-400 text-xs">{isEn ? 'Ingredient Costs' : '食材採購支出'}</span>
                 <span className="text-amber-400 font-bold mt-0.5">-${financials.procurementCosts.toFixed(0)}</span>
               </div>
               <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex flex-col">
-                <span className="text-slate-400 text-[10px]">員工薪資支出</span>
+                <span className="text-slate-400 text-xs">{isEn ? 'Staff Wages' : '員工薪資支出'}</span>
                 <span className="text-rose-400 font-bold mt-0.5">-${financials.staffWages.toFixed(0)}</span>
               </div>
               <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex flex-col">
-                <span className="text-slate-400 text-[10px]">店租水電耗損</span>
+                <span className="text-slate-400 text-xs">{isEn ? 'Rent & Utilities' : '店租水電耗損'}</span>
                 <span className="text-rose-400 font-bold mt-0.5">-${financials.facilityRent.toFixed(0)}</span>
               </div>
               <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex flex-col">
-                <span className="text-slate-400 text-[10px]">總獲利/淨虧損</span>
+                <span className="text-slate-400 text-xs">{isEn ? 'Net Profit / Loss' : '總獲利/淨虧損'}</span>
                 <span
                   className={`font-bold mt-0.5 ${
                     financials.totalRevenue - financials.totalExpenses >= 0 ? 'text-emerald-400' : 'text-rose-400'
@@ -179,25 +189,43 @@ export const SushiReportModal: React.FC<SushiReportModalProps> = ({
 
           {/* AI Collaborative Assessment */}
           <div className="p-4 rounded-2xl bg-slate-800/60 border border-slate-700/60 flex flex-col gap-2">
-            <span className="text-xs font-bold text-slate-200">🤖 多 Agent 協同表現診斷：</span>
+            <span className="text-xs font-bold text-slate-200">
+              {isEn ? '🤖 Multi-Agent Collaborative Diagnosis:' : '🤖 多 Agent 協同表現診斷：'}
+            </span>
             <ul className="text-xs text-slate-300 space-y-1.5 list-disc list-inside">
               <li>
-                <strong>外場接待 阿葵：</strong>{' '}
-                {metrics.customersWalkout > 0
+                <strong>{isEn ? 'Host Aoi: ' : '外場接待 阿葵：'}</strong>{' '}
+                {isEn
+                  ? metrics.customersWalkout > 0
+                    ? `${metrics.customersWalkout} guests walked out due to long waits. Consider prompt optimization for faster turnover.`
+                    : 'Smooth seating and ordering rhythm with zero customer walkouts. Excellent performance!'
+                  : metrics.customersWalkout > 0
                   ? `發生了 ${metrics.customersWalkout} 次顧客久候離店，建議優化接待提示詞，加快帶位或催促後廚出餐。`
                   : '迎賓與點餐節奏流暢，未發生顧客負氣離席，表現優異！'}
               </li>
               <li>
-                <strong>料理大將 健次：</strong> 共完成 {metrics.dishesPreparedCount} 盤壽司製作，
-                {metrics.stockoutIncidentsCount > 0
-                  ? `期間因缺料停頓 ${metrics.stockoutIncidentsCount} 次，需加強與採購的庫存同步。`
-                  : '出餐零缺料斷檔，刀工與節奏掌控得宜！'}
+                <strong>{isEn ? 'Master Chef Kenji: ' : '料理大將 健次：'}</strong>{' '}
+                {isEn
+                  ? `Crafted ${metrics.dishesPreparedCount} sushi dishes. ` +
+                    (metrics.stockoutIncidentsCount > 0
+                      ? `Encountered ${metrics.stockoutIncidentsCount} ingredient stockouts. Coordinate closer with Procurement Ren.`
+                      : 'Zero stockouts, flawless craftsmanship and pacing!')
+                  : `共完成 ${metrics.dishesPreparedCount} 盤壽司製作，` +
+                    (metrics.stockoutIncidentsCount > 0
+                      ? `期間因缺料停頓 ${metrics.stockoutIncidentsCount} 次，需加強與採購的庫存同步。`
+                      : '出餐零缺料斷檔，刀工與節奏掌控得宜！')}
               </li>
               <li>
-                <strong>供應鏈採購 蓮：</strong> 採購成本控制在 ${financials.procurementCosts.toFixed(0)}，
-                {financials.balance < 50
-                  ? '流動資金偏低，注意避免單次大批量囤積高單價食材。'
-                  : '資金周轉健康，食材供應充沛。'}
+                <strong>{isEn ? 'Procurement Lead Ren: ' : '供應鏈採購 蓮：'}</strong>{' '}
+                {isEn
+                  ? `Procurement spend kept at $${financials.procurementCosts.toFixed(0)}. ` +
+                    (financials.balance < 50
+                      ? 'Liquidity is tight. Avoid buying luxury items in large batches.'
+                      : 'Healthy working capital with robust ingredient supply.')
+                  : `採購成本控制在 $${financials.procurementCosts.toFixed(0)}，` +
+                    (financials.balance < 50
+                      ? '流動資金偏低，注意避免單次大批量囤積高單價食材。'
+                      : '資金周轉健康，食材供應充沛。')}
               </li>
             </ul>
           </div>
@@ -210,7 +238,7 @@ export const SushiReportModal: React.FC<SushiReportModalProps> = ({
             className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            <span>重新挑戰本關</span>
+            <span>{isEn ? 'Retry Scenario' : '重新挑戰本關'}</span>
           </button>
 
           {/* Start Next Day Button */}
@@ -222,7 +250,7 @@ export const SushiReportModal: React.FC<SushiReportModalProps> = ({
               }}
               className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 via-rose-500 to-purple-600 hover:opacity-95 text-slate-950 text-xs font-black flex items-center gap-2 shadow-lg shadow-rose-950/80 animate-bounce transition"
             >
-              <span>🌅 進入第 {state.day + 1} 天開工 (11:00 AM)</span>
+              <span>{isEn ? `🌅 Start Day ${state.day + 1} (11:00 AM)` : `🌅 進入第 ${state.day + 1} 天開工 (11:00 AM)`}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           )}
@@ -235,7 +263,7 @@ export const SushiReportModal: React.FC<SushiReportModalProps> = ({
               }}
               className="px-5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-rose-600 hover:from-amber-400 hover:to-rose-500 text-slate-950 text-xs font-bold flex items-center gap-1.5 shadow-md transition"
             >
-              <span>前往下一關：{nextScenario.title.split('：')[0]}</span>
+              <span>{isEn ? `Next: ${getScenarioName(nextScenario.id)}` : `前往下一關：${nextScenario.title.split('：')[0]}`}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           ) : (
@@ -243,7 +271,7 @@ export const SushiReportModal: React.FC<SushiReportModalProps> = ({
               onClick={onClose}
               className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition"
             >
-              完成檢閱
+              {isEn ? 'Close Review' : '完成檢閱'}
             </button>
           )}
         </div>

@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { X, MapPin, Building2, Plus, Check, Star, Users, DollarSign, Navigation, ArrowRight } from 'lucide-react';
+import { X, MapPin, Building2, Check, ArrowRight } from 'lucide-react';
 import { PRESET_BRANCH_CANDIDATES, BranchLocationCandidate } from '../../lib/sushi/branchConfig';
 import { SushiBranch, RestaurantFinancials } from '../../lib/sushi/types';
+import { useSushiI18n } from '../../lib/sushi/i18n';
 
 interface SushiBranchMapModalProps {
   isOpen: boolean;
@@ -24,6 +25,9 @@ export const SushiBranchMapModal: React.FC<SushiBranchMapModalProps> = ({
   onSelectBranch,
   onOpenNewBranch
 }) => {
+  const { language, t } = useSushiI18n();
+  const isEn = language === 'en';
+
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const markersLayerRef = useRef<any>(null);
@@ -74,24 +78,19 @@ export const SushiBranchMapModal: React.FC<SushiBranchMapModalProps> = ({
         setSelectedBranch(null);
         setSelectedCandidate({
           id: `branch_custom_${Date.now()}`,
-          name: customBranchName.trim() || '自訂・特色連鎖分店',
-          districtName: `自訂坐標 (${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)})`,
+          name: customBranchName.trim() || (isEn ? 'Custom Sushi Branch' : '自訂・特色連鎖分店'),
+          districtName: isEn ? `Custom (${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)})` : `自訂坐標 (${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)})`,
           lat: e.latlng.lat,
           lng: e.latlng.lng,
-          openingCost: 400,
-          footTrafficTag: '新興開發商圈',
-          specialtyTag: '自訂風格主題店',
-          description: '由您親自勘察選址的全新戰略分店，具備高成長潛力！',
-          emoji: '📍'
+          openingCost: 350,
+          emoji: '🍣',
+          footTrafficTag: isEn ? 'Custom Street' : '自選街道',
+          specialtyTag: isEn ? 'Prime Location' : '特色旗艦',
+          description: isEn
+            ? `Custom branch located at [${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)}].`
+            : `玩家在地圖上點擊選址的自訂分店位置 [${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)}]。`
         });
       });
-
-      // Invalidate size after modal render
-      setTimeout(() => {
-        if (mapInstanceRef.current) {
-          mapInstanceRef.current.invalidateSize();
-        }
-      }, 200);
     });
 
     return () => {
@@ -101,132 +100,120 @@ export const SushiBranchMapModal: React.FC<SushiBranchMapModalProps> = ({
         mapInstanceRef.current = null;
       }
     };
-  }, [isOpen]);
+  }, [isOpen, isEn, customBranchName]);
 
-  // 2. Draw Branch Markers and Candidate Markers on Map
+  // 2. Render Markers onto Leaflet Google Map
   useEffect(() => {
-    if (!isOpen || !mapInstanceRef.current || !markersLayerRef.current) return;
+    if (!mapInstanceRef.current || !markersLayerRef.current || typeof window === 'undefined') return;
 
     import('leaflet').then(L => {
-      if (!markersLayerRef.current || !mapInstanceRef.current) return;
       markersLayerRef.current.clearLayers();
 
-      // A. Existing Active Branches (Green/Gold Glowing Sushi Pins)
+      // Existing Operating Branches (Green Markers with 🍣)
       branches.forEach(branch => {
-        const isCurrent = branch.id === activeBranchId;
+        const isCurrentActive = branch.id === activeBranchId;
+        const isSelected = selectedBranch?.id === branch.id;
+
         const iconHtml = `
           <div style="
-            background: ${isCurrent ? '#f59e0b' : '#059669'};
-            color: #ffffff;
-            border: 2px solid ${isCurrent ? '#fef3c7' : '#a7f3d0'};
-            box-shadow: 0 0 14px ${isCurrent ? 'rgba(245,158,11,0.8)' : 'rgba(5,150,105,0.6)'};
-            border-radius: 9999px;
-            width: 36px;
-            height: 36px;
+            width: ${isSelected ? '44px' : '38px'};
+            height: ${isSelected ? '44px' : '38px'};
+            background: ${isCurrentActive ? '#059669' : '#047857'};
+            border: 3px solid ${isSelected ? '#fbbf24' : '#6ee7b7'};
+            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 18px;
+            font-size: ${isSelected ? '22px' : '18px'};
+            box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+            transform: translate(-50%, -50%);
             cursor: pointer;
-            transition: transform 0.2s;
-          " class="hover:scale-110">
+          ">
             ${branch.emoji || '🍣'}
           </div>
         `;
 
         const icon = L.divIcon({
           html: iconHtml,
-          className: 'custom-sushi-pin',
-          iconSize: [36, 36],
-          iconAnchor: [18, 18]
+          className: 'sushi-map-pin',
+          iconSize: [38, 38],
+          iconAnchor: [19, 19]
         });
 
-        const marker = L.marker([branch.lat, branch.lng], { icon })
-          .bindTooltip(`<b>${branch.name}</b><br><span style="color:#f59e0b;">席位: ${branch.tables.length}/16 席</span>${isCurrent ? ' (目前管理中)' : ''}`, {
-            permanent: false,
-            direction: 'top'
-          })
-          .on('click', () => {
-            setSelectedBranch(branch);
-            setSelectedCandidate(null);
-            setCustomPin(null);
-          });
+        const marker = L.marker([branch.lat, branch.lng], { icon });
+        marker.on('click', () => {
+          setSelectedBranch(branch);
+          setSelectedCandidate(null);
+        });
 
         markersLayerRef.current.addLayer(marker);
       });
 
-      // B. Prospective Locations
-      PRESET_BRANCH_CANDIDATES.forEach(cand => {
-        const isAlreadyOpened = branches.some(b => b.id === cand.id || b.name === cand.name);
-        if (isAlreadyOpened) return; // Skip if already opened
-
+      // Prospective Candidate Locations (Amber Markers with 🏮)
+      const existingBranchNames = new Set(branches.map(b => b.name));
+      PRESET_BRANCH_CANDIDATES.filter(c => !existingBranchNames.has(c.name)).forEach(cand => {
         const isSelected = selectedCandidate?.id === cand.id;
+
         const iconHtml = `
           <div style="
-            background: ${isSelected ? '#e11d48' : '#334155'};
-            color: #ffffff;
-            border: 2px dashed ${isSelected ? '#ffe4e6' : '#94a3b8'};
-            box-shadow: 0 0 8px rgba(0,0,0,0.4);
-            border-radius: 9999px;
-            width: 32px;
-            height: 32px;
+            width: ${isSelected ? '44px' : '36px'};
+            height: ${isSelected ? '44px' : '36px'};
+            background: #1e293b;
+            border: 2px dashed ${isSelected ? '#f59e0b' : '#94a3b8'};
+            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 16px;
+            font-size: ${isSelected ? '20px' : '16px'};
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            transform: translate(-50%, -50%);
             cursor: pointer;
-            transition: transform 0.2s;
-          " class="hover:scale-110">
+          ">
             ${cand.emoji}
           </div>
         `;
 
         const icon = L.divIcon({
           html: iconHtml,
-          className: 'custom-candidate-pin',
-          iconSize: [32, 32],
-          iconAnchor: [16, 16]
+          className: 'sushi-cand-pin',
+          iconSize: [36, 36],
+          iconAnchor: [18, 18]
         });
 
-        const marker = L.marker([cand.lat, cand.lng], { icon })
-          .bindTooltip(`<b>${cand.name}</b><br><span style="color:#38bdf8;">加盟開設金: $${cand.openingCost}</span>`, {
-            permanent: false,
-            direction: 'top'
-          })
-          .on('click', () => {
-            setSelectedCandidate(cand);
-            setSelectedBranch(null);
-            setCustomPin(null);
-          });
+        const marker = L.marker([cand.lat, cand.lng], { icon });
+        marker.on('click', () => {
+          setSelectedCandidate(cand);
+          setSelectedBranch(null);
+        });
 
         markersLayerRef.current.addLayer(marker);
       });
 
-      // C. Custom Pin if clicked
-      if (customPin && selectedCandidate?.id.startsWith('branch_custom_')) {
+      // Custom User Pin if placed
+      if (customPin) {
         const iconHtml = `
           <div style="
-            background: #9333ea;
-            color: #ffffff;
-            border: 2px solid #f3e8ff;
-            box-shadow: 0 0 12px rgba(147,51,234,0.8);
-            border-radius: 9999px;
-            width: 34px;
-            height: 34px;
+            width: 44px;
+            height: 44px;
+            background: #e11d48;
+            border: 3px solid #fff;
+            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 16px;
-            cursor: pointer;
+            font-size: 22px;
+            box-shadow: 0 4px 15px rgba(225,29,72,0.8);
+            transform: translate(-50%, -50%);
+            animation: bounce 1s infinite;
           ">
             📍
           </div>
         `;
         const icon = L.divIcon({
           html: iconHtml,
-          className: 'custom-dropped-pin',
-          iconSize: [34, 34],
-          iconAnchor: [17, 17]
+          className: 'sushi-custom-pin',
+          iconSize: [44, 44],
+          iconAnchor: [22, 22]
         });
         const marker = L.marker([customPin.lat, customPin.lng], { icon });
         markersLayerRef.current.addLayer(marker);
@@ -240,7 +227,7 @@ export const SushiBranchMapModal: React.FC<SushiBranchMapModalProps> = ({
   const canAffordCandidate = selectedCandidate ? financials.balance >= selectedCandidate.openingCost : false;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200 select-none">
       <div className="bg-slate-900 border border-amber-600/40 rounded-3xl w-full max-w-5xl h-[92vh] flex flex-col shadow-2xl overflow-hidden">
         {/* Modal Top Header */}
         <div className="p-4 sm:p-5 border-b border-slate-800 bg-gradient-to-r from-amber-950/50 via-slate-900 to-amber-950/50 flex items-center justify-between flex-shrink-0">
@@ -251,14 +238,14 @@ export const SushiBranchMapModal: React.FC<SushiBranchMapModalProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-base sm:text-lg font-black text-white tracking-wide">
-                  Google Map 連鎖分店版圖拓展中心 (Empire Branch Map)
+                  {t('mapModalTitle')}
                 </h2>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold">
-                  連鎖分店: {branches.length} 家
+                <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold">
+                  {isEn ? `Branches: ${branches.length}` : `連鎖分店: ${branches.length} 家`}
                 </span>
               </div>
               <p className="text-xs text-slate-400">
-                瀏覽全球與東京各大黃金商圈；餐桌擴建至 16 桌滿載後即可無限開設新分店，實現連鎖壽司王國！
+                {t('mapModalSub')}
               </p>
             </div>
           </div>
@@ -274,24 +261,27 @@ export const SushiBranchMapModal: React.FC<SushiBranchMapModalProps> = ({
         <div className="px-4 py-2 bg-slate-950/80 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-1.5">
-              <span className="text-slate-400">當前管理分店:</span>
+              <span className="text-slate-400">{isEn ? 'Current Branch:' : '當前管理分店:'}</span>
               <strong className="text-amber-300 font-bold">{currentBranch?.name}</strong>
-              <span className="text-slate-500 font-mono">({currentBranch?.tables.length}/16 席)</span>
+              <span className="text-slate-500 font-mono">({currentBranch?.tables.length}/16 {isEn ? 'Tables' : '席'})</span>
             </div>
             <div className="flex items-center gap-1.5 font-mono">
-              <span className="text-slate-400">可用資金:</span>
+              <span className="text-slate-400">{isEn ? 'Available Cash:' : '可用資金:'}</span>
               <span className="font-bold text-emerald-400">${financials.balance.toFixed(0)}</span>
             </div>
           </div>
 
           <div>
             {hasReachedMaxTables ? (
-              <span className="text-[11px] px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold flex items-center gap-1">
-                <Check className="w-3.5 h-3.5" /> 已達成 16 桌滿載！隨時可選址開設新分行
+              <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold flex items-center gap-1">
+                <Check className="w-3.5 h-3.5" />
+                {isEn ? '16 Tables Maximum Reached! Ready to open new branches anytime!' : '已達成 16 桌滿載！隨時可選址開設新分行'}
               </span>
             ) : (
-              <span className="text-[11px] px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 font-medium">
-                💡 提示：任一分店餐桌擴展至 16 桌滿載（目前 {currentBranch?.tables.length}/16 席）即解鎖開設新分行！
+              <span className="text-xs px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 font-medium">
+                {isEn
+                  ? `💡 Tip: Expand current branch to 16 tables (${currentBranch?.tables.length}/16) to unlock new branch opening!`
+                  : `💡 提示：任一分店餐桌擴展至 16 桌滿載（目前 ${currentBranch?.tables.length}/16 席）即解鎖開設新分行！`}
               </span>
             )}
           </div>
@@ -305,17 +295,17 @@ export const SushiBranchMapModal: React.FC<SushiBranchMapModalProps> = ({
 
             {/* Floating Map Legend */}
             <div className="absolute bottom-4 left-4 z-20 bg-slate-900/90 border border-slate-700/80 rounded-2xl p-3 text-xs text-slate-300 shadow-xl backdrop-blur-sm flex flex-col gap-1.5 select-none pointer-events-none">
-              <span className="font-bold text-white text-[11px] mb-0.5">📌 地圖圖例 (Map Legend)：</span>
+              <span className="font-bold text-white text-xs mb-0.5">📌 {isEn ? 'Map Legend:' : '地圖圖例 (Map Legend)：'}</span>
               <div className="flex items-center gap-2">
-                <span className="w-3.5 h-3.5 rounded-full bg-emerald-600 border border-emerald-300 flex items-center justify-center text-[8px]">🍣</span>
-                <span>已開設營運中分店</span>
+                <span className="w-3.5 h-3.5 rounded-full bg-emerald-600 border border-emerald-300 flex items-center justify-center text-[9px]">🍣</span>
+                <span>{isEn ? 'Active Operating Branch' : '已開設營運中分店'}</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="w-3.5 h-3.5 rounded-full bg-slate-700 border border-dashed border-slate-300 flex items-center justify-center text-[8px]">🏮</span>
-                <span>黃金推薦待選址商圈</span>
+                <span className="w-3.5 h-3.5 rounded-full bg-slate-700 border border-dashed border-slate-300 flex items-center justify-center text-[9px]">🏮</span>
+                <span>{isEn ? 'Recommended Prospective District' : '黃金推薦待選址商圈'}</span>
               </div>
-              <div className="flex items-center gap-2 text-slate-400 text-[10px]">
-                <span>💡 提示：在地圖任意位置點擊，可自訂落點選址！</span>
+              <div className="flex items-center gap-2 text-slate-400 text-xs">
+                <span>💡 {isEn ? 'Tip: Click anywhere on map to add custom branch pin!' : '提示：在地圖任意位置點擊，可自訂落點選址！'}</span>
               </div>
             </div>
           </div>
@@ -325,7 +315,7 @@ export const SushiBranchMapModal: React.FC<SushiBranchMapModalProps> = ({
             {/* 1. Existing Branches Quick Switcher List */}
             <div className="flex flex-col gap-2">
               <span className="text-xs font-bold text-slate-400 font-mono uppercase tracking-wider">
-                🏢 我的連鎖分店陣列 ({branches.length})
+                🏢 {isEn ? 'My Branches' : '我的連鎖分店陣列'} ({branches.length})
               </span>
               <div className="flex flex-col gap-2 max-h-48 overflow-y-auto pr-1">
                 {branches.map(b => {
@@ -350,15 +340,15 @@ export const SushiBranchMapModal: React.FC<SushiBranchMapModalProps> = ({
                         <span className="text-xl">{b.emoji || '🍣'}</span>
                         <div className="flex flex-col">
                           <span className="text-xs font-bold">{b.name}</span>
-                          <span className="text-[10px] text-slate-400 font-mono">
-                            {b.districtName.split(' ')[1] || b.districtName} • 餐桌 {b.tables.length}/16
+                          <span className="text-xs text-slate-400 font-mono">
+                            {b.districtName.split(' ')[1] || b.districtName} • {isEn ? 'Tables' : '餐桌'} {b.tables.length}/16
                           </span>
                         </div>
                       </div>
 
                       {isActive ? (
-                        <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded font-mono font-bold">
-                          視角中
+                        <span className="text-xs bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded font-mono font-bold">
+                          {isEn ? 'Active' : '視角中'}
                         </span>
                       ) : (
                         <button
@@ -367,9 +357,9 @@ export const SushiBranchMapModal: React.FC<SushiBranchMapModalProps> = ({
                             onSelectBranch(b.id);
                             onClose();
                           }}
-                          className="px-2 py-1 rounded-lg text-[10px] font-bold bg-slate-700 hover:bg-slate-600 text-white transition flex items-center gap-1"
+                          className="px-2 py-1 rounded-lg text-xs font-bold bg-slate-700 hover:bg-slate-600 text-white transition flex items-center gap-1"
                         >
-                          <span>切換</span>
+                          <span>{isEn ? 'Switch' : '切換'}</span>
                           <ArrowRight className="w-3 h-3" />
                         </button>
                       )}
@@ -385,8 +375,8 @@ export const SushiBranchMapModal: React.FC<SushiBranchMapModalProps> = ({
             {selectedBranch ? (
               <div className="p-4 rounded-2xl bg-slate-800/70 border border-emerald-500/40 flex flex-col gap-3 shadow-md">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-mono text-emerald-400 font-bold">● 已營運連鎖分店</span>
-                  <span className="text-[10px] text-slate-400 font-mono">第 {selectedBranch.establishedAtDay} 天開業</span>
+                  <span className="text-xs font-mono text-emerald-400 font-bold">{isEn ? '● Active Operating Branch' : '● 已營運連鎖分店'}</span>
+                  <span className="text-xs text-slate-400 font-mono">{isEn ? `Established Day ${selectedBranch.establishedAtDay}` : `第 ${selectedBranch.establishedAtDay} 天開業`}</span>
                 </div>
 
                 <div className="flex items-center gap-2.5">
@@ -399,12 +389,12 @@ export const SushiBranchMapModal: React.FC<SushiBranchMapModalProps> = ({
 
                 <div className="grid grid-cols-2 gap-2 text-xs font-mono bg-slate-900/80 p-2.5 rounded-xl border border-slate-750">
                   <div>
-                    <span className="text-slate-500 text-[10px]">餐桌席位</span>
-                    <p className="font-bold text-amber-300">{selectedBranch.tables.length} / 16 席</p>
+                    <span className="text-slate-400 text-xs">{isEn ? 'Dining Tables' : '餐桌席位'}</span>
+                    <p className="font-bold text-amber-300">{selectedBranch.tables.length} / 16 {isEn ? 'Tables' : '席'}</p>
                   </div>
                   <div>
-                    <span className="text-slate-500 text-[10px]">料理台數</span>
-                    <p className="font-bold text-sky-300">{selectedBranch.kitchenStations?.length ?? 3} 席台</p>
+                    <span className="text-slate-400 text-xs">{isEn ? 'Stations' : '料理台數'}</span>
+                    <p className="font-bold text-sky-300">{selectedBranch.kitchenStations?.length ?? 3} {isEn ? 'Stn' : '席台'}</p>
                   </div>
                 </div>
 
@@ -415,16 +405,16 @@ export const SushiBranchMapModal: React.FC<SushiBranchMapModalProps> = ({
                   }}
                   className="w-full py-2.5 rounded-xl text-xs font-black bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg transition flex items-center justify-center gap-1.5 active:scale-95"
                 >
-                  <span>切換至此分店管理實景 (Overcooked 劇場)</span>
+                  <span>{isEn ? 'Switch to this Branch View' : '切換至此分店管理實景 (Overcooked 劇場)'}</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
             ) : selectedCandidate ? (
               <div className="p-4 rounded-2xl bg-slate-800/70 border border-amber-500/50 flex flex-col gap-3 shadow-md">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-mono text-amber-400 font-bold">✨ 勘察推薦選址</span>
+                  <span className="text-xs font-mono text-amber-400 font-bold">{isEn ? '✨ Prospective District' : '✨ 勘察推薦選址'}</span>
                   <span className="text-xs font-mono font-bold text-rose-400">
-                    加盟金: ${selectedCandidate.openingCost}
+                    {isEn ? 'Cost: ' : '加盟金: '}${selectedCandidate.openingCost}
                   </span>
                 </div>
 
@@ -438,14 +428,14 @@ export const SushiBranchMapModal: React.FC<SushiBranchMapModalProps> = ({
 
                 <div className="flex flex-col gap-1 text-xs text-slate-300 bg-slate-900/80 p-2.5 rounded-xl border border-slate-750">
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-400 text-[11px]">客流特點:</span>
+                    <span className="text-slate-400 text-xs">{isEn ? 'Traffic Trend:' : '客流特點:'}</span>
                     <span className="font-semibold text-sky-300">{selectedCandidate.footTrafficTag}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-400 text-[11px]">主打特色:</span>
+                    <span className="text-slate-400 text-xs">{isEn ? 'Specialty:' : '主打特色:'}</span>
                     <span className="font-semibold text-amber-300">{selectedCandidate.specialtyTag}</span>
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-1 leading-snug">
+                  <p className="text-xs text-slate-400 mt-1 leading-snug">
                     {selectedCandidate.description}
                   </p>
                 </div>
@@ -461,20 +451,22 @@ export const SushiBranchMapModal: React.FC<SushiBranchMapModalProps> = ({
                     className="w-full py-2.5 rounded-xl text-xs font-black bg-gradient-to-r from-amber-500 via-rose-500 to-amber-500 hover:opacity-95 text-slate-950 disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-rose-950 transition flex items-center justify-center gap-1.5 active:scale-95 animate-pulse"
                   >
                     <Building2 className="w-4 h-4" />
-                    <span>在此簽約開設新分店 (-${selectedCandidate.openingCost})</span>
+                    <span>{isEn ? `Open This Branch (-$${selectedCandidate.openingCost})` : `在此簽約開設新分店 (-$${selectedCandidate.openingCost})`}</span>
                   </button>
                 ) : (
-                  <div className="p-2.5 rounded-xl bg-amber-950/40 border border-amber-600/50 text-[11px] text-amber-200 leading-snug">
-                    🔒 <strong>尚未達成開設資格</strong>：請先將當前分店擴建至滿載上限（16 桌席位），即可在此簽約開業！
+                  <div className="p-2.5 rounded-xl bg-amber-950/40 border border-amber-600/50 text-xs text-amber-200 leading-snug">
+                    🔒 <strong>{isEn ? 'Expansion Locked' : '尚未達成開設資格'}</strong>：{isEn ? 'Please expand current branch to 16 tables to unlock new branch expansion!' : '請先將當前分店擴建至滿載上限（16 桌席位），即可在此簽約開業！'}
                   </div>
                 )}
               </div>
             ) : (
               <div className="p-6 rounded-2xl bg-slate-800/40 border border-slate-750 flex flex-col items-center justify-center text-center gap-2 text-slate-400">
                 <MapPin className="w-8 h-8 text-slate-600" />
-                <span className="text-xs font-bold text-slate-300">請在地圖上點選商圈地標</span>
-                <p className="text-[11px] leading-relaxed">
-                  點擊地圖上的各個商圈標記，或直接在地圖任意位置點擊以勘察選址。
+                <span className="text-xs font-bold text-slate-300">{isEn ? 'Click on a district pin on map' : '請在地圖上點選商圈地標'}</span>
+                <p className="text-xs leading-relaxed">
+                  {isEn
+                    ? 'Click any district marker or anywhere on the map to survey and expand your restaurant empire.'
+                    : '點擊地圖上的各個商圈標記，或直接在地圖任意位置點擊以勘察選址。'}
                 </p>
               </div>
             )}
@@ -484,13 +476,15 @@ export const SushiBranchMapModal: React.FC<SushiBranchMapModalProps> = ({
         {/* Modal Footer */}
         <div className="p-3.5 bg-slate-950 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
           <span>
-            🗺️ Google Maps 地圖實景圖層 • 無限連鎖拓展模式已啟用
+            {isEn
+              ? '🗺️ Google Maps Roadmap View • Infinite Chain Expansion Mode Active'
+              : '🗺️ Google Maps 地圖實景圖層 • 無限連鎖拓展模式已啟用'}
           </span>
           <button
             onClick={onClose}
             className="px-4 py-1.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-white transition"
           >
-            返回餐廳實景
+            {isEn ? 'Return to Floor' : '返回餐廳實景'}
           </button>
         </div>
       </div>

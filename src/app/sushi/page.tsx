@@ -10,9 +10,11 @@ import { SushiHelpGuideModal } from '../../components/sushi/SushiHelpGuideModal'
 import { SushiReportModal } from '../../components/sushi/SushiReportModal';
 import { SushiStaffModal } from '../../components/sushi/SushiStaffModal';
 import { SushiBranchMapModal } from '../../components/sushi/SushiBranchMapModal';
-import { SushiI18nProvider } from '../../lib/sushi/i18n';
+import { SushiI18nProvider, useSushiI18n } from '../../lib/sushi/i18n';
 
 function SushiAppContent() {
+  const { language, t } = useSushiI18n();
+  const isEn = language === 'en';
   const {
     state,
     agents,
@@ -43,6 +45,8 @@ function SushiAppContent() {
 
   const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
   const [isBranchMapModalOpen, setIsBranchMapModalOpen] = useState(false);
+  const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
+  const [isRightCollapsed, setIsRightCollapsed] = useState(false);
 
   // Keyboard shortcut listener
   useEffect(() => {
@@ -90,18 +94,33 @@ function SushiAppContent() {
         onSelectBranch={selectBranch}
       />
 
-      {/* 2. Main 3-Column Layout */}
+      {/* 2. Main 3-Column Layout with Collapsible Sidebars */}
       <div className="flex-1 flex overflow-hidden min-h-0">
         {/* Left Column: Multi-Agent Workspace (Prompt, Tools, Parameters) */}
-        <MultiAgentWorkspace
-          agents={agents}
-          selectedRole={state.selectedAgentRole}
-          onSelectRole={selectAgent}
-          onUpdateAgentConfig={updateAgentConfig}
-          onRunManualTurn={runManualAgentTurn}
-          isExecuting={isAgentExecuting}
-          unlockedAgents={currentScenario.unlockedAgents}
-        />
+        {isLeftCollapsed ? (
+          <div
+            onClick={() => setIsLeftCollapsed(false)}
+            className="w-9 bg-slate-900 hover:bg-slate-800 border-r border-slate-800 flex flex-col items-center py-3 gap-3 cursor-pointer transition select-none shrink-0 text-slate-400 hover:text-amber-300"
+            title={t('expandLeft')}
+          >
+            <span className="text-base">🤖</span>
+            <span className="[writing-mode:vertical-lr] text-[11px] font-bold tracking-widest uppercase">
+              {isEn ? 'Prompt & Tools' : 'Agent 設定'}
+            </span>
+            <span className="text-xs">▶</span>
+          </div>
+        ) : (
+          <MultiAgentWorkspace
+            agents={agents}
+            selectedRole={state.selectedAgentRole}
+            onSelectRole={selectAgent}
+            onUpdateAgentConfig={updateAgentConfig}
+            onRunManualTurn={runManualAgentTurn}
+            isExecuting={isAgentExecuting}
+            unlockedAgents={currentScenario.unlockedAgents}
+            onToggleCollapse={() => setIsLeftCollapsed(true)}
+          />
+        )}
 
         {/* Center Column: Interactive 2D Sushi Restaurant Simulation */}
         <div className="flex-1 flex flex-col min-w-0 bg-slate-950/80 relative h-full">
@@ -116,16 +135,31 @@ function SushiAppContent() {
         </div>
 
         {/* Right Column: Multi-Agent Telemetry, Comms Stream, Thought Trace */}
-        <MultiAgentTelemetry
-          financials={state.financials}
-          metrics={state.metrics}
-          messages={state.agentMessages}
-          thoughtSteps={state.thoughtSteps}
-          activeTickets={state.activeTickets}
-          completedTickets={state.completedTickets}
-          selectedRole={state.selectedAgentRole}
-          tick={state.tick}
-        />
+        {isRightCollapsed ? (
+          <div
+            onClick={() => setIsRightCollapsed(false)}
+            className="w-9 bg-slate-900 hover:bg-slate-800 border-l border-slate-800 flex flex-col items-center py-3 gap-3 cursor-pointer transition select-none shrink-0 text-slate-400 hover:text-sky-300"
+            title={t('expandRight')}
+          >
+            <span className="text-base">📊</span>
+            <span className="[writing-mode:vertical-lr] text-[11px] font-bold tracking-widest uppercase">
+              {isEn ? 'Telemetry & Comms' : '通訊與審計'}
+            </span>
+            <span className="text-xs">◀</span>
+          </div>
+        ) : (
+          <MultiAgentTelemetry
+            financials={state.financials}
+            metrics={state.metrics}
+            messages={state.agentMessages}
+            thoughtSteps={state.thoughtSteps}
+            activeTickets={state.activeTickets}
+            completedTickets={state.completedTickets}
+            selectedRole={state.selectedAgentRole}
+            tick={state.tick}
+            onToggleCollapse={() => setIsRightCollapsed(true)}
+          />
+        )}
       </div>
 
       {/* 3. Help & Student Guide Modal */}

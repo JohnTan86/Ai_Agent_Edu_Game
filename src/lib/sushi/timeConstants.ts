@@ -26,7 +26,12 @@ export interface SushiClockInfo {
 /**
  * Computes structured Day & Clock info for the 11:00 AM - 09:00 PM (21:00) shift
  */
-export function getSushiClockInfo(tick: number, explicitDay?: number, isShiftEnded?: boolean): SushiClockInfo {
+export function getSushiClockInfo(
+  tick: number,
+  explicitDay?: number,
+  isShiftEnded?: boolean,
+  language: 'zh-TW' | 'en' | 'zh-CN' = 'zh-TW'
+): SushiClockInfo {
   const day = explicitDay || Math.floor(Math.max(0, tick - 1) / TICKS_PER_DAY) + 1;
   const rawDayTick = tick === 0 ? 0 : (tick - 1) % TICKS_PER_DAY + 1;
   const dayTick = isShiftEnded && rawDayTick >= TICKS_PER_DAY ? TICKS_PER_DAY : Math.max(0, Math.min(TICKS_PER_DAY, rawDayTick));
@@ -42,45 +47,70 @@ export function getSushiClockInfo(tick: number, explicitDay?: number, isShiftEnd
   const progressPct = Math.min(100, Math.round((dayTick / TICKS_PER_DAY) * 100));
 
   let shiftPhase: SushiClockInfo['shiftPhase'] = 'open';
-  let shiftPhaseLabel = '開店迎賓';
   let shiftPhaseEmoji = '🌅';
   let arrivalMultiplier = 1.0;
 
   if (dayTick === 0) {
     shiftPhase = 'pre_shift';
-    shiftPhaseLabel = '開工前準備';
     shiftPhaseEmoji = '🍵';
     arrivalMultiplier = 0.5;
   } else if (dayTick >= 10 && dayTick <= 35) {
     // 12:00 - 14:30
     shiftPhase = 'lunch_rush';
-    shiftPhaseLabel = '午市高峰爆單';
     shiftPhaseEmoji = '🔥';
     arrivalMultiplier = 2.1;
   } else if (dayTick > 35 && dayTick < 65) {
     // 14:30 - 17:30
     shiftPhase = 'afternoon_lull';
-    shiftPhaseLabel = '下午平緩備料';
     shiftPhaseEmoji = '🍵';
     arrivalMultiplier = 0.55;
   } else if (dayTick >= 65 && dayTick <= 85) {
     // 17:30 - 19:30
     shiftPhase = 'dinner_rush';
-    shiftPhaseLabel = '晚市極品熱潮';
     shiftPhaseEmoji = '🏮';
     arrivalMultiplier = 2.3;
   } else if (dayTick > 85 && dayTick < 100) {
     // 19:30 - 21:00
     shiftPhase = 'last_call';
-    shiftPhaseLabel = '尾聲最後點餐';
     shiftPhaseEmoji = '🛑';
     arrivalMultiplier = 0.3;
   } else if (dayTick >= TICKS_PER_DAY || isShiftEnded) {
     shiftPhase = 'closed';
-    shiftPhaseLabel = '收工打烊結算';
     shiftPhaseEmoji = '🌇';
     arrivalMultiplier = 0;
   }
+
+  const phaseLabels: Record<'zh-TW' | 'en' | 'zh-CN', Record<SushiClockInfo['shiftPhase'], string>> = {
+    'zh-TW': {
+      pre_shift: '開工前準備',
+      open: '開店迎賓',
+      lunch_rush: '午市高峰爆單',
+      afternoon_lull: '午後平緩備料',
+      dinner_rush: '晚市極品熱潮',
+      last_call: '尾聲最後點餐',
+      closed: '收工打烊結算'
+    },
+    'en': {
+      pre_shift: 'Pre-Shift Prep',
+      open: 'Doors Open',
+      lunch_rush: 'Lunch Rush',
+      afternoon_lull: 'Afternoon Lull',
+      dinner_rush: 'Dinner Rush',
+      last_call: 'Last Call',
+      closed: 'Shift Ended'
+    },
+    'zh-CN': {
+      pre_shift: '开工前准备',
+      open: '开店迎宾',
+      lunch_rush: '午市高峰爆单',
+      afternoon_lull: '午后平缓备料',
+      dinner_rush: '晚市极品热潮',
+      last_call: '尾声最后点餐',
+      closed: '收工打烊结算'
+    }
+  };
+
+  const shiftPhaseLabel = phaseLabels[language]?.[shiftPhase] || phaseLabels['zh-TW'][shiftPhase];
 
   return {
     day,

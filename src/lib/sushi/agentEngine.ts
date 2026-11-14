@@ -48,29 +48,29 @@ export function parseSushiPrompt(prompt: string): AgentPromptDirectives {
   const p = prompt.toLowerCase();
   let threshold = 5;
 
-  const match = p.match(/(?:低于|低於|少于|少於|less than|threshold)[^\d]*(\d{1,2})/);
+  const match = p.match(/(?:低于|低於|少于|少於|less than|under|threshold|below)[^\d]*(\d{1,2})/);
   if (match && match[1]) {
     threshold = parseInt(match[1], 10);
   }
 
   return {
     isAggressiveSpeed:
-      p.includes('速') || p.includes('翻台') || p.includes('fast') || p.includes('quick') || p.includes('效率'),
+      p.includes('速') || p.includes('翻台') || p.includes('fast') || p.includes('quick') || p.includes('speed') || p.includes('turnover') || p.includes('rush') || p.includes('express') || p.includes('效率'),
     isStrictArtisan:
-      p.includes('匠') || p.includes('品质') || p.includes('品質') || p.includes('artisan'),
+      p.includes('匠') || p.includes('品质') || p.includes('品質') || p.includes('artisan') || p.includes('quality') || p.includes('careful') || p.includes('perfect'),
     isVipFocused:
-      p.includes('vip') || p.includes('米其林') || p.includes('贵宾') || p.includes('貴賓') || p.includes('优先接待') || p.includes('優先接待') || p.includes('加急'),
+      p.includes('vip') || p.includes('米其林') || p.includes('贵宾') || p.includes('貴賓') || p.includes('优先接待') || p.includes('優先接待') || p.includes('加急') || p.includes('critic') || p.includes('michelin') || p.includes('priority') || p.includes('urgent'),
     safetyStockThreshold: Math.max(2, Math.min(25, threshold)),
     autoRemedyComplaints:
-      p.includes('安抚') || p.includes('安撫') || p.includes('甜点') || p.includes('甜品') || p.includes('remedy') || p.includes('茶') || p.includes('客诉') || p.includes('客訴') || p.includes('抹茶'),
+      p.includes('安抚') || p.includes('安撫') || p.includes('甜点') || p.includes('甜品') || p.includes('remedy') || p.includes('茶') || p.includes('客诉') || p.includes('客訴') || p.includes('抹茶') || p.includes('soothe') || p.includes('drink') || p.includes('complaint') || p.includes('tea'),
     batchCrafting:
-      p.includes('批次') || p.includes('合并') || p.includes('合併') || p.includes('batch') || p.includes('相同') || p.includes('集中'),
+      p.includes('批次') || p.includes('合并') || p.includes('合併') || p.includes('batch') || p.includes('相同') || p.includes('集中') || p.includes('combine') || p.includes('merge') || p.includes('bulk'),
     budgetAwareProcurement:
-      p.includes('预算') || p.includes('預算') || p.includes('破产') || p.includes('破產') || p.includes('节俭') || p.includes('節儉') || p.includes('控制成本') || p.includes('結餘') || p.includes('结余') || p.includes('防破產') || p.includes('防破产') || p.includes('暫停') || p.includes('暫緩') || p.includes('昂贵') || p.includes('昂貴'),
+      p.includes('预算') || p.includes('預算') || p.includes('破产') || p.includes('破產') || p.includes('节俭') || p.includes('節儉') || p.includes('控制成本') || p.includes('結餘') || p.includes('结余') || p.includes('防破產') || p.includes('防破产') || p.includes('暫停') || p.includes('暫緩') || p.includes('昂贵') || p.includes('昂貴') || p.includes('budget') || p.includes('bankrupt') || p.includes('frugal') || p.includes('save') || p.includes('cost') || p.includes('balance') || p.includes('cash') || p.includes('affordable'),
     recordDietaryNotes:
-      p.includes('忌口') || p.includes('备忘') || p.includes('備忘') || p.includes('备注') || p.includes('備註') || p.includes('过敏') || p.includes('過敏') || p.includes('芥末') || p.includes('素食') || p.includes('dietary') || p.includes('allergy') || p.includes('偏好') || p.includes('不要'),
+      p.includes('忌口') || p.includes('备忘') || p.includes('備忘') || p.includes('备注') || p.includes('備註') || p.includes('过敏') || p.includes('過敏') || p.includes('芥末') || p.includes('素食') || p.includes('dietary') || p.includes('allergy') || p.includes('偏好') || p.includes('不要') || p.includes('no wasabi') || p.includes('vegetarian') || p.includes('vegan') || p.includes('custom note') || p.includes('preference'),
     honorDietaryStrictly:
-      p.includes('遵守') || p.includes('不要芥末') || p.includes('不要放') || p.includes('不放') || p.includes('素食') || p.includes('检查工单') || p.includes('檢查工單') || p.includes('忌口') || p.includes('严格') || p.includes('嚴格')
+      p.includes('遵守') || p.includes('不要芥末') || p.includes('不要放') || p.includes('不放') || p.includes('素食') || p.includes('检查工单') || p.includes('檢查工單') || p.includes('忌口') || p.includes('严格') || p.includes('嚴格') || p.includes('no wasabi') || p.includes('strictly') || p.includes('vegetarian') || p.includes('vegan') || p.includes('honor') || p.includes('check ticket') || p.includes('compliance') || p.includes('dietary')
   };
 }
 

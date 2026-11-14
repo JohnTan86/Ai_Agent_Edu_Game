@@ -12,18 +12,12 @@ import { useSushiI18n } from '../../lib/sushi/i18n';
 import {
   Utensils,
   Clock,
-  AlertTriangle,
-  Sparkles,
   Flame,
   CheckCircle2,
   Package,
-  Layers,
-  ChefHat,
-  HeartHandshake,
   Tv,
   LayoutGrid,
   PlusCircle,
-  RotateCcw,
   Users
 } from 'lucide-react';
 
@@ -45,14 +39,17 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
   onSelectTable,
   onSelectStation,
   onAddTable,
-  onReset,
   onOpenStaffModal,
   onOpenBranchMapModal,
   onSelectBranch
 }) => {
-  const { t } = useSushiI18n();
+  const { language, t, getRecipeTitle, getIngredientInfo, translateCustName } = useSushiI18n();
   const [hoveredCustomer, setHoveredCustomer] = useState<Customer | null>(null);
   const [viewMode, setViewMode] = useState<'cartoon' | 'classic'>('cartoon');
+  const isEn = language === 'en';
+
+  const branchName = state.branches?.find(b => b.id === state.activeBranchId)?.name;
+  const displayBranchName = branchName || (isEn ? 'SushiFlow AI Flagship Store' : '江戶前・壽司物語 AI 旗艦店');
 
   // Helper for patience color
   const getPatienceColor = (rem: number, max: number) => {
@@ -63,35 +60,30 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
   };
 
   return (
-    <div className="w-full h-full flex flex-col bg-slate-950/90 text-slate-200 select-none overflow-y-auto p-3.5 gap-3 relative">
-      {/* Top Banner / Ambience HUD with View Mode Toggle */}
-      <div className="flex items-center justify-between bg-gradient-to-r from-amber-950/40 via-slate-900/80 to-amber-950/40 border border-amber-900/30 rounded-xl px-4 py-2 shadow-sm flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <span className="text-xl">🏮</span>
-          <div>
-            <h2 className="text-xs font-bold text-amber-200 tracking-wider flex items-center gap-2">
-              {state.branches?.find(b => b.id === state.activeBranchId)?.name || '江戶前・壽司物語 AI 旗艦店'}
-              {state.rushHourActive && (
-                <span className="text-[10px] bg-rose-600 text-white font-mono px-2 py-0.5 rounded-full animate-bounce">
-                  ⚡ 尖峰客流湧入中
-                </span>
-              )}
-            </h2>
-            <p className="text-[11px] text-slate-400">
-              現場即時營運模擬：接待員阿葵、料理長健次、採購主管蓮、營運店長櫻
-            </p>
-          </div>
+    <div className="w-full h-full flex flex-col bg-slate-950/90 text-slate-200 select-none overflow-y-auto p-2 sm:p-2.5 gap-2 relative">
+      {/* Sleek Ambience Bar with View Mode Toggle */}
+      <div className="flex items-center justify-between bg-gradient-to-r from-amber-950/40 via-slate-900/80 to-amber-950/40 border border-amber-900/30 rounded-xl px-3 py-1.5 shadow-sm flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <span className="text-lg">🏮</span>
+          <h2 className="text-xs sm:text-sm font-bold text-amber-200 tracking-wider flex items-center gap-2">
+            {displayBranchName}
+            {state.rushHourActive && (
+              <span className="text-[10px] bg-rose-600 text-white font-mono px-1.5 py-0.2 rounded-full animate-bounce font-bold">
+                ⚡ {isEn ? 'Rush Hour' : '尖峰客流'}
+              </span>
+            )}
+          </h2>
         </div>
 
-        {/* View Mode Switcher + Branch + Staff + Counters */}
-        <div className="flex items-center gap-3">
+        {/* View Mode Switcher + Multi-Branch + Counters */}
+        <div className="flex items-center gap-2.5">
           {/* Multi-Branch Switcher */}
           {state.branches && state.branches.length > 1 && (
             <select
               value={state.activeBranchId}
               onChange={e => onSelectBranch?.(e.target.value)}
-              className="bg-amber-950/80 hover:bg-amber-900 text-amber-200 border border-amber-500/50 rounded-xl px-2.5 py-1 text-xs font-bold cursor-pointer"
-              title="切換不同分店實景"
+              className="bg-amber-950/80 hover:bg-amber-900 text-amber-200 border border-amber-500/50 rounded-lg px-2 py-0.5 text-xs font-bold cursor-pointer"
+              title="Switch Branch View"
             >
               {state.branches.map(b => (
                 <option key={b.id} value={b.id} className="bg-slate-900 text-white">
@@ -101,71 +93,47 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
             </select>
           )}
 
-          {/* Open Branch Map Button */}
-          {onOpenBranchMapModal && (state.tables.length >= 16 || state.hasReachedMaxTables) && (
-            <button
-              onClick={onOpenBranchMapModal}
-              className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-gradient-to-r from-amber-500 via-rose-500 to-amber-500 text-slate-950 text-xs font-black shadow-md transition active:scale-95 animate-bounce border border-amber-300"
-              title="席位已達 16 桌上限！點擊進入 Google Map 開設新分店"
-            >
-              <span>🗺️ {t('branchMap')}</span>
-              <span className="bg-slate-950/80 text-amber-300 px-1 py-0.5 rounded text-[10px] font-mono">
-                MAX 16
-              </span>
-            </button>
-          )}
-
-          {onOpenStaffModal && (
-            <button
-              onClick={onOpenStaffModal}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-950/70 hover:bg-sky-900 border border-sky-600/50 text-sky-200 text-xs font-semibold shadow-sm transition active:scale-95"
-              title="招聘外場服務生或後廚助廚"
-            >
-              <Users className="w-3.5 h-3.5 text-sky-400" />
-              <span>{t('staff')} ({state.hiredStaff?.length || 0})</span>
-            </button>
-          )}
-
-          <div className="hidden md:flex items-center gap-1 bg-slate-900/90 border border-slate-700/60 p-0.5 rounded-xl text-xs font-medium shadow-inner">
+          {/* View Mode Buttons */}
+          <div className="flex items-center gap-1 bg-slate-900/90 border border-slate-700/60 p-0.5 rounded-lg text-xs font-medium shadow-inner">
             <button
               onClick={() => setViewMode('cartoon')}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg transition-all ${
+              className={`flex items-center gap-1 px-2.5 py-0.5 rounded-md transition-all text-xs ${
                 viewMode === 'cartoon'
-                  ? 'bg-gradient-to-r from-amber-600 to-rose-600 text-white font-bold shadow-md shadow-amber-950/40'
+                  ? 'bg-gradient-to-r from-amber-600 to-rose-600 text-white font-bold shadow-sm'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              <Tv className="w-3.5 h-3.5" />
+              <Tv className="w-3 h-3" />
               <span>{t('animeTheaterBtn')}</span>
             </button>
             <button
               onClick={() => setViewMode('classic')}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg transition-all ${
+              className={`flex items-center gap-1 px-2.5 py-0.5 rounded-md transition-all text-xs ${
                 viewMode === 'classic'
                   ? 'bg-slate-700 text-white font-bold shadow-sm'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              <LayoutGrid className="w-3.5 h-3.5" />
+              <LayoutGrid className="w-3 h-3" />
               <span>{t('dataBoardBtn')}</span>
             </button>
           </div>
 
           {/* Quick status counters */}
-          <div className="flex items-center gap-3 text-xs font-mono">
+          <div className="flex items-center gap-2 text-xs font-mono">
             <div className="flex items-center gap-1 text-slate-400">
               <span className="w-2 h-2 rounded-full bg-sky-400" />
-              <span>{t('tabTickets') ? t('waitingQueueTitle').split(' ')[0] : '候位'}:</span>
+              <span>{isEn ? 'Queue:' : '候位:'}</span>
               <span className="text-white font-bold">{state.customersInQueue.length}</span>
             </div>
             <div className="flex items-center gap-1 text-slate-400">
               <span className="w-2 h-2 rounded-full bg-emerald-400" />
-              <span>{t('tableCapacityCount').includes('席') ? '就座' : 'Seated'}:</span>
+              <span>{isEn ? 'Tables:' : '席位:'}</span>
               <span className="text-white font-bold">{state.seatedCustomers.length}/{state.tables.length}</span>
             </div>
             <div className="flex items-center gap-1 text-slate-400">
               <span className="w-2 h-2 rounded-full bg-amber-400" />
-              <span>{t('tableCapacityCount').includes('席') ? '工單' : 'Orders'}:</span>
+              <span>{isEn ? 'Orders:' : '工單:'}</span>
               <span className="text-white font-bold">{state.activeTickets.length}</span>
             </div>
           </div>
@@ -194,22 +162,22 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
             <div className="flex items-center justify-between pb-2 border-b border-slate-800 mb-3">
               <div className="flex items-center gap-2">
                 <span className="text-base">🚪</span>
-                <span className="text-xs font-bold text-slate-200">玄關迎賓候位區 (Waiting Queue)</span>
+                <span className="text-xs font-bold text-slate-200">{t('waitingQueueTitle')}</span>
               </div>
-              <span className="text-[10px] bg-sky-950 text-sky-300 border border-sky-800 px-2 py-0.5 rounded-full font-mono">
-                {state.customersInQueue.length} 位等待中
+              <span className="text-xs bg-sky-950 text-sky-300 border border-sky-800 px-2 py-0.5 rounded-full font-mono">
+                {state.customersInQueue.length} {isEn ? 'waiting' : '位等待中'}
               </span>
             </div>
 
             {/* Queue List */}
             <div className="flex flex-col gap-2 min-h-[140px] max-h-[220px] overflow-y-auto pr-1">
               {state.customersInQueue.length === 0 ? (
-                <div className="flex-1 flex flex-col items-center justify-center text-slate-600 text-xs py-8">
-                  <span>🍃 目前玄關暫無排隊顧客</span>
-                  <span className="text-[10px] text-slate-500 mt-1">點擊頂部「+顧客」可手動招徠客人</span>
+                <div className="flex-1 flex flex-col items-center justify-center text-slate-500 text-xs py-8 text-center">
+                  <span>{t('noQueueText')}</span>
+                  <span className="text-[11px] text-slate-400 mt-1">{t('noQueueSub')}</span>
                 </div>
               ) : (
-                state.customersInQueue.map((cust, idx) => (
+                state.customersInQueue.map((cust) => (
                   <div
                     key={cust.id}
                     onMouseEnter={() => setHoveredCustomer(cust)}
@@ -221,7 +189,7 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
                       <span className="text-xl">{cust.avatar}</span>
                       <div className="flex flex-col">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-bold text-white">{cust.name}</span>
+                          <span className="text-xs font-bold text-white">{translateCustName(cust.name)}</span>
                           {cust.isVip && (
                             <span className="text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-1 rounded font-bold">
                               VIP
@@ -230,16 +198,16 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
                           {cust.specialPreference !== 'none' && (
                             <span className="text-[9px] bg-purple-500/20 text-purple-300 border border-purple-500/40 px-1 rounded">
                               {cust.specialPreference === 'no_wasabi'
-                                ? '免芥末'
+                                ? (isEn ? 'No Wasabi' : '免芥末')
                                 : cust.specialPreference === 'vegetarian'
-                                ? '素食'
-                                : '趕時間'}
+                                ? (isEn ? 'Vegetarian' : '素食')
+                                : (isEn ? 'In Rush' : '趕時間')}
                             </span>
                           )}
                         </div>
                         <span className="text-[10px] text-slate-400">
-                          想吃:{' '}
-                          {cust.orders.map(o => SUSHI_RECIPES[o.recipeId]?.name || o.recipeId).join(', ')}
+                          {isEn ? 'Prefers: ' : '想吃: '}
+                          {cust.orders.map(o => getRecipeTitle(o.recipeId)).join(', ')}
                         </span>
                       </div>
                     </div>
@@ -273,11 +241,11 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
             <div className="flex items-center justify-between pb-2 border-b border-slate-800 mb-3">
               <div className="flex items-center gap-2">
                 <Package className="w-4 h-4 text-emerald-400" />
-                <span className="text-xs font-bold text-slate-200">冷藏庫存區 (Pantry Storage)</span>
+                <span className="text-xs font-bold text-slate-200">{t('pantryTitle')}</span>
               </div>
-              <span className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
+              <span className="text-xs text-emerald-400 font-mono flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                蓮 (Ren) 監控中
+                {t('renMonitoring')}
               </span>
             </div>
 
@@ -285,6 +253,7 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
             <div className="grid grid-cols-2 gap-2 flex-1">
               {(Object.keys(state.inventory) as IngredientKey[]).map(key => {
                 const item = state.inventory[key];
+                const ingInfo = getIngredientInfo(key, item.name, item.unit);
                 const isLow = item.currentStock <= item.reorderThreshold;
                 const isOut = item.currentStock === 0;
 
@@ -302,30 +271,30 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5">
                         <span className="text-lg">{item.emoji}</span>
-                        <span className="text-[11px] font-semibold text-slate-200 truncate max-w-[80px]">
-                          {item.name.split(' ')[0]}
+                        <span className="text-xs font-semibold text-slate-200 truncate max-w-[80px]">
+                          {ingInfo.name.split(' ')[0]}
                         </span>
                       </div>
                       {isOut ? (
                         <span className="text-[9px] bg-rose-600 text-white font-bold px-1 rounded animate-pulse">
-                          斷貨
+                          {isEn ? 'OUT' : '斷貨'}
                         </span>
                       ) : isLow ? (
-                        <span className="text-[9px] bg-amber-600/80 text-white font-bold px-1 rounded">
-                          告急
+                        <span className="text-[9px] bg-amber-600 text-white font-bold px-1 rounded">
+                          {isEn ? 'LOW' : '告急'}
                         </span>
                       ) : null}
                     </div>
 
                     <div className="mt-2">
                       <div className="flex justify-between items-center text-[10px] font-mono text-slate-400 mb-1">
-                        <span>庫存:</span>
+                        <span>{isEn ? 'Stock:' : '庫存:'}</span>
                         <span
                           className={`font-bold ${
                             isOut ? 'text-rose-400' : isLow ? 'text-amber-400' : 'text-emerald-400'
                           }`}
                         >
-                          {item.currentStock} {item.unit}
+                          {item.currentStock} {ingInfo.unit}
                         </span>
                       </div>
 
@@ -359,19 +328,19 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-white">後廚料理台 (Sushi Master Stations)</span>
-                    <span className="text-[10px] text-orange-400 font-mono font-medium">健次 (Kenji) 主理</span>
+                    <span className="text-xs font-bold text-white">{t('masterStationsTitle')}</span>
+                    <span className="text-xs text-orange-400 font-mono font-medium">{t('kenjiDirecting')}</span>
                   </div>
-                  <p className="text-[10px] text-slate-400">
-                    工單審核 ➔ 食材消耗 ➔ 精準刀工捏製 ➔ 出餐擺盤
+                  <p className="text-[11px] text-slate-400">
+                    {t('stageChefAction')}
                   </p>
                 </div>
               </div>
 
               {/* Station Activity Badges */}
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-slate-400 font-mono">
-                  料理台運轉中:{' '}
+                <span className="text-xs text-slate-400 font-mono">
+                  {isEn ? 'Active Stations: ' : '料理台運轉中: '}
                   <span className="text-amber-300 font-bold">
                     {state.kitchenStations.filter(s => s.status === 'prepping').length} / 3
                   </span>
@@ -385,6 +354,7 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
                 const isPrepping = station.status === 'prepping';
                 const isPlated = station.status === 'plated';
                 const ticket = state.activeTickets.find(t => t.id === station.currentTicketId);
+                const stationTitle = station.id === 'station_1' ? t('prepStation1') : station.id === 'station_2' ? t('prepStation2') : t('prepStation3');
 
                 return (
                   <div
@@ -402,22 +372,22 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
                       <div className="flex items-center gap-2">
                         <span className="text-lg">{station.emoji}</span>
                         <div className="flex flex-col">
-                          <span className="text-xs font-bold text-white">{station.name}</span>
-                          <span className="text-[10px] text-slate-400">{station.assignedChef}</span>
+                          <span className="text-xs font-bold text-white">{stationTitle}</span>
+                          <span className="text-[10px] text-slate-400">{isEn ? 'Chef Kenji' : station.assignedChef}</span>
                         </div>
                       </div>
 
                       {isPlated ? (
                         <span className="text-[9px] bg-emerald-600 text-white font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                          <CheckCircle2 className="w-2.5 h-2.5" /> 待取餐
+                          <CheckCircle2 className="w-2.5 h-2.5" /> {isEn ? 'Ready' : '待取餐'}
                         </span>
                       ) : isPrepping ? (
                         <span className="text-[9px] bg-amber-600 text-white font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5 animate-pulse">
-                          <Flame className="w-2.5 h-2.5" /> 製作中
+                          <Flame className="w-2.5 h-2.5" /> {isEn ? 'Cooking' : '製作中'}
                         </span>
                       ) : (
                         <span className="text-[9px] bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded">
-                          空閒
+                          {isEn ? 'Idle' : '空閒'}
                         </span>
                       )}
                     </div>
@@ -427,7 +397,7 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
                       <div className="mt-2.5">
                         <div className="flex items-center justify-between text-[11px] mb-1">
                           <span className="text-amber-200 font-semibold truncate max-w-[120px]">
-                            {ticket.recipeEmoji} {ticket.recipeName}
+                            {ticket.recipeEmoji} {getRecipeTitle(ticket.recipeId, ticket.recipeName)}
                           </span>
                           <span className="text-slate-400 font-mono text-[10px]">
                             #{ticket.id}
@@ -446,7 +416,7 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
                       </div>
                     ) : (
                       <div className="mt-3 flex items-center justify-center text-[11px] text-slate-500 italic">
-                        等待新工單注入...
+                        {isEn ? 'Waiting for orders...' : '等待新工單注入...'}
                       </div>
                     )}
                   </div>
@@ -460,186 +430,82 @@ export const SushiRestaurantView: React.FC<SushiRestaurantViewProps> = ({
             <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
               <div className="flex items-center gap-2">
                 <Utensils className="w-4 h-4 text-sky-400" />
-                <span className="text-xs font-bold text-white">客席用餐區 ({state.tables.length}/16 席)</span>
+                <span className="text-xs font-bold text-white">
+                  {t('diningTablesTitle')} ({state.tables.length}/16 {isEn ? 'Tables' : '席'})
+                </span>
                 {onAddTable && state.tables.length < 16 && (
                   <button
                     onClick={onAddTable}
                     className="ml-2 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/50 flex items-center gap-1.5 transition active:scale-95 shadow-sm"
-                    title="花費 $150 添置新餐桌"
+                    title="Add Table ($150)"
                   >
                     <PlusCircle className="w-3.5 h-3.5 text-amber-400" />
-                    <span>增設餐桌 ($150)</span>
+                    <span>{t('addTable')} ($150)</span>
                   </button>
                 )}
                 {onOpenBranchMapModal && (state.tables.length >= 16 || state.hasReachedMaxTables) && (
                   <button
                     onClick={onOpenBranchMapModal}
                     className="ml-2 px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/50 flex items-center gap-1.5 transition active:scale-95 shadow-sm animate-pulse"
-                    title="席位已滿 16 桌！進入 Google Map 開設新分店"
+                    title="16 Tables Max! Open new branch"
                   >
-                    <span>🗺️ 開設新分店</span>
+                    <span>🗺️ {t('branchMap')}</span>
                   </button>
                 )}
               </div>
-              <div className="flex items-center gap-3 text-[10px] text-slate-400">
-                <span className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-slate-700" /> 空位
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-amber-400" /> 等候料理
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400" /> 品嚐用餐
-                </span>
-              </div>
             </div>
 
-            {/* 6 Tables Grid (3 Counter + 3 Booth) */}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 flex-1">
+            {/* Tables Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5 flex-1 overflow-y-auto pr-1">
               {state.tables.map(table => {
                 const customer = state.seatedCustomers.find(c => c.tableId === table.id);
-                const isOccupied = table.status === 'occupied' && customer;
                 const isEating = customer?.status === 'eating';
                 const isPaying = customer?.status === 'paying';
+                const tableName = isEn ? table.id.replace('T', 'Table ') : table.name;
 
                 return (
                   <div
                     key={table.id}
                     onClick={() => onSelectTable?.(table)}
-                    className={`p-3 rounded-2xl border transition flex flex-col justify-between min-h-[130px] cursor-pointer relative overflow-hidden ${
-                      isEating
-                        ? 'bg-emerald-950/30 border-emerald-600/50'
-                        : isPaying
-                        ? 'bg-purple-950/30 border-purple-600/50 animate-pulse'
-                        : isOccupied
-                        ? 'bg-amber-950/20 border-amber-600/40'
-                        : 'bg-slate-800/40 border-slate-750 hover:bg-slate-800/70 border-dashed'
+                    className={`p-2.5 rounded-xl border transition flex flex-col justify-between min-h-[90px] cursor-pointer ${
+                      customer
+                        ? isEating
+                          ? 'bg-emerald-950/30 border-emerald-500/50'
+                          : isPaying
+                          ? 'bg-purple-950/30 border-purple-500/50'
+                          : 'bg-amber-950/30 border-amber-500/50'
+                        : 'bg-slate-900 border-slate-800 hover:bg-slate-850'
                     }`}
                   >
-                    {/* Header: Table Name & Type */}
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-200">{table.name}</span>
-                      <span className="text-[9px] uppercase font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">
-                        {table.type === 'counter' ? '吧台' : '包廂'}
+                      <span className="text-xs font-bold text-white">{tableName}</span>
+                      <span className="text-[10px] text-slate-500 font-mono">
+                        {table.type === 'counter' ? (isEn ? 'Bar' : '吧台') : (isEn ? 'Booth' : '卡座')}
                       </span>
                     </div>
 
-                    {/* Table Body / Customer Sitting */}
                     {customer ? (
-                      <div className="my-2 flex items-center gap-2.5">
-                        <div className="relative">
-                          <span className="text-2xl">{customer.avatar}</span>
-                          {customer.isVip && (
-                            <span className="absolute -top-1 -right-1 text-xs">⭐</span>
-                          )}
+                      <div className="flex flex-col gap-1 mt-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-semibold text-amber-200 truncate">{translateCustName(customer.name)}</span>
+                          <span className="text-xs">{customer.avatar}</span>
                         </div>
-
-                        <div className="flex-1 flex flex-col min-w-0">
-                          <div className="flex items-center gap-1">
-                            <span className="text-xs font-bold text-white truncate">
-                              {customer.name}
-                            </span>
-                          </div>
-
-                          {/* Status Badge */}
-                          <div className="mt-0.5">
-                            {isEating ? (
-                              <span className="text-[10px] text-emerald-300 font-medium flex items-center gap-1">
-                                <span>😋</span>
-                                <span>享用美饌中...</span>
-                              </span>
-                            ) : isPaying ? (
-                              <span className="text-[10px] text-purple-300 font-bold flex items-center gap-1">
-                                <span>💰</span>
-                                <span>結帳中...</span>
-                              </span>
-                            ) : (
-                              <span className="text-[10px] text-amber-300 font-medium flex items-center gap-1">
-                                <span>⏳</span>
-                                <span>等待出餐</span>
-                              </span>
-                            )}
-                          </div>
-                        </div>
+                        <span className="text-[10px] text-slate-400 truncate">
+                          {isEating ? t('orderDining') : isPaying ? t('orderPaying') : t('orderWaiting')}
+                        </span>
                       </div>
                     ) : (
-                      <div className="my-auto flex flex-col items-center justify-center text-slate-600 py-3">
-                        <span className="text-lg">🪑</span>
-                        <span className="text-[10px] mt-1 font-mono">空席待客</span>
-                      </div>
-                    )}
-
-                    {/* Footer: Patience Bar or Bill */}
-                    {customer && (
-                      <div className="pt-2 border-t border-slate-800/60 flex items-center justify-between text-[10px] font-mono">
-                        <span className="text-slate-400">消費: ${customer.billAmount}</span>
-                        <div className="w-14 h-1.5 bg-slate-700 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full ${getPatienceColor(
-                              customer.patienceRemaining,
-                              customer.patienceMax
-                            )}`}
-                            style={{
-                              width: `${Math.max(
-                                0,
-                                Math.min(100, (customer.patienceRemaining / customer.patienceMax) * 100)
-                              )}%`
-                            }}
-                          />
-                        </div>
+                      <div className="text-[11px] text-slate-500 italic mt-2">
+                        {t('emptySeat')}
                       </div>
                     )}
                   </div>
                 );
               })}
-
-              {/* Expansion Card if tables < 16 */}
-              {onAddTable && state.tables.length < 16 && (
-                <button
-                  onClick={onAddTable}
-                  className="p-3 rounded-2xl border-2 border-dashed border-amber-500/40 hover:border-amber-400/80 bg-amber-500/5 hover:bg-amber-500/15 transition flex flex-col items-center justify-center min-h-[130px] cursor-pointer text-amber-300 group shadow-sm active:scale-95"
-                >
-                  <PlusCircle className="w-8 h-8 text-amber-400 mb-1.5 group-hover:scale-110 transition-transform" />
-                  <span className="text-xs font-bold">點擊添置新席位</span>
-                  <span className="text-[10px] font-mono text-amber-400/80 mt-1">花費 $150 (剩餘 {16 - state.tables.length} 席)</span>
-                </button>
-              )}
-
-              {/* Branch Expansion Card if tables >= 16 */}
-              {onOpenBranchMapModal && (state.tables.length >= 16 || state.hasReachedMaxTables) && (
-                <button
-                  onClick={onOpenBranchMapModal}
-                  className="p-3 rounded-2xl border-2 border-rose-500/60 hover:border-rose-400 bg-gradient-to-br from-rose-950/40 via-amber-950/30 to-rose-950/40 transition flex flex-col items-center justify-center min-h-[130px] cursor-pointer text-amber-300 group shadow-lg active:scale-95 animate-pulse"
-                >
-                  <span className="text-2xl mb-1 group-hover:scale-110 transition-transform">🗺️</span>
-                  <span className="text-xs font-bold text-amber-200">席位已滿 16 桌上限！</span>
-                  <span className="text-[10px] font-bold text-rose-300 mt-1">點擊進入 Google Map 開設新分店 ➔</span>
-                </button>
-              )}
             </div>
           </div>
         </div>
       </div>
-      )}
-
-      {/* Floating Game Over Overlay if simulation failed */}
-      {state.status === 'failed' && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 bg-rose-950/95 border-2 border-rose-500 text-white px-6 py-3.5 rounded-2xl shadow-2xl flex items-center gap-4 animate-in fade-in zoom-in duration-200">
-          <div className="text-3xl">💀</div>
-          <div>
-            <div className="text-sm font-black text-rose-300">GAME OVER - 餐廳經營失敗</div>
-            <div className="text-xs text-rose-200 mt-0.5">{state.endReason}</div>
-          </div>
-          {onReset && (
-            <button
-              onClick={onReset}
-              className="ml-2 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-md transition active:scale-95 flex items-center gap-1"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>重新挑戰</span>
-            </button>
-          )}
-        </div>
       )}
     </div>
   );
