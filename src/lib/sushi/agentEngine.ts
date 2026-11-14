@@ -48,7 +48,7 @@ export function parseSushiPrompt(prompt: string): AgentPromptDirectives {
   const p = prompt.toLowerCase();
   let threshold = 5;
 
-  const match = p.match(/(?:低于|低於|少于|少於|less than|under|threshold|below)[^\d]*(\d{1,2})/);
+  const match = p.match(/(?:低于|低於|少于|少於|less than|under|threshold|below|<=|<|剩|剩下|餘|余)[^\d]*(\d{1,2})/);
   if (match && match[1]) {
     threshold = parseInt(match[1], 10);
   }

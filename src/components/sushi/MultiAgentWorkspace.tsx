@@ -510,7 +510,13 @@ export const MultiAgentWorkspace: React.FC<MultiAgentWorkspaceProps> = ({
           className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-rose-600 hover:from-amber-400 hover:to-rose-500 text-slate-950 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg transition disabled:opacity-50 cursor-pointer"
         >
           <Play className="w-4 h-4 fill-current" />
-          <span>{isExecuting ? t('agentExecuting') : t('runManualTurn')}</span>
+          <span>
+            {isExecuting
+              ? t('agentExecuting')
+              : agent.provider === 'mock'
+              ? (isEn ? 'Test Prompt [Local Engine]' : '測試 Prompt [本地啟發式]')
+              : (isEn ? `Call LLM [${agent.provider.toUpperCase()}]` : `調用大模型 [${agent.provider.toUpperCase()}]`)}
+          </span>
         </button>
       </div>
     </div>

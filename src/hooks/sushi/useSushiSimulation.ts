@@ -1262,6 +1262,37 @@ export function useSushiSimulation(initialScenarioId: string = 'scenario_level_1
           ]
         }));
       }
+    } else if (currentAgent && currentAgent.provider === 'mock') {
+      // Local Heuristic Mode: parse directives and give students clear feedback
+      const { parseSushiPrompt } = await import('../../lib/sushi/agentEngine');
+      const directives = parseSushiPrompt(currentAgent.systemPrompt);
+      const activeList: string[] = [];
+      if (directives.recordDietaryNotes) activeList.push('忌口備忘');
+      if (directives.isVipFocused) activeList.push('VIP優先');
+      if (directives.isAggressiveSpeed) activeList.push('快速翻台');
+      if (directives.honorDietaryStrictly) activeList.push('嚴守忌口');
+      if (directives.batchCrafting) activeList.push('批次製作');
+      if (directives.safetyStockThreshold > 0) activeList.push(`安全庫存門檻=${directives.safetyStockThreshold}`);
+      if (directives.budgetAwareProcurement) activeList.push('預算防破產');
+      if (directives.autoRemedyComplaints) activeList.push('客訴甜品安撫');
+
+      const activeStr = activeList.length > 0 ? activeList.join('、') : '基礎標準守則';
+      const timestamp = new Date().toLocaleTimeString('zh-TW', { hour12: false });
+      setState(prev => ({
+        ...prev,
+        thoughtSteps: [
+          {
+            id: `th_mock_${Date.now()}`,
+            agentRole: selectedRole,
+            agentName: `${currentAgent.name} [本地啟發式引擎]`,
+            tick: prev.tick,
+            timestamp,
+            type: 'thought',
+            content: `⚡【本地提示詞引擎已讀取】已成功讀取您為【${currentAgent.name}】撰寫的 Prompt（共 ${currentAgent.systemPrompt.length} 字）！已生效策略：[${activeStr}]。💡 若欲調用真實 Google Gemini 或 DeepSeek 大模型進行自然語言即時推理，請在「Model」分頁切換模型並填入 API 金鑰！`
+          },
+          ...prev.thoughtSteps
+        ]
+      }));
     }
 
     await stepSimulation();
